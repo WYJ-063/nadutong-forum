@@ -32,6 +32,6 @@ export async function onRequestPost({request,env}){
   const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
   return json({token,user:publicUser(row)});
  }catch(e){
-   return json({error:String(e&&e.message||e),name:String(e&&e.name),stack:String(e&&e.stack)},500);
+   return json({error:String(e&&e.message||e)},500);
  }
 }
