@@ -105,11 +105,21 @@ const SCHEMA=[
 )`,
 `CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id,created_at)`
 ];
+/* 增量迁移：给已存在的表补列（SQLite 不支持 IF NOT EXISTS 的 ADD COLUMN，
+   重复执行时捕获 "duplicate column" 错误并忽略，保证幂等） */
+const MIGRATIONS=[
+  `ALTER TABLE users ADD COLUMN muted INTEGER DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`
+];
 let schemaPromise=null;
 async function ensureSchema(env){
   if(schemaPromise)return schemaPromise;
   schemaPromise=(async()=>{
     for(const s of SCHEMA){await env.DB.prepare(s).run();}
+    for(const m of MIGRATIONS){
+      try{ await env.DB.prepare(m).run(); }
+      catch(e){ if(!/duplicate column/i.test(String((e&&e.message)||e))) throw e; }
+    }
   })().catch(e=>{schemaPromise=null;throw e;});
   return schemaPromise;
 }
@@ -212,6 +222,15 @@ async function addPointsClamped(env,userId,delta){
 function isAdmin(user){
   return Number(user&&user.role)>=3;
 }
+/* 公告分类名（仅管理员可在此分类下发帖） */
+const ANNOUNCEMENT_BOARD='公告';
+/* 发帖/回复前的封禁/禁言校验：返回错误信息字符串，正常则 null */
+function moderationBlock(user){
+  if(!user)return null;
+  if(Number(user.banned))return '该账号已被拉黑，无法进行该操作';
+  if(Number(user.muted))return '该账号已被禁言，暂不能发帖或回复';
+  return null;
+}
 
 /* ---------- 通知（被回复 / 被点赞） ---------- */
 /* 写入一条通知；不通知自己（actor===recipient） */
@@ -239,6 +258,7 @@ function publicUser(row){
   return {
     id:row.id, login:row.login, name:row.name, avatar:row.avatar||'',
     role:Number(row.role)||1, points,
+    muted:Number(row.muted)||0, banned:Number(row.banned)||0,
     level:g.level, levelName:g.name,
     createdAt:row.created_at
   };
@@ -251,6 +271,7 @@ export {
   json,readBody,preflight,ensureSchema,getSecret,genId,
   hashPassword,verifyPassword,signToken,getAuthUser,
   POINTS_RULE,addPoints,addPointsClamped,isAdmin,
+  ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
   levelOfPoints,publicUser,nowStr
 };

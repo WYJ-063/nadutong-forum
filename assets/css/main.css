@@ -2640,3 +2640,32 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   .cloud-account-head .grade-badge{margin-left:0}
 }
 
+/* 成员管理（管理员） */
+.tag-blue{background:rgba(64,128,255,.14);color:#3f7fe0}
+.tag-amber{background:rgba(240,160,40,.16);color:#d18a1e}
+.cloud-mod{
+  margin-top:18px;border:1px solid var(--pt-border);border-radius:14px;
+  overflow:hidden;background:var(--pt-input)}
+.cloud-mod-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--pt-border);
+  background:var(--pt-panel)}
+.cloud-mod-head strong{color:var(--pt-text)}
+.cloud-mod-list{max-height:380px;overflow-y:auto}
+.cm-row{
+  display:flex;align-items:center;gap:12px;padding:11px 16px;
+  border-bottom:1px solid var(--pt-border)}
+.cm-row:last-child{border-bottom:none}
+.cm-row.is-muted{background:rgba(240,160,40,.06)}
+.cm-row.is-banned{opacity:.62}
+.cm-info{flex:1;min-width:0}
+.cm-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cm-name b{color:var(--pt-text)}
+.cm-actions{display:flex;gap:6px;flex:0 0 auto}
+.cm-self{flex:0 0 auto}
+@media(max-width:560px){
+  .cm-row{flex-wrap:wrap;gap:8px}
+  .cm-info{flex:1 1 60%}
+  .cm-actions{flex:1 1 100%;justify-content:flex-end}
+}
+

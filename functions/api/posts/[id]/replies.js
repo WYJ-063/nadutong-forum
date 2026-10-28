@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
-  addPoints,addNotification,POINTS_RULE,nowStr
+  addPoints,addNotification,POINTS_RULE,nowStr,moderationBlock
 } from '../../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -12,6 +12,9 @@ export async function onRequestPost({request,env,params}){
   const b=await readBody(request);
   const content=String(b.content||'').trim();
   if(!content)return json({error:'回复内容不能为空'},400);
+  /* 封禁 / 禁言校验 */
+  const block=moderationBlock(me);
+  if(block)return json({error:block},403);
   await ensureSchema(env);
   const post=await env.DB.prepare('SELECT id,author_id,title FROM posts WHERE id=?').bind(params.id).first();
   if(!post)return json({error:'帖子不存在'},404);

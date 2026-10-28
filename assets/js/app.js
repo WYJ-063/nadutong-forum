@@ -336,6 +336,20 @@ const Cloud={
   async deleteReply(id){
     return await this.request('/replies/'+encodeURIComponent(id),{method:'DELETE'});
   },
+  /* 置顶 / 取消置顶（管理员） */
+  async pinPost(id,pinned){
+    return await this.request('/posts/'+encodeURIComponent(id)+'/pin',
+      {method:'POST',body:JSON.stringify({pinned:!!pinned})});
+  },
+  /* 禁言 / 解除禁言 / 拉黑 / 解除拉黑（管理员） */
+  async moderateUser(id,action){
+    return await this.request('/users/'+encodeURIComponent(id),
+      {method:'POST',body:JSON.stringify({action})});
+  },
+  /* 全部成员列表（管理员） */
+  async listUsers(){
+    return (await this.request('/users')).users;
+  },
   /* ---------- 通知 ---------- */
   notif:{unread:0,total:0,list:[]},
   async fetchNotifications(filter){
@@ -411,7 +425,44 @@ function cloudAccountHtml(u){
       <button class="btn btn-ghost btn-sm" id="cloud-refresh">刷新资料</button>
     </div>
     <p class="ph-sub" style="margin-top:14px">云端共享：论坛帖子、回复、点赞与积分等级。<br>仍保留在本地：聊天/聊天室、抽签问卦、小游戏、界面主题与个人设置。</p>
+    ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
+      <div class="cloud-mod-head"><strong>成员管理</strong><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></div>
+      <div class="cloud-mod-list"><div class="cloud-loading"><span class="cl-spin"></span>正在加载成员…</div></div>
+    </div>`:''}
   </div>`;
+}
+/* 成员管理列表 HTML（管理员） */
+function cloudModListHtml(users){
+  if(!users.length)return '<div class="empty">暂无成员</div>';
+  return users.map(u=>{
+    const isMe=u.id===Cloud.user.id;
+    const tags=[];
+    if(u.role>=3)tags.push('<span class="tag tag-blue">管理员</span>');
+    if(u.muted)tags.push('<span class="tag tag-amber">已禁言</span>');
+    if(u.banned)tags.push('<span class="tag tag-red">已拉黑</span>');
+    return `<div class="cm-row ${u.banned?'is-banned':u.muted?'is-muted':''}">
+      <span class="mini-av">${esc(avText(u.name))}</span>
+      <div class="cm-info">
+        <div class="cm-name"><b>${esc(u.name)}</b>${tags.join('')}</div>
+        <div class="ph-sub">${esc(u.login)} · Lv${u.level} ${esc(u.levelName)} · ${u.points}积分</div>
+      </div>
+      ${isMe?'<span class="ph-sub cm-self">本人</span>':`<div class="cm-actions">
+        <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
+        <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
+      </div>`}
+    </div>`;
+  }).join('');
+}
+/* 加载并渲染成员管理列表 */
+async function loadCloudMod(){
+  const box=document.querySelector('.cloud-mod-list');
+  if(!box)return;
+  try{
+    const users=await Cloud.listUsers();
+    box.innerHTML=cloudModListHtml(users);
+  }catch(e){
+    box.innerHTML=`<div class="empty">加载失败：${esc(e.message)}</div>`;
+  }
 }
 function viewCloud(){
   const c=`<div class="p-crumb">论坛 / <b>云端账号</b></div>
@@ -420,7 +471,9 @@ function viewCloud(){
     <div class="ph-sub">登录云端后，论坛变为多人共享的真实论坛；未登录时仍可离线单机使用，原有功能不受影响。</div>
     <div id="cloud-box">${Cloud.connected?cloudAccountHtml(Cloud.user):cloudFormsHtml('login')}</div>
   </div>`;
-  return portalShell('cloud',c);
+  const html=portalShell('cloud',c);
+  if(Cloud.connected&&Cloud.user.role>=3)setTimeout(loadCloudMod,0);
+  return html;
 }
 
 /* 云端动作后，按当前路由静默重渲染（不闪 loading） */
@@ -1636,7 +1689,7 @@ function viewForum(board,sort){
     setTimeout(()=>{
       Cloud.listPosts(board,sort).then(posts=>{
         const el=document.getElementById('cloud-forum-list');
-        if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),curId,false);
+        if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),curId,Cloud.user.role>=3);
       }).catch(e=>{
         const el=document.getElementById('cloud-forum-list');
         if(el)el.innerHTML=`<div class="empty"><div class="es">⚠️</div>云端加载失败：${esc(e.message)}<br><a class="btn btn-sm" href="#/cloud">前往云端账号</a></div>`;
@@ -1651,10 +1704,13 @@ function viewForum(board,sort){
 
 /* ---------- 发帖 ---------- */
 function viewAsk(){
+  /* 云端管理员可在公告分类下发帖；其余情况隐藏公告分类 */
+  const canPostAnnounce=Cloud.connected&&Cloud.user.role>=3;
+  const askBoards=DB.data.boards.filter(b=>canPostAnnounce||b!=='公告');
   const c=`<div class="p-panel">
     <h2>发帖提问</h2><div class="ph-sub">发帖前请先阅读论坛守则，不泄露真实身份信息</div>
     <label class="fl">所属板块</label>
-    <select class="field" id="a-board">${DB.data.boards.filter(b=>b!=='公告').map(b=>`<option>${b}</option>`).join('')}</select>
+    <select class="field" id="a-board">${askBoards.map(b=>`<option>${b}</option>`).join('')}</select>
     <label class="fl">标题</label>
     <input class="field" id="a-title" placeholder="一句话说清你想问什么">
     <label class="fl">内容（可使用表情包）</label>
@@ -1690,7 +1746,8 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
       ${!cloudOn?`<button class="btn btn-sm btn-ghost" data-pin="${post.id}" style="margin-left:auto">${post.pinned?"取消置顶":"置顶"}</button>
       <span class="qm" id="p-edit">✎ 编辑帖子</span>
       ${isAdmin?'<span class="qm" id="p-del" style="color:#FF9DA0">🗑 删除帖子</span>':''}`
-      :(canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':'')}
+      :(`${isAdmin?`<button type="button" class="btn btn-sm btn-ghost" data-pin="${post.id}">${post.pinned?"取消置顶":"置顶"}</button>`:''}
+        ${canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':''}`)}
     </div>
     <div style="color:var(--pt-text);font-size:15px;line-height:1.95;white-space:pre-wrap;margin-top:14px;word-break:break-word">${renderBody(post.content)}</div>
     <div class="q-vote q-vote-detail">
@@ -5215,6 +5272,25 @@ document.addEventListener('click',e=>{
     })();
     return;
   }
+  /* 成员管理：刷新列表 */
+  const cmReload=t.closest('#cm-reload');
+  if(cmReload){loadCloudMod();return;}
+  /* 成员管理：禁言/拉黑 */
+  const cmBtn=t.closest('[data-cm]');
+  if(cmBtn){
+    const [action,targetId]=cmBtn.dataset.cm.split(':');
+    const label={mute:'禁言',unmute:'解除禁言',ban:'拉黑',unban:'解除拉黑'}[action];
+    modal(`<h3>${label}用户</h3><div class="m-body">确认对该用户执行「${label}」操作吗？</div>
+      <div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="no">取消</button>
+      <button class="btn btn-sm btn-orange" data-m="yes">确认</button></div>`).then(async v=>{
+      if(v!=='yes')return;
+      try{
+        await Cloud.moderateUser(targetId,action);
+        toast('已'+label,'ok');loadCloudMod();
+      }catch(e){toast(e.message,'err');}
+    });
+    return;
+  }
   /* 弹层按钮 */
   const mBtn=t.closest('[data-m]');
   if(mBtn){const mask=t.closest('.modal-mask');if(mask)mask._close(mBtn.dataset.m);return;}
@@ -5246,7 +5322,22 @@ document.addEventListener('click',e=>{
   const fs=t.closest('[data-sort]');
   if(fs){const{seg}=parseHash();const b=seg[1]||'全部';location.hash='#/forum/'+b+'?sort='+fs.dataset.sort;return;}
   /* 投票 */
-  const pin=t.closest('[data-pin]');if(pin){const p=DB.data.posts.find(x=>x.id===pin.dataset.pin);if(p){p.pinned=p.pinned?0:1;DB.save();router();toast(p.pinned?'帖子已置顶':'已取消置顶','ok');}return;}
+  const pin=t.closest('[data-pin]');
+  if(pin){
+    if(Cloud.connected){
+      pin.disabled=true;
+      (async()=>{
+        try{
+          const r=await Cloud.pinPost(pin.dataset.pin);
+          toast(r.pinned?'帖子已置顶':'已取消置顶','ok');router();
+        }catch(e){pin.disabled=false;toast(e.message,'err');}
+      })();
+      return;
+    }
+    const p=DB.data.posts.find(x=>x.id===pin.dataset.pin);
+    if(p){p.pinned=p.pinned?0:1;DB.save();router();toast(p.pinned?'帖子已置顶':'已取消置顶','ok');}
+    return;
+  }
    const wd=t.closest('[data-wanted-del]');if(wd){const id=wd.dataset.wantedDel;modal(`<h3>撤销通缉令</h3><div class="m-body">确认撤销这条通缉令？</div><div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="no">返回</button><button class="btn btn-sm btn-orange" data-m="yes">确认撤销</button></div>`).then(v=>{if(v==='yes'){DB.data.wanted=(DB.data.wanted||[]).filter(w=>w.id!==id);DB.save();router();toast('通缉令已撤销','ok');}});return;}
   const we=t.closest('[data-wanted-edit]');if(we){editWanted(we.dataset.wantedEdit);return;}
    const pv=t.closest('[data-vote]');

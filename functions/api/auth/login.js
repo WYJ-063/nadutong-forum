@@ -15,6 +15,7 @@ export async function onRequestPost({request,env}){
   if(!row)return json({error:'账号或密码错误'},401);
   const ok=await verifyPassword(password,row.salt,row.pass_hash);
   if(!ok)return json({error:'账号或密码错误'},401);
+  if(Number(row.banned))return json({error:'该账号已被拉黑，无法登录。如有疑问请联系管理员'},403);
   const secret=await getSecret(env);
   const token=await signToken({uid:row.id,exp:Date.now()+1000*60*60*24*30},secret);
   return json({token,user:publicUser(row)});

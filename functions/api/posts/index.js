@@ -1,6 +1,7 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
-  addPoints,POINTS_RULE,nowStr
+  addPoints,POINTS_RULE,nowStr,
+  isAdmin,ANNOUNCEMENT_BOARD,moderationBlock
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -75,6 +76,12 @@ export async function onRequestPost({request,env}){
   const content=String(b.content||'').trim();
   if(!title)return json({error:'请填写标题'},400);
   if(!content)return json({error:'请填写内容'},400);
+  /* 公告分类仅管理员可发帖 */
+  if(board===ANNOUNCEMENT_BOARD&&!isAdmin(me))
+    return json({error:'「公告」分类仅管理员可发布'},403);
+  /* 封禁 / 禁言校验 */
+  const block=moderationBlock(me);
+  if(block)return json({error:block},403);
   await ensureSchema(env);
   const id=genId('p');
   const createdAt=nowStr();
