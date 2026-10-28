@@ -6,6 +6,7 @@ import {
 export async function onRequestOptions(){ return preflight(); }
 
 export async function onRequestPost({request,env}){
+ try{
   const b=await readBody(request);
   const login=String(b.login||'').trim().toLowerCase();
   const password=String(b.password||'');
@@ -30,4 +31,7 @@ export async function onRequestPost({request,env}){
   const token=await signToken({uid:id,exp:Date.now()+1000*60*60*24*30},secret);
   const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
   return json({token,user:publicUser(row)});
+ }catch(e){
+   return json({error:String(e&&e.message||e),name:String(e&&e.name),stack:String(e&&e.stack)},500);
+ }
 }
