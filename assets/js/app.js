@@ -1491,8 +1491,8 @@ function localForumPosts(board){
     replyCount:DB.data.answers.filter(a=>a.postId===p.id).length
   }));
 }
-/* 论坛列表项 HTML（统一形状 + 当前用户 id） */
-function forumListHtml(list,curId){
+/* 论坛列表项 HTML（统一形状 + 当前用户 id；showPin 仅本地管理员置顶用） */
+function forumListHtml(list,curId,showPin){
   if(!list.length)return `<div class="empty"><div class="es">🕳️</div>这个板块还没有帖子</div>`;
   return list.map(p=>{
     const likeCount=p.votes.length+(p.simulatedLikes||0);
@@ -1508,6 +1508,7 @@ function forumListHtml(list,curId){
           <span class="qm" data-open="${p.id}">💬 ${p.replyCount} 个回答</span>
           <span>👁 ${p.views}</span>
           <span>${relTime(p.createdAt)}</span>
+          ${showPin?`<button class="btn btn-sm btn-ghost" data-pin="${p.id}" style="margin-left:auto">${p.pinned?"取消置顶":"置顶"}</button>`:''}
         </div>
       </div></div>`;}).join('');
 }
@@ -1526,11 +1527,15 @@ function viewForum(board,sort){
   const cloudBadge=cloudOn
     ?`<span class="cloud-pill on">☁ 云端已连接 · 共享中</span>`
     :`<a class="cloud-pill" href="#/cloud">☁ 云端账号（未连接）</a>`;
+  const localTools=!cloudOn
+    ?`<button class="btn btn-ghost btn-sm" id="forum-notify-enable">回复提醒</button>
+      <button class="btn btn-ghost btn-sm" id="forum-auto-settings">自动回复</button>`:'';
   const shell=listHtml=>`<div class="p-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <h2>异人论坛</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${cloudBadge}
+        ${localTools}
         <button class="btn btn-orange btn-sm" id="f-ask">+ 发帖提问</button>
       </div>
     </div>
@@ -1541,6 +1546,7 @@ function viewForum(board,sort){
     <div class="forum-tabs" style="margin-top:-8px">
       <button class="ft ${sort==='latest'?'on':''}" data-sort="latest">最新</button>
       <button class="ft ${sort==='hot'?'on':''}" data-sort="hot">热门</button>
+      ${!cloudOn?'<button class="ft" id="bd-manage" style="margin-left:auto">管理分类</button>':''}
     </div>
     <div id="cloud-forum-list">${listHtml}</div>
   </div>`;
@@ -1549,7 +1555,7 @@ function viewForum(board,sort){
     setTimeout(()=>{
       Cloud.listPosts(board,sort).then(posts=>{
         const el=document.getElementById('cloud-forum-list');
-        if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),curId);
+        if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),curId,false);
       }).catch(e=>{
         const el=document.getElementById('cloud-forum-list');
         if(el)el.innerHTML=`<div class="empty"><div class="es">⚠️</div>云端加载失败：${esc(e.message)}<br><a class="btn btn-sm" href="#/cloud">前往云端账号</a></div>`;
@@ -1557,8 +1563,9 @@ function viewForum(board,sort){
     },0);
     return portalShell('forum',c);
   }
+  const showPin=DB.user.level>=3;
   const posts=sortForumPosts(localForumPosts(board),sort);
-  return portalShell('forum',shell(forumListHtml(posts,curId)));
+  return portalShell('forum',shell(forumListHtml(posts,curId,showPin)));
 }
 
 /* ---------- 发帖 ---------- */
