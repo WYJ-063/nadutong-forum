@@ -335,6 +335,34 @@ const Cloud={
   /* 删除评论（作者本人或管理员） */
   async deleteReply(id){
     return await this.request('/replies/'+encodeURIComponent(id),{method:'DELETE'});
+  },
+  /* ---------- 通知 ---------- */
+  notif:{unread:0,total:0,list:[]},
+  async fetchNotifications(filter){
+    const q=new URLSearchParams();if(filter)q.set('filter',filter);
+    const d=await this.request('/notifications?'+q.toString());
+    if(!filter){this.notif.unread=d.unread;this.notif.total=d.total;this.notif.list=d.notifications;}
+    return d;
+  },
+  async readNotifications(id){
+    return await this.request('/notifications',
+      {method:'POST',body:JSON.stringify({action:'read',id:id||null})});
+  },
+  async readNotificationsForPost(postId){
+    return await this.request('/notifications',
+      {method:'POST',body:JSON.stringify({action:'readPost',postId})});
+  },
+  async clearReadNotifications(){
+    return await this.request('/notifications',
+      {method:'POST',body:JSON.stringify({action:'clear'})});
+  },
+  /* 后台静默刷新通知（用于红点/轮询），失败不抛 */
+  async pollNotifications(){
+    if(!this.connected)return;
+    try{
+      const d=await this.request('/notifications');
+      this.notif.unread=d.unread;this.notif.total=d.total;this.notif.list=d.notifications;
+    }catch(e){}
   }
 };
 
@@ -1028,7 +1056,9 @@ function svgIco(n){
 function lvlName(l){return ['','普通异人','哪都通员工','管理员'][l]||'';}
 function unreadCount(section){
   const d=DB.data||{};
-  if(section==='forum'){const u=DB.user;return u?(d.forumNotices||[]).filter(n=>n.userId===u.id&&!n.read&&n.kind!=='growth').reduce((s,n)=>s+Math.max(1,Number(n.count)||1),0):0;}
+  if(section==='forum'){
+    if(Cloud.connected)return Cloud.notif.unread||0;
+    const u=DB.user;return u?(d.forumNotices||[]).filter(n=>n.userId===u.id&&!n.read&&n.kind!=='growth').reduce((s,n)=>s+Math.max(1,Number(n.count)||1),0):0;}
   if(section==='messages')return Object.values(d.chats||{}).reduce((n,c)=>n+Math.max(0,Number(c&&c.unread)||0),0);
   if(section==='room')return (d.rooms||[]).reduce((n,r)=>n+Math.max(0,Number(r&&r.unread)||0),0);
   if(section==='workgroup')return Math.max(0,Number((d.workgroup||{}).unread)||0);
@@ -1471,8 +1501,51 @@ function markForumNoticesSeen(postId){
   if(changed){DB.save();syncUnreadBadges();}
 }
 
+/* ---------- 云端消息中心 HTML ---------- */
+function cloudNoticesHtml(list,unread,total,filter){
+  return `<section class="p-panel forum-notice-center">
+    <div class="fnc-head"><div><div class="fnc-kicker">CLOUD ACTIVITY</div><h2>帖子消息中心</h2><p class="ph-sub">云端共享：这里收录你在论坛里收到的新回复和点赞，所有成员的互动实时同步。</p></div><div class="fnc-count"><strong>${unread}</strong><span>条未读</span></div></div>
+    <div class="fnc-toolbar"><div class="fnc-filters">
+      <a class="btn btn-sm ${filter==='all'?'':'btn-ghost'}" href="#/forum-notices">全部 ${total}</a>
+      <a class="btn btn-sm ${filter==='unread'?'':'btn-ghost'}" href="#/forum-notices?filter=unread">未读 ${unread}</a>
+      <a class="btn btn-sm ${filter==='read'?'':'btn-ghost'}" href="#/forum-notices?filter=read">已读</a>
+    </div><div class="fnc-actions">
+      <button class="btn btn-sm btn-ghost" id="fnc-read-all" ${unread?'':'disabled'}>全部标为已读</button>
+      <button class="btn btn-sm btn-ghost" id="fnc-clear-read" ${total-unread?'':'disabled'}>清理已读</button>
+    </div></div>
+    <div class="fnc-list">${list.length?list.map(n=>{
+      const like=n.type==='like';
+      const target=like?(n.targetType==='reply'?'评论':'帖子'):'帖子';
+      const titleTxt=like?`${esc(n.actorName)} 赞了你的${target}`:`${esc(n.actorName)} 回复了你的帖子`;
+      return `<article class="fnc-item ${n.read?'is-read':'is-unread'}" data-cn-item="${esc(n.id)}">
+        <span class="fnc-icon ${like?'is-growth':'is-reply'}">${like?'♥':'✦'}</span>
+        <div class="fnc-body">
+          <div class="fnc-title-row"><strong>${titleTxt}</strong><time>${esc(n.createdAt||'')}</time></div>
+          ${like?'':`<p>${esc(n.excerpt||'')}</p>`}
+          <div class="fnc-post-title">${esc(n.postTitle||'原帖子可能已删除')}</div>
+          <div class="fnc-item-actions">
+            ${n.postId?`<a class="btn btn-sm btn-orange" href="#/post/${encodeURIComponent(n.postId)}" data-cn-open="${esc(n.id)}">查看帖子</a>`:''}
+            ${n.read?'':`<button class="btn btn-sm btn-ghost" data-cn-read="${esc(n.id)}">标为已读</button>`}
+          </div>
+        </div>${n.read?'':'<span class="fnc-dot" title="未读"></span>'}
+      </article>`;}).join(''):'<div class="empty fnc-empty"><div class="es">✦</div><strong>这里暂时很安静</strong><p>当你的帖子收到新回复或点赞时，会出现在这里。</p></div>'}</div>
+  </section>`;
+}
+
 /* ---------- 帖子消息中心：仅收录帖子回复与帖子热度通知 ---------- */
 function viewForumNotices(filter='all'){
+  if(Cloud.connected){
+    filter=filter||'all';
+    const loading=`<section class="p-panel"><div class="cloud-loading"><span class="cl-spin"></span>正在从云端加载消息…</div></section>`;
+    setTimeout(()=>{
+      Cloud.fetchNotifications(filter).then(d=>{
+        $('#app').innerHTML=portalShell('forum-notices',cloudNoticesHtml(d.notifications,d.unread,d.total,filter));
+      }).catch(e=>{
+        $('#app').innerHTML=portalShell('forum-notices',`<div class="p-panel empty">消息加载失败：${esc(e.message)}<br><a class="btn btn-sm" href="#/cloud">前往云端账号</a></div>`);
+      });
+    },0);
+    return portalShell('forum-notices',loading);
+  }
   const me=DB.user;if(!me)return viewGate();
   const noticeCount=n=>Math.max(1,Number(n.count)||1);
   const all=(DB.data.forumNotices||[]).filter(n=>n.userId===me.id&&n.kind!=='growth').slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
@@ -1668,6 +1741,10 @@ function viewPost(id){
           id:r.id,postId:r.postId,authorId:r.authorId,authorName:r.authorName,
           content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
         $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true));
+        /* 进入帖子即把该帖相关通知标为已读，并刷新红点 */
+        Cloud.readNotificationsForPost(id).then(async()=>{
+          await Cloud.pollNotifications();syncUnreadBadges();
+        }).catch(()=>{});
       }).catch(e=>{
         $('#app').innerHTML=portalShell('forum',`<div class="p-panel empty">帖子加载失败：${esc(e.message)}<br><a class="btn btn-sm" href="#/forum">返回论坛</a></div>`);
       });
@@ -5120,6 +5197,7 @@ document.addEventListener('click',e=>{
           await Cloud.login(login,pass);toast('已登录云端','ok');
         }
         router();
+        if(window._pollCloudNotif)window._pollCloudNotif();
       }catch(err){
         msg.className='cloud-msg err';msg.textContent=err.message;cloudSub.disabled=false;
       }
@@ -5127,7 +5205,7 @@ document.addEventListener('click',e=>{
     return;
   }
   const cloudLogout=t.closest('#cloud-logout');
-  if(cloudLogout){Cloud.logout();router();toast('已退出云端账号','ok');return;}
+  if(cloudLogout){Cloud.logout();Cloud.notif={unread:0,total:0,list:[]};syncUnreadBadges();router();toast('已退出云端账号','ok');return;}
   const cloudRefresh=t.closest('#cloud-refresh');
   if(cloudRefresh){
     cloudRefresh.disabled=true;
@@ -5445,6 +5523,34 @@ document.addEventListener('click',e=>{
   }
 
   /* ---------- 帖子消息中心：只处理论坛帖子通知，不混入私聊/工作组 ---------- */
+  /* ---------- 云端消息操作 ---------- */
+  const cnRead=t.closest('[data-cn-read]');
+  if(cnRead&&Cloud.connected){
+    Cloud.readNotifications(cnRead.dataset.cnRead).then(async()=>{
+      await Cloud.pollNotifications();syncUnreadBadges();router();
+    }).catch(e=>toast(e.message,'err'));
+    return;
+  }
+  if(t.closest('#fnc-read-all')&&Cloud.connected){
+    Cloud.readNotifications().then(async()=>{
+      await Cloud.pollNotifications();syncUnreadBadges();router();toast('已全部标为已读','ok');
+    }).catch(e=>toast(e.message,'err'));
+    return;
+  }
+  if(t.closest('#fnc-clear-read')&&Cloud.connected){
+    Cloud.clearReadNotifications().then(async()=>{
+      await Cloud.pollNotifications();syncUnreadBadges();router();toast('已清理已读消息','ok');
+    }).catch(e=>toast(e.message,'err'));
+    return;
+  }
+  const cnOpen=t.closest('[data-cn-open]');
+  if(cnOpen&&Cloud.connected){
+    /* 静默标记已读，随后由 <a> 默认跳转帖子 */
+    Cloud.readNotifications(cnOpen.dataset.cnOpen).then(async()=>{
+      await Cloud.pollNotifications();syncUnreadBadges();
+    }).catch(()=>{});
+    return;
+  }
   const markOne=t.closest('[data-fnc-read]');
   if(markOne){const n=(DB.data.forumNotices||[]).find(x=>x.id===markOne.dataset.fncRead&&x.userId===DB.user.id);if(n)n.read=true;DB.save();syncUnreadBadges();router();return;}
   if(t.closest('#fnc-read-all')){(DB.data.forumNotices||[]).forEach(n=>{if(n.userId===DB.user.id)n.read=true;});DB.save();syncUnreadBadges();router();toast('帖子消息已全部标为已读','ok');return;}
@@ -5988,8 +6094,15 @@ setTimeout(hidePreloader,4000);
 Store.open().then(async()=>{
   await DB.load();
   Cloud.init();
+  // 云端通知轮询：定时 + 页面重新可见/聚焦时刷新红点
+  const pollCloudNotif=()=>{ Cloud.pollNotifications().then(()=>syncUnreadBadges()).catch(()=>{}); };
+  window._pollCloudNotif=pollCloudNotif;
+  setInterval(pollCloudNotif,30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollCloudNotif();});
+  window.addEventListener('focus',pollCloudNotif);
+  setTimeout(pollCloudNotif,3000);
   // 若本地存有云端 token，尝试恢复会话（失败不阻塞，可能是离线）。
-  Cloud.refresh().catch(()=>{});
+  Cloud.refresh().then(()=>pollCloudNotif()).catch(()=>{});
   // Service worker 仅在 HTTPS/localhost 等安全环境可用；file:// 本地直开不支持。
   if('serviceWorker' in navigator && window.isSecureContext){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});

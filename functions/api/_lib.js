@@ -88,7 +88,22 @@ const SCHEMA=[
 `CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT
-)`
+)`,
+`CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  type TEXT,
+  actor_id TEXT,
+  actor_name TEXT,
+  target_type TEXT,
+  target_id TEXT,
+  post_id TEXT,
+  post_title TEXT,
+  excerpt TEXT,
+  read INTEGER DEFAULT 0,
+  created_at TEXT
+)`,
+`CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id,created_at)`
 ];
 let schemaPromise=null;
 async function ensureSchema(env){
@@ -198,6 +213,25 @@ function isAdmin(user){
   return Number(user&&user.role)>=3;
 }
 
+/* ---------- 通知（被回复 / 被点赞） ---------- */
+/* 写入一条通知；不通知自己（actor===recipient） */
+async function addNotification(env,o){
+  if(!o.userId||!o.actorId||o.userId===o.actorId)return;
+  await env.DB.prepare(
+    `INSERT INTO notifications
+       (id,user_id,type,actor_id,actor_name,target_type,target_id,post_id,post_title,excerpt,read,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`)
+    .bind(genId('n'),o.userId,o.type,o.actorId,o.actorName||'',
+      o.targetType,o.targetId,o.postId||'',o.postTitle||'',o.excerpt||'',nowStr()).run();
+}
+/* 删除某条点赞对应的通知（取消点赞时调用） */
+async function removeLikeNotification(env,actorId,targetType,targetId){
+  await env.DB.prepare(
+    `DELETE FROM notifications
+     WHERE actor_id=? AND type='like' AND target_type=? AND target_id=?`)
+    .bind(actorId,targetType,targetId).run();
+}
+
 /* 公开用户资料（不含密码字段） */
 function publicUser(row){
   const points=Number(row.points)||0;
@@ -217,5 +251,6 @@ export {
   json,readBody,preflight,ensureSchema,getSecret,genId,
   hashPassword,verifyPassword,signToken,getAuthUser,
   POINTS_RULE,addPoints,addPointsClamped,isAdmin,
+  addNotification,removeLikeNotification,
   levelOfPoints,publicUser,nowStr
 };
