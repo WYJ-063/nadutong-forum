@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>哪都通快递 — 您的包裹，无处不达</title>
+<meta name="description" content="哪都通快递官方网站：快递查询、在线寄件、网点查询。您的包裹，无处不达。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23243B9B'/%3E%3Cpath d='M14 50 L26 14 L36 14 L24 50 Z' fill='%23fff'/%3E%3Cpath d='M30 50 L40 14 L50 14 L40 50 Z' fill='%23fff' opacity='.85'/%3E%3Crect x='38' y='16' width='20' height='4' fill='%23E8874A'/%3E%3Crect x='38' y='24' width='20' height='4' fill='%23E8874A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@400;600;700;900&display=swap">
+<style id="page-preloader-critical">
+/* 页面加载动效（关键内联样式，保证首屏即刻渲染） */
+#page-preloader{position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s ease,visibility .5s ease;}
+#page-preloader.is-done{opacity:0;visibility:hidden;pointer-events:none;}
+#page-preloader .pl-logo{position:relative;width:88px;height:88px;display:grid;place-items:center;}
+#page-preloader .pl-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 90deg,#243B9B,#E8874A,#243B9B);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3.5px));animation:plrotate .9s linear infinite;}
+#page-preloader .pl-mark{width:58px;height:58px;border-radius:14px;background:#243B9B;display:grid;place-items:center;box-shadow:0 8px 20px rgba(36,59,155,.22);}
+#page-preloader .pl-name{margin-top:20px;font-size:18px;font-weight:900;color:#1F2433;letter-spacing:4px;}
+#page-preloader .pl-tip{margin-top:7px;font-size:12px;color:#6A7185;letter-spacing:1px;}
+#page-preloader .pl-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:#EEF1F8;overflow:hidden;}
+#page-preloader .pl-bar span{display:block;height:100%;width:40%;border-radius:0 999px 999px 0;background:linear-gradient(90deg,#243B9B,#E8874A);animation:plslide 1.1s ease-in-out infinite;}
+@keyframes plrotate{to{transform:rotate(360deg);}}
+@keyframes plslide{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
+@media(prefers-reduced-motion:reduce){#page-preloader .pl-ring,#page-preloader .pl-bar span{animation:none;}}
+</style>
+<link rel="stylesheet" href="assets/css/main.css?v=20">
+</head>
+<body>
+<div id="page-preloader" role="status" aria-label="页面加载中">
+  <div class="pl-logo">
+    <span class="pl-ring"></span>
+    <span class="pl-mark"><svg viewBox="0 0 64 64" width="38" height="38" aria-hidden="true"><path d="M14 50 L26 14 L36 14 L24 50 Z" fill="#fff"/><path d="M30 50 L40 14 L50 14 L40 50 Z" fill="#fff" opacity=".85"/><rect x="38" y="16" width="20" height="4" fill="#E8874A"/><rect x="38" y="24" width="20" height="4" fill="#E8874A"/></svg></span>
+  </div>
+  <div class="pl-name">哪都通</div>
+  <div class="pl-tip">正在接入内网…</div>
+  <div class="pl-bar"><span></span></div>
+</div>
+<div id="app"></div>
+<img src="assets/logo.png" alt="" class="hide" aria-hidden="true">
+<div id="toast"></div>
+<script src="assets/js/app.js?v=20"></script>
+</body>
+</html>

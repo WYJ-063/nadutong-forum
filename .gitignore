@@ -1,0 +1,8 @@
+# 本地开发状态（wrangler / miniflare，勿提交）
+.wrangler/
+node_modules/
+
+# 系统与编辑器杂项
+.DS_Store
+Thumbs.db
+*.log

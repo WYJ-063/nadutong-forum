@@ -1,0 +1,205 @@
+{
+  "src": "index.html",
+  "url": "file:///C:/Users/Administrator/Doubao/chats/2026-10-21/new-chat-2/nadutong-final/index.html",
+  "outdir": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots",
+  "include": [
+    "lint",
+    "screenshots",
+    "structure"
+  ],
+  "shots": {
+    "desktop": {
+      "screenshot": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots\\index_desktop.jpg",
+      "screenshotBytes": 99554,
+      "truncated": false,
+      "structure": {
+        "title": "哪都通快递 — 您的包裹，无处不达",
+        "firstH1": "您的包裹，无处不达",
+        "viewport": {
+          "w": 1424,
+          "h": 749
+        },
+        "fullpage": {
+          "w": 1424,
+          "h": 2105
+        },
+        "counts": {
+          "section": 0,
+          "h1": 1,
+          "h2": 3,
+          "img": 3,
+          "canvas": 0,
+          "svg": 4,
+          "links": 24,
+          "buttons": 1
+        }
+      },
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "horizontalOverflow": [],
+      "resourceErrors": [],
+      "deadButtons": [
+        {
+          "tag": "div",
+          "text": "哪都通快递NADUTONG EXPRESS",
+          "reason": "cursor-pointer-no-handler",
+          "rect": [
+            142,
+            49,
+            255,
+            46
+          ]
+        }
+      ],
+      "deadButtonsHint": "含义：视觉上可点、但点了不发生任何事的元素。覆盖 6 种模式，reason 字段指明是哪种： | button-no-onclick：<button> 既无 onclick 也没被 addEventListener('click') 绑过。 | onclick-noop：onclick 属性是占位/无副作用字符串（`return false` / `void(0)` / 空串 / 分号 / 纯注释等），extra 字段 onclickAttr 展示原始值。这类写法在生产代码里几乎没有正当用途，视同没写。 | a-no-href / a-href-empty / a-href-hash-no-handler：<a> 无 href / href=\"\" / href=\"#\" 且无 handler。 | a-href-javascript-noop-no-handler：<a href=\"javascript:void(0)\" / \"javascript:;\">，作者显式关掉 native 导航，但 JS 侧也没人接手。收紧路径：祖先有 click listener 时，还要验证 listener 源码是否引用了本元素的 class/id/data-* 才放行；listener 源码不可读（native/bound/被 minify）时保守放行，避免误伤。extra 字段 hrefAttr 展示原始 href。 | a-broken-anchor：<a href=\"#foo\"> 但页面里没有 id=\"foo\" 也没有 name=\"foo\" 的元素。已排除 SPA hash 路由（href 含 / 或 ? 的形式，如 #/dashboard）。 | cursor-pointer-no-handler：<div>/<span> 等非交互标签加了 cursor:pointer 却没绑任何 click。 | input-no-handler：<input type=button|submit|reset|image> 无 onclick 也无 listener。form 里的 submit/reset 已豁免。 | label-for-not-found：<label for=\"xxx\"> 但页面里没有 id=\"xxx\"。用户点 label 期望 focus 到 input，实际什么都不发生。extra 字段 forAttr 展示 for 值。 | 已排除：form submit/reset、popover 触发器、role=button/link/tab/menuitem/option/switch/checkbox/radio、<label> 包裹、body/html 上继承 cursor:pointer；cursor-pointer-no-handler 只报尺寸 ≥ 24×16 且有可见文字的元素。 | 修法：给 <button>/<input> 加 onclick 或 addEventListener；给 <a> 补真实 href 或改成 <button>；把 <div class=\"nav-item\">…</div> 之类假按钮换成真 <button> 或 <a>，或给它加 role=button+tabindex+键盘 handler；onclick=\"return false\" 之类占位符要么删掉（配合真 handler），要么替换为 toast 提示「演示中」这类可感知反馈；断链锚点核对目标 id 拼写；label 断链核对 for 与 input id 是否一致。 | 豁免：(1) 带 note=ancestor-has-data-attr 的项可能是**祖先事件委托**目标（document/window 上的全局委托本规则查不到），对着代码核对，如果确实有 document.addEventListener('click', e => e.target.closest(...)) 之类的委托捕获就忽略；(2) 纯装饰按钮（无 hover/focus 反馈的 mock 页面）——但这本身也算 slop，建议改成非 <button>；(3) cursor-pointer-no-handler：如果元素只是 hover 变鼠标做微交互提示（如 tooltip trigger）而非真按钮，去掉 cursor:pointer 更合适；(4) a-href-javascript-noop-no-handler：如果确实有全局委托捕获（如 window.addEventListener 或 minify 后的框架 handler），本规则的 listener 源码启发式可能读不到明文标识 → 结合 note 字段和实际代码核对；(5) a-broken-anchor：如果目标 id 是运行时由 JS 动态注入的（比如懒加载章节），核对确认后可忽略。",
+      "reportSource": "cdp"
+    },
+    "mobile": {
+      "screenshot": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots\\index_mobile.jpg",
+      "screenshotBytes": 128498,
+      "truncated": false,
+      "structure": {
+        "title": "哪都通快递 — 您的包裹，无处不达",
+        "firstH1": "您的包裹，无处不达",
+        "viewport": {
+          "w": 500,
+          "h": 693
+        },
+        "fullpage": {
+          "w": 500,
+          "h": 2895
+        },
+        "counts": {
+          "section": 0,
+          "h1": 1,
+          "h2": 3,
+          "img": 3,
+          "canvas": 0,
+          "svg": 4,
+          "links": 24,
+          "buttons": 1
+        }
+      },
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "horizontalOverflow": [],
+      "resourceErrors": [],
+      "deadButtons": [
+        {
+          "tag": "div",
+          "text": "哪都通快递NADUTONG EXPRESS",
+          "reason": "cursor-pointer-no-handler",
+          "rect": [
+            15,
+            72,
+            163,
+            34
+          ]
+        }
+      ],
+      "deadButtonsHint": "含义：视觉上可点、但点了不发生任何事的元素。覆盖 6 种模式，reason 字段指明是哪种： | button-no-onclick：<button> 既无 onclick 也没被 addEventListener('click') 绑过。 | onclick-noop：onclick 属性是占位/无副作用字符串（`return false` / `void(0)` / 空串 / 分号 / 纯注释等），extra 字段 onclickAttr 展示原始值。这类写法在生产代码里几乎没有正当用途，视同没写。 | a-no-href / a-href-empty / a-href-hash-no-handler：<a> 无 href / href=\"\" / href=\"#\" 且无 handler。 | a-href-javascript-noop-no-handler：<a href=\"javascript:void(0)\" / \"javascript:;\">，作者显式关掉 native 导航，但 JS 侧也没人接手。收紧路径：祖先有 click listener 时，还要验证 listener 源码是否引用了本元素的 class/id/data-* 才放行；listener 源码不可读（native/bound/被 minify）时保守放行，避免误伤。extra 字段 hrefAttr 展示原始 href。 | a-broken-anchor：<a href=\"#foo\"> 但页面里没有 id=\"foo\" 也没有 name=\"foo\" 的元素。已排除 SPA hash 路由（href 含 / 或 ? 的形式，如 #/dashboard）。 | cursor-pointer-no-handler：<div>/<span> 等非交互标签加了 cursor:pointer 却没绑任何 click。 | input-no-handler：<input type=button|submit|reset|image> 无 onclick 也无 listener。form 里的 submit/reset 已豁免。 | label-for-not-found：<label for=\"xxx\"> 但页面里没有 id=\"xxx\"。用户点 label 期望 focus 到 input，实际什么都不发生。extra 字段 forAttr 展示 for 值。 | 已排除：form submit/reset、popover 触发器、role=button/link/tab/menuitem/option/switch/checkbox/radio、<label> 包裹、body/html 上继承 cursor:pointer；cursor-pointer-no-handler 只报尺寸 ≥ 24×16 且有可见文字的元素。 | 修法：给 <button>/<input> 加 onclick 或 addEventListener；给 <a> 补真实 href 或改成 <button>；把 <div class=\"nav-item\">…</div> 之类假按钮换成真 <button> 或 <a>，或给它加 role=button+tabindex+键盘 handler；onclick=\"return false\" 之类占位符要么删掉（配合真 handler），要么替换为 toast 提示「演示中」这类可感知反馈；断链锚点核对目标 id 拼写；label 断链核对 for 与 input id 是否一致。 | 豁免：(1) 带 note=ancestor-has-data-attr 的项可能是**祖先事件委托**目标（document/window 上的全局委托本规则查不到），对着代码核对，如果确实有 document.addEventListener('click', e => e.target.closest(...)) 之类的委托捕获就忽略；(2) 纯装饰按钮（无 hover/focus 反馈的 mock 页面）——但这本身也算 slop，建议改成非 <button>；(3) cursor-pointer-no-handler：如果元素只是 hover 变鼠标做微交互提示（如 tooltip trigger）而非真按钮，去掉 cursor:pointer 更合适；(4) a-href-javascript-noop-no-handler：如果确实有全局委托捕获（如 window.addEventListener 或 minify 后的框架 handler），本规则的 listener 源码启发式可能读不到明文标识 → 结合 note 字段和实际代码核对；(5) a-broken-anchor：如果目标 id 是运行时由 JS 动态注入的（比如懒加载章节），核对确认后可忽略。",
+      "reportSource": "cdp"
+    }
+  },
+  "engine": "chrome_cli",
+  "chromiumExec": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "engineDegraded": true,
+  "engineDegradedReason": "playwright 未装",
+  "elapsedSec": 6.78,
+  "schemaVersion": 2,
+  "status": "fail",
+  "engineInfo": {
+    "name": "chrome_cli",
+    "degraded": true,
+    "degradedReasons": [
+      "playwright 未装"
+    ]
+  },
+  "input": {
+    "original": "index.html",
+    "resolvedPath": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\index.html",
+    "baseUrl": "file:///C:/Users/Administrator/Doubao/chats/2026-10-21/new-chat-2/nadutong-final/index.html",
+    "protocol": "file",
+    "cwd": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final",
+    "mediaMode": {
+      "reducedMotion": true
+    }
+  },
+  "artifacts": {
+    "screenshots": [
+      {
+        "viewport": "desktop",
+        "path": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots\\index_desktop.jpg",
+        "size": 99554,
+        "visualCoverage": {
+          "complete": true,
+          "reason": null
+        }
+      },
+      {
+        "viewport": "mobile",
+        "path": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots\\index_mobile.jpg",
+        "size": 128498,
+        "visualCoverage": {
+          "complete": true,
+          "reason": null
+        }
+      }
+    ]
+  },
+  "summary": {
+    "blocker": 0,
+    "error": 2,
+    "warning": 0,
+    "info": 0
+  },
+  "findings": [
+    {
+      "ruleId": "deadButtons",
+      "severity": "error",
+      "kind": "interaction",
+      "viewport": "desktop",
+      "selector": "div",
+      "evidence": {
+        "tag": "div",
+        "text": "哪都通快递NADUTONG EXPRESS",
+        "reason": "cursor-pointer-no-handler",
+        "rect": [
+          142,
+          49,
+          255,
+          46
+        ]
+      },
+      "dedupeKey": "deadButtons|desktop|div|0"
+    },
+    {
+      "ruleId": "deadButtons",
+      "severity": "error",
+      "kind": "interaction",
+      "viewport": "mobile",
+      "selector": "div",
+      "evidence": {
+        "tag": "div",
+        "text": "哪都通快递NADUTONG EXPRESS",
+        "reason": "cursor-pointer-no-handler",
+        "rect": [
+          15,
+          72,
+          163,
+          34
+        ]
+      },
+      "dedupeKey": "deadButtons|mobile|div|0"
+    }
+  ],
+  "prioritizedActions": [
+    {
+      "ruleId": "deadButtons",
+      "severity": "error",
+      "viewport": "desktop",
+      "selector": "div"
+    }
+  ],
+  "reportPath": "C:\\Users\\Administrator\\Doubao\\chats\\2026-10-21\\new-chat-2\\nadutong-final\\_shots\\report.json"
+}

@@ -1,0 +1,9 @@
+# 哪都通 · 纯静态站点，无需构建
+[build]
+  publish = "."
+
+# 单页应用（hash 路由，无需额外重写规则，这里仅做兜底）
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
