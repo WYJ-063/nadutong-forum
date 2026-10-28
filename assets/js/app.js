@@ -327,6 +327,14 @@ const Cloud={
   async toggleLike(type,id){
     return (await this.request('/like',
       {method:'POST',body:JSON.stringify({type,id})})).liked;
+  },
+  /* 删除帖子（作者本人或管理员） */
+  async deletePost(id){
+    return await this.request('/posts/'+encodeURIComponent(id),{method:'DELETE'});
+  },
+  /* 删除评论（作者本人或管理员） */
+  async deleteReply(id){
+    return await this.request('/replies/'+encodeURIComponent(id),{method:'DELETE'});
   }
 };
 
@@ -1599,6 +1607,7 @@ function localReplies(postId){
 function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
   const postLiked=post.votes.includes(curId);
   const postCount=post.votes.length+(post.simulatedLikes||0);
+  const canDelPost=cloudOn?(post.authorId===curId||isAdmin):isAdmin;
   const bread=`<div class="p-crumb"><a href="#/forum">论坛</a> / <b>${esc(post.board)}</b></div>`;
   const panel1=`<div class="p-panel">
     <h2 style="font-size:23px;line-height:1.4">${esc(post.title)}</h2>
@@ -1607,7 +1616,8 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
       <span>${relTime(post.createdAt)}</span><span>👁 ${post.views||0}</span>
       ${!cloudOn?`<button class="btn btn-sm btn-ghost" data-pin="${post.id}" style="margin-left:auto">${post.pinned?"取消置顶":"置顶"}</button>
       <span class="qm" id="p-edit">✎ 编辑帖子</span>
-      ${isAdmin?'<span class="qm" id="p-del" style="color:#FF9DA0">🗑 删除帖子</span>':''}`:''}
+      ${isAdmin?'<span class="qm" id="p-del" style="color:#FF9DA0">🗑 删除帖子</span>':''}`
+      :(canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':'')}
     </div>
     <div style="color:var(--pt-text);font-size:15px;line-height:1.95;white-space:pre-wrap;margin-top:14px;word-break:break-word">${renderBody(post.content)}</div>
     <div class="q-vote q-vote-detail">
@@ -1619,12 +1629,14 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
     <h2>${replies.length} 个回答</h2>
     ${replies.map(a=>{
       const liked=a.votes.includes(curId);
+      const canDelReply=cloudOn?(a.authorId===curId||isAdmin):isAdmin;
       return `<div class="answer">
         <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
         <div class="q-main">
           <div class="q-meta"><span class="mini-av">${esc(avText(a.authorName))}</span><span>${esc(a.authorName)}</span><span>${relTime(a.createdAt)}</span>
             ${!cloudOn?`<span class="qm" data-aedit="${a.id}">✎ 编辑</span>
-            ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`:''}
+            ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`
+            :(canDelReply?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:'')}
           </div>
           <div class="a-body" style="margin-top:8px">${renderBody(a.content)}</div>
         </div></div>`;}).join('')||'<div class="empty">还没有回答，来写第一个回答吧</div>'}
@@ -5306,6 +5318,18 @@ document.addEventListener('click',e=>{
     return;
   }
   if(t.closest('#p-del')){
+    if(Cloud.connected){
+      const postId=curPostId();
+      modal(`<h3>删除帖子</h3><div class="m-body">将同时删除该帖下全部回答，确定吗？此操作无法恢复。</div>
+        <div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm btn-orange" data-m="yes">确定删除</button></div>`)
+        .then(async v=>{if(v==='yes'){
+          try{
+            await Cloud.deletePost(postId);
+            await Cloud.refresh().catch(()=>{});
+            toast('帖子已删除','ok');location.hash='#/forum';
+          }catch(err){toast(err.message,'err');}}});
+      return;
+    }
     const p=DB.data.posts.find(x=>x.id===curPostId());
     modal(`<h3>删除帖子</h3><div class="m-body">将同时删除该帖下全部回答，确定吗？</div>
       <div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm" data-m="yes">确定删除</button></div>`)
@@ -5317,6 +5341,17 @@ document.addEventListener('click',e=>{
   }
   const adel=t.closest('[data-adel]');
   if(adel){
+    if(Cloud.connected){
+      modal(`<h3>删除回答</h3><div class="m-body">确定删除这条回答吗？此操作无法恢复。</div>
+        <div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm btn-orange" data-m="yes">确定删除</button></div>`)
+        .then(async v=>{if(v==='yes'){
+          try{
+            await Cloud.deleteReply(adel.dataset.adel);
+            await Cloud.refresh().catch(()=>{});
+            await cloudRerender();toast('回答已删除','ok');
+          }catch(err){toast(err.message,'err');}}});
+      return;
+    }
     const a=DB.data.answers.find(x=>x.id===adel.dataset.adel);
     modal(`<h3>删除回答</h3><div class="m-body">确定删除这条回答吗？</div>
       <div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm" data-m="yes">确定删除</button></div>`)

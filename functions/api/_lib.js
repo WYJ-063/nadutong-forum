@@ -33,7 +33,7 @@ function json(data,status=200){
     headers:{'Content-Type':'application/json;charset=utf-8',
       'Access-Control-Allow-Origin':'*',
       'Access-Control-Allow-Headers':'Content-Type,Authorization',
-      'Access-Control-Allow-Methods':'GET,POST,OPTIONS'}
+      'Access-Control-Allow-Methods':'GET,POST,DELETE,OPTIONS'}
   });
 }
 function readBody(req){
@@ -43,7 +43,7 @@ function preflight(){
   return new Response(null,{headers:{
     'Access-Control-Allow-Origin':'*',
     'Access-Control-Allow-Headers':'Content-Type,Authorization',
-    'Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});
+    'Access-Control-Allow-Methods':'GET,POST,DELETE,OPTIONS'}});
 }
 
 /* ---------- 建表（幂等） ---------- */
@@ -185,6 +185,18 @@ async function addPoints(env,userId,amount){
   await env.DB.prepare('UPDATE users SET points=points+? WHERE id=?')
     .bind(amount,userId).run();
 }
+/* 调整积分但不低于 0（用于删帖/删评论时扣回基础积分） */
+async function addPointsClamped(env,userId,delta){
+  if(!delta)return;
+  const row=await env.DB.prepare('SELECT points FROM users WHERE id=?').bind(userId).first();
+  if(!row)return;
+  const p=Math.max(0,(Number(row.points)||0)+delta);
+  await env.DB.prepare('UPDATE users SET points=? WHERE id=?').bind(p,userId).run();
+}
+/* 云端管理员判定（与前端 role>=3 一致） */
+function isAdmin(user){
+  return Number(user&&user.role)>=3;
+}
 
 /* 公开用户资料（不含密码字段） */
 function publicUser(row){
@@ -204,5 +216,6 @@ function nowStr(){
 export {
   json,readBody,preflight,ensureSchema,getSecret,genId,
   hashPassword,verifyPassword,signToken,getAuthUser,
-  POINTS_RULE,addPoints,levelOfPoints,publicUser,nowStr
+  POINTS_RULE,addPoints,addPointsClamped,isAdmin,
+  levelOfPoints,publicUser,nowStr
 };

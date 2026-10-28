@@ -1,5 +1,6 @@
 import {
-  json,preflight,ensureSchema,getAuthUser
+  json,preflight,ensureSchema,getAuthUser,
+  isAdmin,addPointsClamped,POINTS_RULE
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -55,4 +56,36 @@ export async function onRequestGet({request,env,params}){
     replies:answerShapes,
     viewer:me?me.id:null
   });
+}
+
+/* DELETE /api/posts/:id —— 作者本人或管理员可删；连带删除回复与点赞 */
+export async function onRequestDelete({request,env,params}){
+  const me=await getAuthUser(request,env);
+  if(!me)return json({error:'请先登录云端账号'},401);
+  await ensureSchema(env);
+  const id=params.id;
+  const post=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
+  if(!post)return json({error:'帖子不存在或已被删除'},404);
+  if(post.author_id!==me.id && !isAdmin(me))
+    return json({error:'无权删除该帖子（仅作者本人或管理员）'},403);
+
+  /* 该帖所有回复的点赞 */
+  const rep=await env.DB.prepare('SELECT id FROM replies WHERE post_id=?').bind(id).all();
+  const rids=(rep.results||[]).map(r=>r.id);
+  if(rids.length){
+    const ph=rids.map(()=>'?').join(',');
+    await env.DB.prepare(
+      `DELETE FROM likes WHERE target_type='reply' AND target_id IN (${ph})`)
+      .bind(...rids).run();
+  }
+  /* 回复 */
+  await env.DB.prepare('DELETE FROM replies WHERE post_id=?').bind(id).run();
+  /* 帖子点赞 */
+  await env.DB.prepare(
+    `DELETE FROM likes WHERE target_type='post' AND target_id=?`).bind(id).run();
+  /* 帖子 */
+  await env.DB.prepare('DELETE FROM posts WHERE id=?').bind(id).run();
+  /* 扣回作者发帖所得基础积分（不低于 0） */
+  if(post.author_id)await addPointsClamped(env,post.author_id,-POINTS_RULE.post);
+  return json({ok:true,deletedReplyCount:rids.length});
 }
