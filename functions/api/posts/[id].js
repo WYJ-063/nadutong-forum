@@ -1,6 +1,6 @@
 import {
   json,preflight,ensureSchema,getAuthUser,
-  isAdmin,addPointsClamped,POINTS_RULE,getPollForPost,shapePostRow,shapeReplyList
+  isAdmin,addPointsClamped,POINTS_RULE,getPollForPost,shapePostRow,shapeReplyList,userInfoMap
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
