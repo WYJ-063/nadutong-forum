@@ -1,6 +1,6 @@
 import {
   json,preflight,ensureSchema,getAuthUser,
-  isAdmin,addPointsClamped,POINTS_RULE,getPollForPost,userInfoMap
+  isAdmin,addPointsClamped,POINTS_RULE,getPollForPost,shapePostRow,shapeReplyList
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -23,54 +23,24 @@ export async function onRequestGet({request,env,params}){
     .bind(id).all();
   const postVotes=(pv.results||[]).map(r=>r.user_id);
 
-  /* 回复 */
+  /* 回复（含点赞、作者信息） */
   const rep=await env.DB.prepare(
     'SELECT * FROM replies WHERE post_id=? ORDER BY created_at ASC').bind(id).all();
-  const replies=rep.results||[];
-  let replyVotes={};
-  if(replies.length){
-    const rids=replies.map(r=>r.id);
-    const ph=rids.map(()=>'?').join(',');
-    const rl=await env.DB.prepare(
-      `SELECT target_id,user_id FROM likes
-       WHERE target_type='reply' AND target_id IN (${ph})`)
-      .bind(...rids).all();
-    (rl.results||[]).forEach(l=>{
-      (replyVotes[l.target_id]=replyVotes[l.target_id]||[]).push(l.user_id);
-    });
-  }
-  /* 作者等级/头像（帖子 + 回复） */
-  const uMap=await userInfoMap(env,[post.author_id].concat(replies.map(r=>r.author_id)));
-  const answerShapes=replies.map(r=>{
-    const info=uMap[r.author_id]||{};
-    return {
-      id:r.id, postId:r.post_id, parentId:r.parent_id||null,
-      authorId:r.author_id, authorName:r.author_name,
-      authorLevel:info.level||0,authorLevelName:info.levelName||'',
-      authorAvatar:info.avatar||'',
-      content:r.content, createdAt:r.created_at,
-      votes:replyVotes[r.id]||[]
-    };
-  });
-  const postInfo=uMap[post.author_id]||{};
+  const answerShapes=await shapeReplyList(env,rep.results||[]);
 
   /* 最近活动时间（最后回复或发布） */
   let lastActivityAt=post.created_at;
-  if(replies.length){
-    const latest=replies.map(r=>r.created_at).sort().pop();
+  if(answerShapes.length){
+    const latest=answerShapes.map(r=>r.createdAt).sort().pop();
     if(latest>lastActivityAt)lastActivityAt=latest;
   }
+  /* 帖子作者信息（等级/头像） */
+  const postInfo=await userInfoMap(env,[post.author_id]);
+  const postInfoRow=postInfo[post.author_id]||{};
   const poll=await getPollForPost(env,post.id,me?me.id:null);
+  const postShape=shapePostRow(post,postVotes,answerShapes.length,lastActivityAt,postInfoRow);
   return json({
-    post:{
-      id:post.id, board:post.board, title:post.title, content:post.content,
-      authorId:post.author_id, authorName:post.author_name,
-      authorLevel:postInfo.level||0,authorLevelName:postInfo.levelName||'',
-      authorAvatar:postInfo.avatar||'',
-      createdAt:post.created_at, lastActivityAt,
-      pinned:!!post.pinned,
-      views:post.views, votes:postVotes
-    },
+    post:postShape,
     poll,
     replies:answerShapes,
     viewer:me?me.id:null

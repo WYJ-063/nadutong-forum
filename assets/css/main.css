@@ -2804,3 +2804,82 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   .sub-reply.depth-2{margin-left:8px}
 }
 
+/* ============ 论坛：搜索栏 ============ */
+.forum-search{
+  display:flex;align-items:center;gap:8px;
+  background:var(--pt-input);border:1px solid var(--pt-border);
+  border-radius:10px;padding:6px 8px 6px 12px;margin:6px 0 14px}
+.fs-ico{color:var(--pt-muted);font-size:14px;line-height:1}
+.fs-input{flex:1;min-width:0;border:none;outline:none;background:transparent;
+  color:var(--pt-text);font-size:14px;padding:6px 4px}
+.fs-input::placeholder{color:var(--pt-muted)}
+
+/* ============ 可点击作者链接（头像+名字） ============ */
+.up-link{display:inline-flex;align-items:center;gap:6px;color:var(--pt-muted);
+  text-decoration:none;border-radius:8px;transition:color .15s}
+.up-link:hover{color:var(--pt-accent);text-decoration:none}
+.up-link.is-plain{cursor:default}
+.up-link.is-plain:hover{color:var(--pt-muted)}
+.up-link .mini-av{flex-shrink:0}
+.up-link .sr-name{color:var(--pt-accent)}
+.up-link.is-plain .sr-name{color:var(--pt-accent)}
+
+/* ============ 精华标记 ============ */
+.tag-essence{
+  background:linear-gradient(135deg,#F7DC8E 0%,#E2AC42 100%);
+  color:#5A3D07;font-weight:700;border:1px solid rgba(255,255,255,.25)}
+
+/* ============ 个人主页 ============ */
+.up-hero{display:flex;align-items:center;gap:18px;margin-bottom:20px;flex-wrap:wrap}
+.up-av .up-av-circle{
+  width:76px;height:76px;font-size:30px;border-radius:50%;
+  box-shadow:0 6px 18px var(--pt-glow)}
+.up-name{font-size:20px;font-weight:800;color:var(--pt-text);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.up-id .ph-sub{margin:6px 0 0}
+.up-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:8px}
+.up-stat{background:var(--pt-input);border:1px solid var(--pt-border-soft);
+  border-radius:10px;padding:14px 10px;text-align:center;transition:.15s}
+.up-stat:hover{border-color:var(--pt-accent);transform:translateY(-2px)}
+.up-stat b{display:block;font-size:20px;font-weight:800;color:var(--pt-text);line-height:1.2}
+.up-stat span{font-size:12px;color:var(--pt-muted)}
+.up-section{margin-top:24px}
+.up-section h3{font-size:15px;font-weight:700;color:var(--pt-text);
+  margin-bottom:12px;padding-left:10px;border-left:3px solid var(--pt-accent)}
+.up-reply{background:var(--pt-input);border:1px solid var(--pt-border-soft);
+  border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.up-reply-top{font-size:12px;color:var(--pt-muted);margin-bottom:6px}
+.up-reply-body{font-size:14px;color:var(--pt-text);line-height:1.8;
+  white-space:pre-wrap;word-break:break-word}
+
+/* ============ 每日签到：弹窗 ============ */
+.checkin-card{text-align:center}
+.cc-emoji{font-size:48px;line-height:1;margin-bottom:10px}
+.cc-title{font-size:19px;font-weight:800;color:var(--pt-text)}
+.cc-streak{color:var(--pt-highlight);margin:8px 0 14px;font-size:15px}
+.cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.cc-cell{background:var(--pt-input);border:1px solid var(--pt-border-soft);
+  border-radius:10px;padding:12px}
+.cc-cell span{display:block;font-size:12px;color:var(--pt-muted);margin-bottom:4px}
+.cc-cell b{font-size:16px;color:var(--pt-text)}
+.cc-bonus{background:var(--pt-highlight-bg);color:var(--pt-highlight);
+  border-radius:10px;padding:10px;font-size:13px;margin-bottom:14px}
+
+/* ============ 分页：加载更多 ============ */
+.forum-more{text-align:center;padding:18px 0 6px}
+.forum-more-end{text-align:center;color:var(--pt-muted);font-size:13px;padding:18px 0 6px}
+#f-checkin{
+  border-color:var(--pt-highlight);color:var(--pt-highlight);
+  background:var(--pt-highlight-bg)}
+#f-checkin:hover{background:var(--pt-highlight);color:var(--pt-highlight-text)}
+#f-checkin.is-done{opacity:.72;cursor:default}
+
+@media(max-width:760px){
+  .up-stats{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:420px){
+  .up-stats{grid-template-columns:repeat(2,1fr)}
+  .up-av .up-av-circle{width:64px;height:64px;font-size:26px}
+  .up-name{font-size:18px}
+}
+

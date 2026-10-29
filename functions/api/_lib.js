@@ -128,6 +128,13 @@ const SCHEMA=[
   user_id TEXT,
   created_at TEXT,
   PRIMARY KEY (poll_id,option_id,user_id)
+)`,
+`CREATE TABLE IF NOT EXISTS checkins (
+  user_id TEXT PRIMARY KEY,
+  last_date TEXT,
+  streak INTEGER DEFAULT 0,
+  total_days INTEGER DEFAULT 0,
+  updated_at TEXT
 )`
 ];
 /* 默认板块（首次运行写入） */
@@ -146,8 +153,33 @@ async function seedBoards(env){
 const MIGRATIONS=[
   `ALTER TABLE users ADD COLUMN muted INTEGER DEFAULT 0`,
   `ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`,
-  `ALTER TABLE replies ADD COLUMN parent_id TEXT`
+  `ALTER TABLE replies ADD COLUMN parent_id TEXT`,
+  `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`
 ];
+/* 全文搜索：posts_fts（FTS5 trigram 分词，对中文子串友好，需 SQLite 3.34+）。
+   触发器自动同步增删改；首次对历史帖子回填。任何失败都静默降级（搜索接口回退 LIKE）。 */
+async function setupFts(env){
+  try{
+    await env.DB.prepare(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts
+         USING fts5(title,content,tokenize='trigram')`).run();
+    await env.DB.prepare(
+      `CREATE TRIGGER IF NOT EXISTS posts_fts_ai AFTER INSERT ON posts BEGIN
+         INSERT INTO posts_fts(rowid,title,content) VALUES (new.rowid,new.title,new.content); END`).run();
+    await env.DB.prepare(
+      `CREATE TRIGGER IF NOT EXISTS posts_fts_ad AFTER DELETE ON posts BEGIN
+         DELETE FROM posts_fts WHERE rowid=old.rowid; END`).run();
+    await env.DB.prepare(
+      `CREATE TRIGGER IF NOT EXISTS posts_fts_au AFTER UPDATE ON posts BEGIN
+         DELETE FROM posts_fts WHERE rowid=old.rowid;
+         INSERT INTO posts_fts(rowid,title,content) VALUES (new.rowid,new.title,new.content); END`).run();
+    const cnt=await env.DB.prepare('SELECT COUNT(*) AS n FROM posts_fts').first();
+    if(!(Number(cnt&&cnt.n)>0))
+      await env.DB.prepare(
+        'INSERT INTO posts_fts(rowid,title,content) SELECT rowid,title,content FROM posts').run();
+    return true;
+  }catch(e){ return false; }
+}
 let schemaPromise=null;
 async function ensureSchema(env){
   if(schemaPromise)return schemaPromise;
@@ -158,6 +190,7 @@ async function ensureSchema(env){
       catch(e){ if(!/duplicate column/i.test(String((e&&e.message)||e))) throw e; }
     }
     await seedBoards(env);
+    await setupFts(env);
   })().catch(e=>{schemaPromise=null;throw e;});
   return schemaPromise;
 }
@@ -305,6 +338,72 @@ function nowStr(){
   return new Date().toISOString();
 }
 
+/* ---------- 帖子归一化（列表/搜索/主页共用） ---------- */
+function shapePostRow(row,votes,replyCount,lastActivityAt,authorInfo){
+  return {
+    id:row.id,
+    board:row.board,
+    title:row.title,
+    content:row.content,
+    authorId:row.author_id,
+    authorName:row.author_name,
+    authorLevel:authorInfo?authorInfo.level:0,
+    authorLevelName:authorInfo?authorInfo.levelName:'',
+    authorAvatar:authorInfo?authorInfo.avatar:'',
+    createdAt:row.created_at,
+    lastActivityAt:lastActivityAt||row.created_at,
+    pinned:!!row.pinned,
+    essence:!!Number(row.essence),
+    views:Number(row.views)||0,
+    votes:votes||[],
+    replyCount:replyCount||0
+  };
+}
+/* 批量把原始 post 行补齐点赞/回复/作者信息并归一化 */
+async function shapePostList(env,rows){
+  if(!rows.length)return [];
+  const ids=rows.map(p=>p.id);
+  const ph=ids.map(()=>'?').join(',');
+  const likesRes=await env.DB.prepare(
+    `SELECT target_id,user_id FROM likes
+     WHERE target_type='post' AND target_id IN (${ph})`).bind(...ids).all();
+  const votesMap={};
+  (likesRes.results||[]).forEach(l=>{
+    (votesMap[l.target_id]=votesMap[l.target_id]||[]).push(l.user_id);
+  });
+  const repRes=await env.DB.prepare(
+    `SELECT post_id,COUNT(*) AS n,MAX(created_at) AS last_at FROM replies
+     WHERE post_id IN (${ph}) GROUP BY post_id`).bind(...ids).all();
+  const repMap={},lastMap={};
+  (repRes.results||[]).forEach(r=>{repMap[r.post_id]=r.n;lastMap[r.post_id]=r.last_at;});
+  const uMap=await userInfoMap(env,rows.map(p=>p.author_id));
+  return rows.map(p=>shapePostRow(p,votesMap[p.id],repMap[p.id],lastMap[p.id],uMap[p.author_id]));
+}
+/* 批量把原始 reply 行补齐点赞/作者信息并归一化 */
+async function shapeReplyList(env,rows){
+  if(!rows.length)return [];
+  const ids=rows.map(r=>r.id);
+  const ph=ids.map(()=>'?').join(',');
+  const lk=await env.DB.prepare(
+    `SELECT target_id,user_id FROM likes
+     WHERE target_type='reply' AND target_id IN (${ph})`).bind(...ids).all();
+  const vMap={};
+  (lk.results||[]).forEach(l=>{
+    (vMap[l.target_id]=vMap[l.target_id]||[]).push(l.user_id);
+  });
+  const uMap=await userInfoMap(env,rows.map(r=>r.author_id));
+  return rows.map(r=>{
+    const info=uMap[r.author_id]||{};
+    return {
+      id:r.id,postId:r.post_id,parentId:r.parent_id||null,
+      authorId:r.author_id,authorName:r.author_name,
+      authorLevel:info.level||0,authorLevelName:info.levelName||'',
+      authorAvatar:info.avatar||'',
+      content:r.content,createdAt:r.created_at,votes:vMap[r.id]||[]
+    };
+  });
+}
+
 /* ---------- 投票 ---------- */
 /* 批量取用户展示信息（等级/等级名/头像），返回 {id:{level,levelName,avatar}} */
 async function userInfoMap(env,ids){
@@ -357,5 +456,6 @@ export {
   POINTS_RULE,addPoints,addPointsClamped,isAdmin,
   ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
-  levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap
+  levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap,
+  shapePostRow,shapePostList,shapeReplyList
 };

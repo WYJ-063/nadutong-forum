@@ -1,22 +1,61 @@
 import {
-  json,readBody,preflight,ensureSchema,publicUser,getAuthUser,isAdmin
+  json,readBody,preflight,ensureSchema,publicUser,getAuthUser,isAdmin,
+  shapePostList,shapeReplyList
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
 
-/* GET /api/users/:id —— 公开资料 + 发帖/回复数 */
+/* GET /api/users/:id —— 公开资料 + 统计 + 最近帖子/回复（个人主页） */
 export async function onRequestGet({request,env,params}){
   await ensureSchema(env);
-  const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(params.id).first();
+  const uid=params.id;
+  const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(uid).first();
   if(!row)return json({error:'用户不存在'},404);
-  const pc=await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM posts WHERE author_id=?').bind(params.id).first();
-  const rc=await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM replies WHERE author_id=?').bind(params.id).first();
   const u=publicUser(row);
+
+  /* 统计 */
+  const pc=await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM posts WHERE author_id=?').bind(uid).first();
+  const rc=await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM replies WHERE author_id=?').bind(uid).first();
+  const ec=await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM posts WHERE author_id=? AND essence=1').bind(uid).first();
+  /* 收到的赞：其帖子 + 其回复被点赞的总数 */
+  const pl=await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM likes
+     WHERE target_type='post' AND target_id IN (SELECT id FROM posts WHERE author_id=?)`)
+    .bind(uid).first();
+  const rl=await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM likes
+     WHERE target_type='reply' AND target_id IN (SELECT id FROM replies WHERE author_id=?)`)
+    .bind(uid).first();
   u.postCount=Number(pc.n)||0;
   u.replyCount=Number(rc.n)||0;
-  return json({user:u});
+  u.essenceCount=Number(ec.n)||0;
+  u.likedCount=Number(pl.n)+Number(rl.n);
+
+  /* 签到信息 */
+  const ck=await env.DB.prepare('SELECT * FROM checkins WHERE user_id=?').bind(uid).first();
+  u.checkin={streak:Number(ck&&ck.streak)||0,totalDays:Number(ck&&ck.total_days)||0};
+
+  /* 最近帖子（10） */
+  const pRows=await env.DB.prepare(
+    'SELECT * FROM posts WHERE author_id=? ORDER BY created_at DESC LIMIT 10').bind(uid).all();
+  const posts=await shapePostList(env,pRows.results||[]);
+  /* 最近回复（10），并带上所属帖子标题 */
+  const rRows=await env.DB.prepare(
+    'SELECT * FROM replies WHERE author_id=? ORDER BY created_at DESC LIMIT 10').bind(uid).all();
+  const replies=await shapeReplyList(env,rRows.results||[]);
+  if(replies.length){
+    const postIds=[...new Set(replies.map(r=>r.postId))];
+    const ph=postIds.map(()=>'?').join(',');
+    const tRes=await env.DB.prepare(
+      `SELECT id,title FROM posts WHERE id IN (${ph})`).bind(...postIds).all();
+    const titleMap={};
+    (tRes.results||[]).forEach(p=>{titleMap[p.id]=p.title;});
+    replies.forEach(r=>{r.postTitle=titleMap[r.postId]||'';});
+  }
+  return json({user:u,posts,replies});
 }
 
 /* POST /api/users/:id  —— 管理员禁言 / 解除禁言 / 拉黑 / 解除拉黑
