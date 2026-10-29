@@ -19,6 +19,18 @@ function modal(html){return new Promise(resolve=>{const mask=document.createElem
 function confirmDlg(title,body){return modal(`<h3>${esc(title)}</h3><div class="m-body">${esc(body)}</div><div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm" data-m="yes">确定</button></div>`).then(v=>v==='yes');}
 function avText(name){return (name||'?').slice(0,1).toUpperCase();}
 function avHtml(user,cls=''){if(user&&user.avatar&&user.avatar.startsWith('http'))return `<img class="${cls}" src="${esc(user.avatar)}" alt="">`;return `<span class="${cls}">${esc(avText(user?user.name:'?'))}</span>`;}
+/* 等级徽章（贴吧式：LvX + 等级名称） */
+function levelBadge(level,levelName){
+  if(!level)return '';
+  const cls=level>=18?'lv-top':(level>=12?'lv-hi':'');
+  return `<span class="lv-badge ${cls}" title="${esc(levelName||'')}">Lv${level}${levelName?`<span class="lv-bn">${esc(levelName)}</span>`:''}</span>`;
+}
+/* 圆形头像：优先 avatar 图片（data/http），否则首字占位 */
+function avatarCircle(name,avatar,cls=''){
+  if(avatar&&(avatar.startsWith('data:')||avatar.startsWith('http')))
+    return `<span class="mini-av has-img ${cls}"><img src="${esc(avatar)}" alt=""></span>`;
+  return `<span class="mini-av ${cls}">${esc(avText(name))}</span>`;
+}
 
 /* 新建一个独立聊天室 */
 function makeRoom(name){return {id:genId('room'),name,members:[],messages:[],mode:'create',speed:'natural',proactive:true};}
@@ -316,9 +328,11 @@ const Cloud={
     return (await this.request('/posts?'+q.toString())).posts;
   },
   async getPost(id){return await this.request('/posts/'+encodeURIComponent(id));},
-  async createPost(board,title,content){
+  async createPost(board,title,content,poll){
+    const payload={board,title,content};
+    if(poll)payload.poll=poll;
     return (await this.request('/posts',
-      {method:'POST',body:JSON.stringify({board,title,content})})).post;
+      {method:'POST',body:JSON.stringify(payload)})).post;
   },
   async reply(postId,content,parentId){
     const payload={content};
@@ -357,6 +371,26 @@ const Cloud={
   /* 删除账号（管理员） */
   async deleteUser(id){
     return await this.request('/users/'+encodeURIComponent(id),{method:'DELETE'});
+  },
+  /* 板块 */
+  async listBoards(){return (await this.request('/boards')).boards;},
+  async createBoard(name){
+    return await this.request('/boards',
+      {method:'POST',body:JSON.stringify({name})});
+  },
+  async deleteBoard(name,mode){
+    return await this.request('/boards/'+encodeURIComponent(name),
+      {method:'DELETE',body:JSON.stringify({mode:mode||'move'})});
+  },
+  /* 投票 */
+  async votePoll(pollId,optionIds){
+    return (await this.request('/polls/'+encodeURIComponent(pollId)+'/vote',
+      {method:'POST',body:JSON.stringify({optionIds})})).poll;
+  },
+  /* 更换头像 */
+  async updateAvatar(dataUrl){
+    return (await this.request('/users/avatar',
+      {method:'POST',body:JSON.stringify({avatar:dataUrl})})).user;
   },
   /* ---------- 通知 ---------- */
   notif:{unread:0,total:0,list:[]},
@@ -410,12 +444,15 @@ function cloudFormsHtml(mode){
     <p class="ph-sub" style="margin-top:16px">说明：云端账号由服务器保存，密码经 PBKDF2 加盐哈希，不会明文存储；与本地的离线账号相互独立。</p>`;
 }
 function cloudAccountHtml(u){
-  const av=u.avatar&&u.avatar.startsWith('data')
+  const av=u.avatar&&(u.avatar.startsWith('data')||u.avatar.startsWith('http'))
     ?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover">`
     :esc(avText(u.name));
   return `<div class="cloud-account">
     <div class="cloud-account-head">
-      <div class="cloud-av">${av}</div>
+      <div class="cloud-av" id="cloud-av-wrap">${av}
+        <button type="button" class="cloud-av-edit" id="cloud-av-edit" title="更换头像">📷</button>
+        <input type="file" id="cloud-av-file" accept="image/*" class="hide">
+      </div>
       <div style="min-width:0">
         <h3 style="margin:0">${esc(u.name)}</h3>
         <p class="ph-sub" style="margin:4px 0 0">账号 ${esc(u.login)} · 云端编号 ${esc(u.id)}</p>
@@ -449,10 +486,10 @@ function cloudModListHtml(users){
     if(u.muted)tags.push('<span class="tag tag-amber">已禁言</span>');
     if(u.banned)tags.push('<span class="tag tag-red">已拉黑</span>');
     return `<div class="cm-row ${u.banned?'is-banned':u.muted?'is-muted':''}">
-      <span class="mini-av">${esc(avText(u.name))}</span>
+      ${avatarCircle(u.name,u.avatar)}
       <div class="cm-info">
-        <div class="cm-name"><b>${esc(u.name)}</b>${tags.join('')}</div>
-        <div class="ph-sub">${esc(u.login)} · Lv${u.level} ${esc(u.levelName)} · ${u.points}积分</div>
+        <div class="cm-name"><b>${esc(u.name)}</b>${levelBadge(u.level,u.levelName)}${tags.join('')}</div>
+        <div class="ph-sub">${esc(u.login)} · ${u.points}积分</div>
       </div>
       ${isMe?'<span class="ph-sub cm-self">本人</span>':`<div class="cm-actions">
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
@@ -481,8 +518,41 @@ function viewCloud(){
     <div id="cloud-box">${Cloud.connected?cloudAccountHtml(Cloud.user):cloudFormsHtml('login')}</div>
   </div>`;
   const html=portalShell('cloud',c);
+  if(Cloud.connected)setTimeout(bindCloudAvatar,0);
   if(Cloud.connected&&Cloud.user.role>=3)setTimeout(loadCloudMod,0);
   return html;
+}
+/* 绑定云端换头像：选图后压缩为 160px 方形 JPEG 并上传 */
+function bindCloudAvatar(){
+  const file=document.getElementById('cloud-av-file');
+  if(!file)return;
+  file.addEventListener('change',()=>{
+    const f=file.files&&file.files[0];
+    if(!f)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const size=160;
+        const cv=document.createElement('canvas');
+        cv.width=size;cv.height=size;
+        const ctx=cv.getContext('2d');
+        /* 居中裁剪为正方形 */
+        const m=Math.min(img.width,img.height);
+        const sx=(img.width-m)/2,sy=(img.height-m)/2;
+        ctx.drawImage(img,sx,sy,m,m,0,0,size,size);
+        const dataUrl=cv.toDataURL('image/jpeg',0.85);
+        if(dataUrl.length>180*1024){toast('图片过大，请换一张','err');return;}
+        Cloud.updateAvatar(dataUrl).then(async u=>{
+          Cloud.user=u;
+          await Cloud.refresh().catch(()=>{});
+          router();toast('头像已更新','ok');
+        }).catch(e=>toast(e.message,'err'));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(f);
+  });
 }
 
 /* 云端动作后，按当前路由静默重渲染（不闪 loading） */
@@ -493,14 +563,19 @@ async function cloudRerender(){
     const post={
       id:d.post.id,board:d.post.board,title:d.post.title,content:d.post.content,
       authorId:d.post.authorId,authorName:d.post.authorName,
-      createdAt:d.post.createdAt,pinned:d.post.pinned,views:d.post.views,
+      authorLevel:d.post.authorLevel||0,authorLevelName:d.post.authorLevelName||'',
+      authorAvatar:d.post.authorAvatar||'',
+      createdAt:d.post.createdAt,lastActivityAt:d.post.lastActivityAt||d.post.createdAt,
+      pinned:d.post.pinned,views:d.post.views,
       votes:d.post.votes||[],simulatedLikes:0};
     const replies=(d.replies||[]).map(r=>({
       id:r.id,postId:r.postId,parentId:r.parentId||null,
       authorId:r.authorId,authorName:r.authorName,
+      authorLevel:r.authorLevel||0,authorLevelName:r.authorLevelName||'',
+      authorAvatar:r.authorAvatar||'',
       content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
     $('#app').innerHTML=portalShell('forum',
-      postDetailHtml(post,replies,Cloud.user.id,Cloud.user.role>=3,true));
+      postDetailHtml(post,replies,Cloud.user.id,Cloud.user.role>=3,true,d.poll||null));
   }else{
     const board=seg[0]==='forum'&&seg[1]?decodeURIComponent(seg[1]):'全部';
     const sort=query.sort||'latest';
@@ -1623,17 +1698,32 @@ function viewForumNotices(filter='all'){
 }
 /* ---------- 论坛首页 ---------- */
 /* 归一化本地帖子为统一形状（与云端一致） */
+/* 云端板块缓存 */
+let _cloudBoards=null;
+function currentBoards(){
+  if(Cloud.connected)return (_cloudBoards||[]).map(b=>b.name);
+  return DB.data.boards.slice();
+}
+async function refreshCloudBoards(){
+  _cloudBoards=await Cloud.listBoards();
+  return _cloudBoards;
+}
 function localForumPosts(board){
   let list=DB.data.posts.slice();
   if(board!=='全部')list=list.filter(p=>p.board===board);
-  return list.map(p=>({
-    id:p.id, board:p.board, title:p.title, content:p.content,
-    authorId:p.authorId, authorName:postAuthor(p),
-    createdAt:p.createdAt, pinned:!!p.pinned,
-    views:p.views, votes:p.votes||[],
-    simulatedLikes:Number(p.simulatedLikes)||0,
-    replyCount:DB.data.answers.filter(a=>a.postId===p.id).length
-  }));
+  return list.map(p=>{
+    const ans=DB.data.answers.filter(a=>a.postId===p.id);
+    let last=p.createdAt;
+    ans.forEach(a=>{if(a.createdAt>last)last=a.createdAt;});
+    return {
+      id:p.id, board:p.board, title:p.title, content:p.content,
+      authorId:p.authorId, authorName:postAuthor(p),
+      createdAt:p.createdAt, lastActivityAt:last, pinned:!!p.pinned,
+      views:p.views, votes:p.votes||[],
+      simulatedLikes:Number(p.simulatedLikes)||0,
+      replyCount:ans.length
+    };
+  });
 }
 /* 论坛列表项 HTML（统一形状 + 当前用户 id；showPin 仅本地管理员置顶用） */
 function forumListHtml(list,curId,showPin){
@@ -1641,13 +1731,19 @@ function forumListHtml(list,curId,showPin){
   return list.map(p=>{
     const likeCount=p.votes.length+(p.simulatedLikes||0);
     const liked=p.votes.includes(curId);
+    /* 作者展示信息（云端带等级；本地取本地用户） */
+    let aLv=p.authorLevel,aLn=p.authorLevelName,aAv=p.authorAvatar;
+    if(!Cloud.connected){
+      const au=DB.data.users.find(u=>u.id===p.authorId);
+      if(au){const g=forumLevelOf(au);aLv=g.level;aLn=g.name;aAv=au.avatar||'';}
+    }
     return `<div class="q-item">
       <div class="q-vote q-vote-list"><button type="button" class="vt ${liked?'on':''}" data-vote="${p.id}" aria-label="赞同帖子" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span><span class="vote-label">赞同</span></button><b class="vote-count">${likeCount}</b></div>
       <div class="q-main">
         <h3 data-open="${p.id}">${p.pinned?'<span class="tag tag-red" style="margin-right:6px">置顶</span>':''}${esc(p.title)}</h3>
         <div class="q-ex">${esc(p.content)}</div>
         <div class="q-meta">
-          <span class="mini-av">${esc(avText(p.authorName))}</span><span>${esc(p.authorName)}</span>
+          ${avatarCircle(p.authorName,aAv)}<span>${esc(p.authorName)}</span>${levelBadge(aLv,aLn)}
           <span class="tag">${p.board}</span>
           <span class="qm" data-open="${p.id}">💬 ${p.replyCount} 个回答</span>
           <span>👁 ${p.views}</span>
@@ -1656,11 +1752,16 @@ function forumListHtml(list,curId,showPin){
         </div>
       </div></div>`;}).join('');
 }
+/* 整体热度：点赞*3 + 回复*2 + 浏览/10 */
+function postHeat(p){
+  return p.votes.length*3+(p.replyCount||0)*2+Math.floor((p.views||0)/10);
+}
 function sortForumPosts(list,sort){
   list.sort((a,b)=>{
     if(a.pinned!==b.pinned)return a.pinned?-1:1;
-    if(sort==='hot')return (b.votes.length+b.replyCount*2)-(a.votes.length+a.replyCount*2);
-    return new Date(b.createdAt)-new Date(a.createdAt);
+    if(sort==='hot')return postHeat(b)-postHeat(a);
+    /* 最新：按最近活动（回复或发布）时间 */
+    return new Date(b.lastActivityAt||b.createdAt)-new Date(a.lastActivityAt||a.createdAt);
   });
   return list;
 }
@@ -1684,20 +1785,27 @@ function viewForum(board,sort){
       </div>
     </div>
     <div class="ph-sub">${cloudOn?'当前为云端共享论坛，所有成员看到的帖子实时同步':'有问题，上论坛；知道的事，说给同道听（当前为本地离线模式）'}</div>
-    <div class="forum-tabs">
-      ${['全部'].concat(DB.data.boards).map(b=>`<button class="ft ${b===board?'on':''}" data-b="${b}">${b}</button>`).join('')}
+    <div class="forum-tabs" id="forum-board-tabs">
+      ${['全部'].concat(currentBoards()).map(b=>`<button class="ft ${b===board?'on':''}" data-b="${b}">${b}</button>`).join('')}
     </div>
     <div class="forum-tabs" style="margin-top:-8px">
       <button class="ft ${sort==='latest'?'on':''}" data-sort="latest">最新</button>
       <button class="ft ${sort==='hot'?'on':''}" data-sort="hot">热门</button>
-      ${!cloudOn?'<button class="ft" id="bd-manage" style="margin-left:auto">管理分类</button>':''}
+      ${cloudOn?(Cloud.user.role>=3?'<button class="ft" id="bd-manage" style="margin-left:auto">管理分类</button>':'')
+        :'<button class="ft" id="bd-manage" style="margin-left:auto">管理分类</button>'}
     </div>
     <div id="cloud-forum-list">${listHtml}</div>
   </div>`;
   if(cloudOn){
     const c=shell('<div class="cloud-loading"><span class="cl-spin"></span>正在从云端加载帖子…</div>');
     setTimeout(()=>{
-      Cloud.listPosts(board,sort).then(posts=>{
+      refreshCloudBoards().then(()=>{
+        /* 用真实板块刷新标签栏 */
+        const tabs=document.getElementById('forum-board-tabs');
+        if(tabs)tabs.innerHTML=['全部'].concat(currentBoards())
+          .map(b=>`<button class="ft ${b===board?'on':''}" data-b="${b}">${b}</button>`).join('');
+        return Cloud.listPosts(board,sort);
+      }).then(posts=>{
         const el=document.getElementById('cloud-forum-list');
         if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),curId,Cloud.user.role>=3);
       }).catch(e=>{
@@ -1714,9 +1822,13 @@ function viewForum(board,sort){
 
 /* ---------- 发帖 ---------- */
 function viewAsk(){
+  const cloudOn=Cloud.connected;
   /* 云端管理员可在公告分类下发帖；其余情况隐藏公告分类 */
-  const canPostAnnounce=Cloud.connected&&Cloud.user.role>=3;
-  const askBoards=DB.data.boards.filter(b=>canPostAnnounce||b!=='公告');
+  const canPostAnnounce=cloudOn&&Cloud.user.role>=3;
+  const askBoards=currentBoards().filter(b=>canPostAnnounce||b!=='公告');
+  const heatGoal=cloudOn?'':`<details style="margin-top:14px;border:1px solid var(--pt-border);border-radius:10px;padding:12px"><summary style="cursor:pointer;font-weight:700">设置帖子热度目标</summary><p class="ph-sub">可选。热度会在指定时长内随机、缓慢增长。</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px"><div><label class="fl">目标点赞数</label><input class="field" id="a-goal-likes" type="number" min="0" max="1000000" value="0"></div><div><label class="fl">目标浏览量</label><input class="field" id="a-goal-views" type="number" min="0" max="1000000" value="0"></div><div><label class="fl">达成时间（小时）</label><input class="field" id="a-goal-hours" type="number" min="0.1" max="8760" step="0.1" value="24"></div></div>
+    </details>`;
   const c=`<div class="p-panel">
     <h2>发帖提问</h2><div class="ph-sub">发帖前请先阅读论坛守则，不泄露真实身份信息</div>
     <label class="fl">所属板块</label>
@@ -1725,14 +1837,56 @@ function viewAsk(){
     <input class="field" id="a-title" placeholder="一句话说清你想问什么">
     <label class="fl">内容（可使用表情包）</label>
     <textarea class="field" id="a-body" style="min-height:160px" placeholder="补充背景、细节和你想知道的答案……"></textarea>
-    <details style="margin-top:14px;border:1px solid var(--pt-border);border-radius:10px;padding:12px"><summary style="cursor:pointer;font-weight:700">设置帖子热度目标</summary><p class="ph-sub">可选。热度会在指定时长内随机、缓慢增长。</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px"><div><label class="fl">目标点赞数</label><input class="field" id="a-goal-likes" type="number" min="0" max="1000000" value="0"></div><div><label class="fl">目标浏览量</label><input class="field" id="a-goal-views" type="number" min="0" max="1000000" value="0"></div><div><label class="fl">达成时间（小时）</label><input class="field" id="a-goal-hours" type="number" min="0.1" max="8760" step="0.1" value="24"></div></div>
-    </details>
+    ${heatGoal}
+    ${cloudOn?`<div class="vote-builder" id="vote-builder">
+      <div class="vb-head"><span class="vb-toggle" id="vb-toggle">📊 添加投票</span></div>
+      <div class="vb-body hide" id="vb-body">
+        <label class="fl">投票标题（可留空则使用帖子标题）</label>
+        <input class="field" id="vb-q" placeholder="比如：你最看好哪个门派？">
+        <label class="fl">选项（至少 2 个）</label>
+        <div id="vb-opts">
+          <input class="field vb-opt" placeholder="选项 1">
+          <input class="field vb-opt" placeholder="选项 2">
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="vb-add">+ 添加选项</button>
+        <label class="fl" style="margin-top:10px"><input type="checkbox" id="vb-multi"> 允许多选</label>
+      </div>
+    </div>`:''}
     <div class="editor-bar"><button class="eb" id="a-stk">插入表情包</button><label class="eb" style="margin:0">插入图片<input type="file" id="a-img-file" accept="image/*" class="hide"></label></div>
     <div class="stk-picker hide" id="a-stk-box">${STICKERS.map(s=>`<button data-s="${s}">${s}</button>`).join('')}</div>
     <div style="margin-top:20px;display:flex;gap:10px"><button class="btn btn-orange" id="a-sub">发布</button><a class="btn btn-ghost btn-sm" href="#/forum">取消</a></div>
   </div>`;
-  return portalShell('ask',c);
+  const html=portalShell('ask',c);
+  if(cloudOn)setTimeout(bindVoteBuilder,0);
+  return html;
+}
+/* 绑定发帖页投票构建器 */
+function bindVoteBuilder(){
+  const toggle=document.getElementById('vb-toggle');
+  const body=document.getElementById('vb-body');
+  if(!toggle)return;
+  toggle.addEventListener('click',()=>{
+    body.classList.toggle('hide');
+    toggle.textContent=body.classList.contains('hide')?'📊 添加投票':'📊 收起投票';
+  });
+  document.getElementById('vb-add').addEventListener('click',()=>{
+    const opts=document.getElementById('vb-opts');
+    if(opts.children.length>=8)return toast('最多 8 个选项','warn');
+    const inp=document.createElement('input');
+    inp.className='field vb-opt';inp.placeholder='选项 '+(opts.children.length+1);
+    opts.appendChild(inp);
+  });
+}
+/* 读取发帖页投票数据（无则返回 null） */
+function readVoteBuilder(){
+  const body=document.getElementById('vb-body');
+  if(!body||body.classList.contains('hide'))return null;
+  const opts=Array.from(document.querySelectorAll('.vb-opt'))
+    .map(i=>i.value.trim()).filter(Boolean);
+  if(opts.length<2)return null;
+  const q=document.getElementById('vb-q').value.trim();
+  const multi=document.getElementById('vb-multi').checked;
+  return {question:q,options:opts,multi:!!multi};
 }
 
 /* 归一化本地回复 */
@@ -1766,10 +1920,15 @@ function subReplyHtml(node,depth,curId,isAdmin,cloudOn){
   const canDelReply=cloudOn?(node.authorId===curId||isAdmin):isAdmin;
   const indent=Math.min(depth,2);
   const prefix=node.parentId?`<span class="sr-to">回复 @${esc(node.parentName||'')}：</span>`:'';
+  let rLv=node.authorLevel,rLn=node.authorLevelName,rAv=node.authorAvatar;
+  if(!cloudOn){
+    const au=DB.data.users.find(u=>u.id===node.authorId);
+    if(au){const g=forumLevelOf(au);rLv=g.level;rLn=g.name;rAv=au.avatar||'';}
+  }
   return `<div class="sub-reply depth-${indent}">
     <div class="sr-line">
-      <span class="mini-av sm">${esc(avText(node.authorName))}</span>
-      <span class="sr-name">${esc(node.authorName)}</span>
+      ${avatarCircle(node.authorName,rAv,'sm')}
+      <span class="sr-name">${esc(node.authorName)}</span>${levelBadge(rLv,rLn)}
       <span class="sr-time">${relTime(node.createdAt)}</span>
       <button type="button" class="sr-vote ${liked?'on':''}" data-avote="${node.id}" aria-label="赞同">▲ ${node.votes.length}</button>
       <button type="button" class="sr-reply" data-rreply="${node.id}" data-rname="${esc(node.authorName)}">回复</button>
@@ -1779,16 +1938,52 @@ function subReplyHtml(node,depth,curId,isAdmin,cloudOn){
     ${node.children.length?`<div class="sub-reply-children">${node.children.map(c=>subReplyHtml(c,depth+1,curId,isAdmin,cloudOn)).join('')}</div>`:''}
   </div>`;
 }
+/* 投票小组件（豆瓣式） */
+function pollHtml(poll){
+  if(!poll)return '';
+  const q=poll.question||'投票';
+  const total=poll.totalVoters||0;
+  const voted=poll.myVotes.length>0;
+  const head=`<div class="poll-head"><span class="poll-ico">📊</span><b>${esc(q)}</b>
+    <span class="poll-total">${total} 人参与</span></div>`;
+  let body;
+  if(voted){
+    body=`<div class="poll-opts results">${poll.options.map(o=>{
+      const pct=total?Math.round(o.votes/total*100):0;
+      const mine=poll.myVotes.includes(o.id);
+      return `<div class="poll-opt ${mine?'mine':''}">
+        <span class="poll-bar" style="width:${pct}%"></span>
+        <span class="poll-label">${esc(o.text)}${mine?' ✓':''}</span>
+        <span class="poll-pct">${pct}%</span>
+      </div>`;}).join('')}</div>
+      <div class="poll-foot">${poll.multi?'多选':'单选'} · 你已投票</div>`;
+  }else if(poll.multi){
+    body=`<div class="poll-opts voting">${poll.options.map(o=>`
+      <label class="poll-check"><input type="checkbox" class="poll-multi-opt" value="${o.id}"> ${esc(o.text)}</label>`).join('')}</div>
+      <div class="poll-foot"><button class="btn btn-sm btn-orange" id="poll-submit">提交投票</button></div>`;
+  }else{
+    body=`<div class="poll-opts voting">${poll.options.map(o=>`
+      <button class="poll-pick" data-pollpick="${o.id}">${esc(o.text)}</button>`).join('')}</div>
+      <div class="poll-foot">单选 · 点击选项投票</div>`;
+  }
+  return `<div class="poll-box" data-pollid="${poll.id}">${head}${body}</div>`;
+}
 /* 帖子详情两面板 HTML（统一形状） */
-function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
+function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
   const postLiked=post.votes.includes(curId);
   const postCount=post.votes.length+(post.simulatedLikes||0);
   const canDelPost=cloudOn?(post.authorId===curId||isAdmin):isAdmin;
+  /* 作者等级/头像 */
+  let pLv=post.authorLevel,pLn=post.authorLevelName,pAv=post.authorAvatar;
+  if(!cloudOn){
+    const au=DB.data.users.find(u=>u.id===post.authorId);
+    if(au){const g=forumLevelOf(au);pLv=g.level;pLn=g.name;pAv=au.avatar||'';}
+  }
   const bread=`<div class="p-crumb"><a href="#/forum">论坛</a> / <b>${esc(post.board)}</b></div>`;
   const panel1=`<div class="p-panel">
     <h2 style="font-size:23px;line-height:1.4">${esc(post.title)}</h2>
     <div class="q-meta" style="margin:12px 0 4px">
-      <span class="mini-av">${esc(avText(post.authorName))}</span><span>${esc(post.authorName)}</span>
+      ${avatarCircle(post.authorName,pAv)}<span>${esc(post.authorName)}</span>${levelBadge(pLv,pLn)}
       <span>${relTime(post.createdAt)}</span><span>👁 ${post.views||0}</span>
       ${!cloudOn?`<button class="btn btn-sm btn-ghost" data-pin="${post.id}" style="margin-left:auto">${post.pinned?"取消置顶":"置顶"}</button>
       <span class="qm" id="p-edit">✎ 编辑帖子</span>
@@ -1797,6 +1992,7 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
         ${canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':''}`)}
     </div>
     <div style="color:var(--pt-text);font-size:15px;line-height:1.95;white-space:pre-wrap;margin-top:14px;word-break:break-word">${renderBody(post.content)}</div>
+    ${cloudOn?pollHtml(poll):''}
     <div class="q-vote q-vote-detail">
       <button type="button" class="vt ${postLiked?'on':''}" data-vote="${post.id}" aria-label="赞同帖子" aria-pressed="${postLiked?'true':'false'}"><span class="vote-arrow">▲</span><span class="vote-label">赞同</span></button>
       <b class="vote-count">${postCount}</b><span class="vote-caption">人赞同</span>
@@ -1806,10 +2002,15 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
   const rootHtml=a=>{
     const liked=a.votes.includes(curId);
     const canDelReply=cloudOn?(a.authorId===curId||isAdmin):isAdmin;
+    let aLv=a.authorLevel,aLn=a.authorLevelName,aAv=a.authorAvatar;
+    if(!cloudOn){
+      const au=DB.data.users.find(u=>u.id===a.authorId);
+      if(au){const g=forumLevelOf(au);aLv=g.level;aLn=g.name;aAv=au.avatar||'';}
+    }
     return `<div class="answer">
       <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
       <div class="q-main">
-        <div class="q-meta"><span class="mini-av">${esc(avText(a.authorName))}</span><span>${esc(a.authorName)}</span><span>${relTime(a.createdAt)}</span>
+        <div class="q-meta">${avatarCircle(a.authorName,aAv)}<span>${esc(a.authorName)}</span>${levelBadge(aLv,aLn)}<span>${relTime(a.createdAt)}</span>
           ${!cloudOn?`<span class="qm" data-aedit="${a.id}">✎ 编辑</span>
           ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`
           :(canDelReply?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:'')}
@@ -1852,13 +2053,18 @@ function viewPost(id){
         const post={
           id:d.post.id,board:d.post.board,title:d.post.title,content:d.post.content,
           authorId:d.post.authorId,authorName:d.post.authorName,
-          createdAt:d.post.createdAt,pinned:d.post.pinned,views:d.post.views,
+          authorLevel:d.post.authorLevel||0,authorLevelName:d.post.authorLevelName||'',
+          authorAvatar:d.post.authorAvatar||'',
+          createdAt:d.post.createdAt,lastActivityAt:d.post.lastActivityAt||d.post.createdAt,
+          pinned:d.post.pinned,views:d.post.views,
           votes:d.post.votes||[],simulatedLikes:0};
         const replies=(d.replies||[]).map(r=>({
           id:r.id,postId:r.postId,parentId:r.parentId||null,
           authorId:r.authorId,authorName:r.authorName,
+          authorLevel:r.authorLevel||0,authorLevelName:r.authorLevelName||'',
+          authorAvatar:r.authorAvatar||'',
           content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
-        $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true));
+        $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true,d.poll||null));
         /* 进入帖子即把该帖相关通知标为已读，并刷新红点 */
         Cloud.readNotificationsForPost(id).then(async()=>{
           await Cloud.pollNotifications();syncUnreadBadges();
@@ -2296,7 +2502,53 @@ function libForm(l){
 }
 
 /* ---------- 论坛分类管理 ---------- */
+/* 云端板块管理（管理员） */
+function cloudBoardManage(){
+  const html=`<h3>管理论坛分类</h3><div class="m-body">
+    <div id="cb-list"><div class="cloud-loading"><span class="cl-spin"></span>加载中…</div></div>
+    <label class="fl">新增分类</label>
+    <div style="display:flex;gap:8px"><input class="field" id="cb-add" placeholder="输入新分类名称" maxlength="12">
+    <button class="btn btn-sm btn-orange" id="cb-add-go">添加</button></div>
+    <p class="muted" style="font-size:12px;margin-top:10px">删除分类时，其下帖子默认移动到「灌水」；系统公告板块不能删除。</p></div>
+    <div class="m-foot"><button class="btn btn-sm" id="cb-done">完成</button></div>`;
+  const mask=openMask(html);
+  const render=async()=>{
+    const box=mask.querySelector('#cb-list');
+    try{
+      const boards=await Cloud.listBoards();
+      box.innerHTML=boards.map(b=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <b style="flex:1">${esc(b.name)}</b>
+        <span class="muted" style="font-size:12px;white-space:nowrap">${b.postCount}帖</span>
+        ${b.name==='公告'?'':`<button class="btn btn-sm btn-ghost cb-del" data-name="${esc(b.name)}">删除</button>`}
+      </div>`).join('');
+      box.querySelectorAll('.cb-del').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const name=btn.dataset.name;
+          modal(`<h3>删除分类「${name}」</h3><div class="m-body">
+            <p>该分类下的帖子如何处理？</p></div>
+            <div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="cancel">取消</button>
+            <button class="btn btn-sm btn-ghost" data-m="delete">连同帖子删除</button>
+            <button class="btn btn-sm btn-orange" data-m="move">移动到灌水</button></div>`).then(async v=>{
+            if(v==='cancel')return;
+            try{await Cloud.deleteBoard(name,v);toast('分类已删除','ok');render();}
+            catch(e){toast(e.message,'err');}
+          });
+        });
+      });
+    }catch(e){box.innerHTML='<div class="empty">加载失败：'+esc(e.message)+'</div>';}
+  };
+  render();
+  mask.querySelector('#cb-add-go').addEventListener('click',async()=>{
+    const v=mask.querySelector('#cb-add').value.trim();
+    if(!v)return toast('请输入分类名称','warn');
+    try{await Cloud.createBoard(v);toast('分类已添加','ok');mask.querySelector('#cb-add').value='';render();}
+    catch(e){toast(e.message,'err');}
+  });
+  mask.querySelector('#cb-done').addEventListener('click',()=>mask._close('done'));
+  p.then(v=>{if(v==='done')router();});
+}
 function boardManage(){
+  if(Cloud.connected){cloudBoardManage();return;}
   const html=`<h3>管理论坛分类</h3><div class="m-body">
     ${DB.data.boards.map((b,i)=>{
       const n=DB.data.posts.filter(p=>p.board===b).length;
@@ -5322,6 +5574,13 @@ document.addEventListener('click',e=>{
     })();
     return;
   }
+  /* 更换头像：点击相机按钮打开文件选择 */
+  const avEdit=t.closest('#cloud-av-edit');
+  if(avEdit){
+    const file=document.getElementById('cloud-av-file');
+    if(file)file.click();
+    return;
+  }
   const cloudLogout=t.closest('#cloud-logout');
   if(cloudLogout){Cloud.logout();Cloud.notif={unread:0,total:0,list:[]};syncUnreadBadges();router();toast('已退出云端账号','ok');return;}
   const cloudRefresh=t.closest('#cloud-refresh');
@@ -5419,6 +5678,34 @@ document.addEventListener('click',e=>{
   }
    const wd=t.closest('[data-wanted-del]');if(wd){const id=wd.dataset.wantedDel;modal(`<h3>撤销通缉令</h3><div class="m-body">确认撤销这条通缉令？</div><div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="no">返回</button><button class="btn btn-sm btn-orange" data-m="yes">确认撤销</button></div>`).then(v=>{if(v==='yes'){DB.data.wanted=(DB.data.wanted||[]).filter(w=>w.id!==id);DB.save();router();toast('通缉令已撤销','ok');}});return;}
   const we=t.closest('[data-wanted-edit]');if(we){editWanted(we.dataset.wantedEdit);return;}
+  /* 投票：单选点击 */
+  const pp=t.closest('[data-pollpick]');
+  if(pp){
+    e.preventDefault();
+    const box=pp.closest('.poll-box');
+    const pollId=box.dataset.pollid;
+    pp.disabled=true;
+    Cloud.votePoll(pollId,[pp.dataset.pollpick]).then(async()=>{
+      await Cloud.refresh().catch(()=>{});
+      await cloudRerender();
+      toast('投票成功','ok');
+    }).catch(err=>{pp.disabled=false;toast(err.message,'err');});
+    return;
+  }
+  /* 投票：多选提交 */
+  if(t.closest('#poll-submit')){
+    const box=t.closest('.poll-box');
+    const pollId=box.dataset.pollid;
+    const ids=Array.from(box.querySelectorAll('.poll-multi-opt:checked')).map(c=>c.value);
+    if(!ids.length){toast('请至少选择一个选项','warn');return;}
+    const btn=t.closest('#poll-submit');btn.disabled=true;
+    Cloud.votePoll(pollId,ids).then(async()=>{
+      await Cloud.refresh().catch(()=>{});
+      await cloudRerender();
+      toast('投票成功','ok');
+    }).catch(err=>{btn.disabled=false;toast(err.message,'err');});
+    return;
+  }
    const pv=t.closest('[data-vote]');
   if(pv){
     e.preventDefault();e.stopPropagation();
@@ -5511,7 +5798,8 @@ document.addEventListener('click',e=>{
     if(Cloud.connected){
       const btn=t.closest('#a-sub');btn.disabled=true;
       const board=$('#a-board').value;
-      Cloud.createPost(board,title,body).then(async p=>{
+      const poll=readVoteBuilder();
+      Cloud.createPost(board,title,body,poll).then(async p=>{
         await Cloud.refresh().catch(()=>{});
         toast('已发布到共享论坛','ok');location.hash='#/post/'+p.id;
       }).catch(err=>{btn.disabled=false;toast(err.message,'err');});

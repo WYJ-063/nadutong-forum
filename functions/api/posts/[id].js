@@ -1,6 +1,6 @@
 import {
   json,preflight,ensureSchema,getAuthUser,
-  isAdmin,addPointsClamped,POINTS_RULE
+  isAdmin,addPointsClamped,POINTS_RULE,getPollForPost,userInfoMap
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -39,20 +39,39 @@ export async function onRequestGet({request,env,params}){
       (replyVotes[l.target_id]=replyVotes[l.target_id]||[]).push(l.user_id);
     });
   }
-  const answerShapes=replies.map(r=>({
-    id:r.id, postId:r.post_id, parentId:r.parent_id||null,
-    authorId:r.author_id, authorName:r.author_name,
-    content:r.content, createdAt:r.created_at,
-    votes:replyVotes[r.id]||[]
-  }));
+  /* 作者等级/头像（帖子 + 回复） */
+  const uMap=await userInfoMap(env,[post.author_id].concat(replies.map(r=>r.author_id)));
+  const answerShapes=replies.map(r=>{
+    const info=uMap[r.author_id]||{};
+    return {
+      id:r.id, postId:r.post_id, parentId:r.parent_id||null,
+      authorId:r.author_id, authorName:r.author_name,
+      authorLevel:info.level||0,authorLevelName:info.levelName||'',
+      authorAvatar:info.avatar||'',
+      content:r.content, createdAt:r.created_at,
+      votes:replyVotes[r.id]||[]
+    };
+  });
+  const postInfo=uMap[post.author_id]||{};
 
+  /* 最近活动时间（最后回复或发布） */
+  let lastActivityAt=post.created_at;
+  if(replies.length){
+    const latest=replies.map(r=>r.created_at).sort().pop();
+    if(latest>lastActivityAt)lastActivityAt=latest;
+  }
+  const poll=await getPollForPost(env,post.id,me?me.id:null);
   return json({
     post:{
       id:post.id, board:post.board, title:post.title, content:post.content,
       authorId:post.author_id, authorName:post.author_name,
-      createdAt:post.created_at, pinned:!!post.pinned,
+      authorLevel:postInfo.level||0,authorLevelName:postInfo.levelName||'',
+      authorAvatar:postInfo.avatar||'',
+      createdAt:post.created_at, lastActivityAt,
+      pinned:!!post.pinned,
       views:post.views, votes:postVotes
     },
+    poll,
     replies:answerShapes,
     viewer:me?me.id:null
   });

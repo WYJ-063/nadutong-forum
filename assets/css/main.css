@@ -2593,6 +2593,98 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   .slv-edit-row{grid-template-columns:44px 1fr 88px;gap:6px;}
 }
 
+/* 云端账号头像编辑角标 */
+.cloud-av{position:relative;}
+.cloud-av-edit{
+  position:absolute;right:-2px;bottom:-2px;
+  width:24px;height:24px;border-radius:50%;
+  border:2px solid var(--pt-panel);
+  background:var(--pt-highlight);color:#fff;
+  font-size:11px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  padding:0;
+}
+.cloud-av-edit:hover{filter:brightness(1.1);}
+
+/* ---------- 通用圆形头像 / 等级徽章 ---------- */
+.mini-av{
+  width:24px;height:24px;border-radius:50%;flex-shrink:0;
+  background:var(--pt-accent);color:#fff;font-size:11px;
+  display:inline-flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.mini-av.has-img img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+/* 等级徽章 */
+.lv-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:11px;font-weight:800;line-height:1;
+  padding:2px 6px;border-radius:6px;
+  background:var(--pt-highlight-bg);color:var(--pt-highlight);
+  border:1px solid transparent;white-space:nowrap;
+}
+.lv-badge .lv-bn{font-weight:600;}
+/* 高等级徽章渐变（贴吧式，随等级加深） */
+.lv-badge.lv-hi{
+  background:linear-gradient(135deg,#C98A3E,#E8B06A);
+  color:#3A2410;
+}
+.lv-badge.lv-top{
+  background:linear-gradient(135deg,#8A5CE0,#E05CC8);
+  color:#fff;
+}
+
+/* ---------- 投票小组件 ---------- */
+.poll-box{
+  margin:18px 0 4px;border:1px solid var(--pt-border);
+  border-radius:14px;padding:16px 16px 12px;
+  background:var(--pt-panel);
+  box-shadow:var(--pt-shadow);
+}
+.poll-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.poll-head .poll-ico{font-size:18px;}
+.poll-head b{font-size:15px;color:var(--pt-text);}
+.poll-head .poll-total{margin-left:auto;font-size:12px;color:var(--pt-muted);}
+.poll-opts.results{display:flex;flex-direction:column;gap:8px;}
+.poll-opt{
+  position:relative;display:flex;align-items:center;
+  border-radius:9px;overflow:hidden;min-height:38px;
+  background:var(--pt-input);border:1px solid var(--pt-border-soft);
+}
+.poll-bar{
+  position:absolute;left:0;top:0;bottom:0;
+  background:var(--pt-highlight-bg);
+  border-radius:9px;transition:width .6s cubic-bezier(.2,.8,.2,1);
+}
+.poll-opt.mine .poll-bar{background:var(--pt-highlight-bg);}
+.poll-label{
+  position:relative;z-index:1;padding:9px 12px;flex:1;
+  font-size:14px;color:var(--pt-text);
+}
+.poll-pct{
+  position:relative;z-index:1;padding:0 12px;
+  font-size:13px;font-weight:700;color:var(--pt-highlight);
+}
+.poll-opts.voting{display:flex;flex-direction:column;gap:8px;}
+.poll-pick{
+  text-align:left;padding:10px 14px;border-radius:9px;
+  border:1px solid var(--pt-border);background:var(--pt-input);
+  color:var(--pt-text-soft);font-size:14px;cursor:pointer;
+  transition:all .15s;
+}
+.poll-pick:hover{border-color:var(--pt-highlight);background:var(--pt-highlight-bg);color:var(--pt-text);}
+.poll-check{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:9px;
+  border:1px solid var(--pt-border);background:var(--pt-input);
+  color:var(--pt-text-soft);font-size:14px;cursor:pointer;
+}
+.poll-foot{margin-top:12px;font-size:12px;color:var(--pt-muted);}
+/* 发帖页投票构建器 */
+.vote-builder{margin-top:16px;border:1px solid var(--pt-border);border-radius:12px;padding:12px;}
+.vb-head .vb-toggle{cursor:pointer;font-weight:700;color:var(--pt-highlight);font-size:14px;}
+.vb-body{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+.vb-body.hide{display:none;}
+.vb-opt{margin-bottom:2px;}
+
 /* ============ 云端账号 ============ */
 .cloud-loading{
   display:flex;align-items:center;justify-content:center;gap:12px;

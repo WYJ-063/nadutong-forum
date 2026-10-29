@@ -1,13 +1,31 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
   addPoints,POINTS_RULE,nowStr,
-  isAdmin,ANNOUNCEMENT_BOARD,moderationBlock
+  isAdmin,ANNOUNCEMENT_BOARD,moderationBlock,levelOfPoints,userInfoMap
 } from '../_lib.js';
+/* 为帖子创建投票（含选项） */
+async function createPoll(env,postId,poll,createdAt){
+  const pollId=genId('pl');
+  const question=String(poll.question||'').trim();
+  const multi=poll.multi?1:0;
+  const options=Array.isArray(poll.options)?poll.options.slice(0,8):[];
+  if(options.length<2)return null;
+  await env.DB.prepare(
+    `INSERT INTO polls (id,post_id,question,multi,created_at) VALUES (?,?,?,?,?)`)
+    .bind(pollId,postId,question,multi,createdAt).run();
+  options.forEach((t,i)=>{
+    const oid=genId('po');
+    env.DB.prepare(
+      `INSERT INTO poll_options (id,poll_id,text,pos) VALUES (?,?,?,?)`)
+      .bind(oid,pollId,String(t),i).run();
+  });
+  return pollId;
+}
 
 export async function onRequestOptions(){ return preflight(); }
 
 /* 把一行 post 记录 + 投票/回复统计，归一化为前端形状 */
-function shapePost(row,votes,replyCount){
+function shapePost(row,votes,replyCount,lastActivityAt,authorInfo){
   return {
     id:row.id,
     board:row.board,
@@ -15,12 +33,20 @@ function shapePost(row,votes,replyCount){
     content:row.content,
     authorId:row.author_id,
     authorName:row.author_name,
+    authorLevel:authorInfo?authorInfo.level:0,
+    authorLevelName:authorInfo?authorInfo.levelName:'',
+    authorAvatar:authorInfo?authorInfo.avatar:'',
     createdAt:row.created_at,
+    lastActivityAt:lastActivityAt||row.created_at,
     pinned:!!row.pinned,
     views:Number(row.views)||0,
     votes:votes||[],
     replyCount:replyCount||0
   };
+}
+/* 整体热度：点赞*3 + 回复*2 + 浏览/10 */
+function postHeat(p){
+  return p.votes.length*3+p.replyCount*2+Math.floor((p.views||0)/10);
 }
 
 /* GET /api/posts?board=&sort= */
@@ -49,19 +75,22 @@ export async function onRequestGet({request,env}){
   (likesRes.results||[]).forEach(l=>{
     (votesMap[l.target_id]=votesMap[l.target_id]||[]).push(l.user_id);
   });
-  /* 回复数 */
+  /* 回复数 + 最近回复时间 */
   const repRes=await env.DB.prepare(
-    `SELECT post_id,COUNT(*) AS n FROM replies
+    `SELECT post_id,COUNT(*) AS n,MAX(created_at) AS last_at FROM replies
      WHERE post_id IN (${placeholders}) GROUP BY post_id`)
     .bind(...ids).all();
-  const repMap={};
-  (repRes.results||[]).forEach(r=>{repMap[r.post_id]=r.n;});
+  const repMap={},lastMap={};
+  (repRes.results||[]).forEach(r=>{repMap[r.post_id]=r.n;lastMap[r.post_id]=r.last_at;});
 
-  let list=posts.map(p=>shapePost(p,votesMap[p.id],repMap[p.id]));
+  /* 作者等级/头像 */
+  const uMap=await userInfoMap(env,posts.map(p=>p.author_id));
+  let list=posts.map(p=>shapePost(p,votesMap[p.id],repMap[p.id],lastMap[p.id],uMap[p.author_id]));
   list.sort((a,b)=>{
     if(a.pinned!==b.pinned)return a.pinned?-1:1;
-    if(sort==='hot')return (b.votes.length+b.replyCount*2)-(a.votes.length+a.replyCount*2);
-    return new Date(b.createdAt)-new Date(a.createdAt);
+    if(sort==='hot')return postHeat(b)-postHeat(a);
+    /* 最新：按最近活动（回复或发布）时间 */
+    return new Date(b.lastActivityAt)-new Date(a.lastActivityAt);
   });
   return json({posts:list,viewer:me?me.id:null});
 }
@@ -89,6 +118,9 @@ export async function onRequestPost({request,env}){
     `INSERT INTO posts (id,board,title,content,author_id,author_name,pinned,views,created_at)
      VALUES (?,?,?,?,?,?,0,0,?)`)
     .bind(id,board,title,content,me.id,me.name,createdAt).run();
+  /* 投票（可选） */
+  if(b.poll&&Array.isArray(b.poll.options)&&b.poll.options.length>=2)
+    await createPoll(env,id,b.poll,createdAt);
   await addPoints(env,me.id,POINTS_RULE.post);
   const row=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
   return json({post:shapePost(row,[],0)});

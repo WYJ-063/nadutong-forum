@@ -103,8 +103,44 @@ const SCHEMA=[
   read INTEGER DEFAULT 0,
   created_at TEXT
 )`,
-`CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id,created_at)`
+`CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id,created_at)`,
+`CREATE TABLE IF NOT EXISTS boards (
+  name TEXT PRIMARY KEY,
+  created_by TEXT,
+  created_at TEXT
+)`,
+`CREATE TABLE IF NOT EXISTS polls (
+  id TEXT PRIMARY KEY,
+  post_id TEXT,
+  question TEXT,
+  multi INTEGER DEFAULT 0,
+  created_at TEXT
+)`,
+`CREATE TABLE IF NOT EXISTS poll_options (
+  id TEXT PRIMARY KEY,
+  poll_id TEXT,
+  text TEXT,
+  pos INTEGER
+)`,
+`CREATE TABLE IF NOT EXISTS poll_votes (
+  poll_id TEXT,
+  option_id TEXT,
+  user_id TEXT,
+  created_at TEXT,
+  PRIMARY KEY (poll_id,option_id,user_id)
+)`
 ];
+/* 默认板块（首次运行写入） */
+const DEFAULT_BOARDS=['公告','异人讨论','功法交流','天下见闻','求助','灌水'];
+async function seedBoards(env){
+  const {results}=await env.DB.prepare('SELECT name FROM boards').all();
+  const have=new Set((results||[]).map(r=>r.name));
+  for(const n of DEFAULT_BOARDS){
+    if(!have.has(n))
+      await env.DB.prepare('INSERT OR IGNORE INTO boards (name,created_by,created_at) VALUES (?,?,?)')
+        .bind(n,'system',nowStr()).run();
+  }
+}
 /* 增量迁移：给已存在的表补列（SQLite 不支持 IF NOT EXISTS 的 ADD COLUMN，
    重复执行时捕获 "duplicate column" 错误并忽略，保证幂等） */
 const MIGRATIONS=[
@@ -121,6 +157,7 @@ async function ensureSchema(env){
       try{ await env.DB.prepare(m).run(); }
       catch(e){ if(!/duplicate column/i.test(String((e&&e.message)||e))) throw e; }
     }
+    await seedBoards(env);
   })().catch(e=>{schemaPromise=null;throw e;});
   return schemaPromise;
 }
@@ -268,11 +305,57 @@ function nowStr(){
   return new Date().toISOString();
 }
 
+/* ---------- 投票 ---------- */
+/* 批量取用户展示信息（等级/等级名/头像），返回 {id:{level,levelName,avatar}} */
+async function userInfoMap(env,ids){
+  const uniq=[...new Set(ids.filter(Boolean))];
+  const out={};
+  if(!uniq.length)return out;
+  const ph=uniq.map(()=>'?').join(',');
+  const r=await env.DB.prepare(
+    `SELECT id,points,avatar FROM users WHERE id IN (${ph})`).bind(...uniq).all();
+  (r.results||[]).forEach(u=>{
+    const g=levelOfPoints(Number(u.points)||0);
+    out[u.id]={level:g.level,levelName:g.name,avatar:u.avatar||''};
+  });
+  return out;
+}
+/* 取某帖子的投票：选项、各选项票数、总人数、当前用户是否已投 */
+async function getPollForPost(env,postId,viewerId){
+  const poll=await env.DB.prepare('SELECT * FROM polls WHERE post_id=?').bind(postId).first();
+  if(!poll)return null;
+  const opts=await env.DB.prepare(
+    'SELECT * FROM poll_options WHERE poll_id=? ORDER BY pos').bind(poll.id).all();
+  const options=opts.results||[];
+  const ids=options.map(o=>o.id);
+  const countMap={},myVotes=[];
+  if(ids.length){
+    const ph=ids.map(()=>'?').join(',');
+    const vr=await env.DB.prepare(
+      `SELECT option_id,user_id FROM poll_votes WHERE option_id IN (${ph})`).bind(...ids).all();
+    (vr.results||[]).forEach(v=>{
+      (countMap[v.option_id]=countMap[v.option_id]||[]).push(v.user_id);
+      if(viewerId&&v.user_id===viewerId)myVotes.push(v.option_id);
+    });
+  }
+  let totalVoters=0;
+  const votersSet=new Set();
+  Object.keys(countMap).forEach(k=>countMap[k].forEach(u=>votersSet.add(u)));
+  totalVoters=votersSet.size;
+  return {
+    id:poll.id,question:poll.question,multi:!!poll.multi,totalVoters,
+    myVotes,
+    options:options.map(o=>({
+      id:o.id,text:o.text,votes:(countMap[o.id]||[]).length
+    }))
+  };
+}
+
 export {
   json,readBody,preflight,ensureSchema,getSecret,genId,
   hashPassword,verifyPassword,signToken,getAuthUser,
   POINTS_RULE,addPoints,addPointsClamped,isAdmin,
   ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
-  levelOfPoints,publicUser,nowStr
+  levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap
 };
