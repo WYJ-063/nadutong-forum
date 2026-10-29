@@ -40,11 +40,11 @@ export async function onRequestGet({request,env,params}){
     });
   }
   const answerShapes=replies.map(r=>({
-    id:r.id, postId:r.post_id,
+    id:r.id, postId:r.post_id, parentId:r.parent_id||null,
     authorId:r.author_id, authorName:r.author_name,
     content:r.content, createdAt:r.created_at,
     votes:replyVotes[r.id]||[]
-  })).sort((a,b)=>b.votes.length-a.votes.length);
+  }));
 
   return json({
     post:{

@@ -320,9 +320,11 @@ const Cloud={
     return (await this.request('/posts',
       {method:'POST',body:JSON.stringify({board,title,content})})).post;
   },
-  async reply(postId,content){
+  async reply(postId,content,parentId){
+    const payload={content};
+    if(parentId)payload.parentId=parentId;
     return (await this.request('/posts/'+encodeURIComponent(postId)+'/replies',
-      {method:'POST',body:JSON.stringify({content})})).reply;
+      {method:'POST',body:JSON.stringify(payload)})).reply;
   },
   async toggleLike(type,id){
     return (await this.request('/like',
@@ -336,10 +338,12 @@ const Cloud={
   async deleteReply(id){
     return await this.request('/replies/'+encodeURIComponent(id),{method:'DELETE'});
   },
-  /* 置顶 / 取消置顶（管理员） */
+  /* 置顶 / 取消置顶（管理员）；不传 pinned 时由后端切换当前状态 */
   async pinPost(id,pinned){
+    const payload={};
+    if(pinned!==undefined)payload.pinned=!!pinned;
     return await this.request('/posts/'+encodeURIComponent(id)+'/pin',
-      {method:'POST',body:JSON.stringify({pinned:!!pinned})});
+      {method:'POST',body:JSON.stringify(payload)});
   },
   /* 禁言 / 解除禁言 / 拉黑 / 解除拉黑（管理员） */
   async moderateUser(id,action){
@@ -349,6 +353,10 @@ const Cloud={
   /* 全部成员列表（管理员） */
   async listUsers(){
     return (await this.request('/users')).users;
+  },
+  /* 删除账号（管理员） */
+  async deleteUser(id){
+    return await this.request('/users/'+encodeURIComponent(id),{method:'DELETE'});
   },
   /* ---------- 通知 ---------- */
   notif:{unread:0,total:0,list:[]},
@@ -449,6 +457,7 @@ function cloudModListHtml(users){
       ${isMe?'<span class="ph-sub cm-self">本人</span>':`<div class="cm-actions">
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
+        <button class="btn btn-sm btn-ghost" data-cmdel="${u.id}" style="color:#FF6B6B">删除账号</button>
       </div>`}
     </div>`;
   }).join('');
@@ -487,7 +496,8 @@ async function cloudRerender(){
       createdAt:d.post.createdAt,pinned:d.post.pinned,views:d.post.views,
       votes:d.post.votes||[],simulatedLikes:0};
     const replies=(d.replies||[]).map(r=>({
-      id:r.id,postId:r.postId,authorId:r.authorId,authorName:r.authorName,
+      id:r.id,postId:r.postId,parentId:r.parentId||null,
+      authorId:r.authorId,authorName:r.authorName,
       content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
     $('#app').innerHTML=portalShell('forum',
       postDetailHtml(post,replies,Cloud.user.id,Cloud.user.role>=3,true));
@@ -1728,9 +1738,46 @@ function viewAsk(){
 /* 归一化本地回复 */
 function localReplies(postId){
   return DB.data.answers.filter(a=>a.postId===postId).map(a=>({
-    id:a.id,postId:a.postId,authorId:a.authorId,authorName:ansAuthor(a),
+    id:a.id,postId:a.postId,parentId:a.parentId||null,
+    authorId:a.authorId,authorName:ansAuthor(a),
     content:a.content,createdAt:a.createdAt,votes:a.votes||[]
   }));
+}
+/* 由扁平回复构建楼中楼树：顶层按点赞数，子级按时间 */
+function buildReplyTree(replies){
+  const map=new Map();
+  replies.forEach(r=>map.set(r.id,{...r,children:[]}));
+  const roots=[];
+  map.forEach(r=>{
+    if(r.parentId&&map.has(r.parentId)){
+      const p=map.get(r.parentId);
+      p.children.push(r);r.parentName=p.authorName;
+    }
+    else roots.push(r);
+  });
+  const byTime=arr=>{arr.sort((a,b)=>a.createdAt<b.createdAt?-1:1);arr.forEach(c=>byTime(c.children));};
+  roots.sort((a,b)=>b.votes.length-a.votes.length);
+  roots.forEach(r=>byTime(r.children));
+  return roots;
+}
+/* 楼中楼子回复（递归；视觉缩进最多 2 层，更深的以“回复 @某某”前缀平铺） */
+function subReplyHtml(node,depth,curId,isAdmin,cloudOn){
+  const liked=node.votes.includes(curId);
+  const canDelReply=cloudOn?(node.authorId===curId||isAdmin):isAdmin;
+  const indent=Math.min(depth,2);
+  const prefix=node.parentId?`<span class="sr-to">回复 @${esc(node.parentName||'')}：</span>`:'';
+  return `<div class="sub-reply depth-${indent}">
+    <div class="sr-line">
+      <span class="mini-av sm">${esc(avText(node.authorName))}</span>
+      <span class="sr-name">${esc(node.authorName)}</span>
+      <span class="sr-time">${relTime(node.createdAt)}</span>
+      <button type="button" class="sr-vote ${liked?'on':''}" data-avote="${node.id}" aria-label="赞同">▲ ${node.votes.length}</button>
+      <button type="button" class="sr-reply" data-rreply="${node.id}" data-rname="${esc(node.authorName)}">回复</button>
+      ${canDelReply?`<button type="button" class="sr-del" data-adel="${node.id}">删除</button>`:''}
+    </div>
+    <div class="sr-body">${prefix}${renderBody(node.content)}</div>
+    ${node.children.length?`<div class="sub-reply-children">${node.children.map(c=>subReplyHtml(c,depth+1,curId,isAdmin,cloudOn)).join('')}</div>`:''}
+  </div>`;
 }
 /* 帖子详情两面板 HTML（统一形状） */
 function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
@@ -1755,21 +1802,34 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn){
       <b class="vote-count">${postCount}</b><span class="vote-caption">人赞同</span>
     </div>
   </div>`;
+  const tree=buildReplyTree(replies);
+  const rootHtml=a=>{
+    const liked=a.votes.includes(curId);
+    const canDelReply=cloudOn?(a.authorId===curId||isAdmin):isAdmin;
+    return `<div class="answer">
+      <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
+      <div class="q-main">
+        <div class="q-meta"><span class="mini-av">${esc(avText(a.authorName))}</span><span>${esc(a.authorName)}</span><span>${relTime(a.createdAt)}</span>
+          ${!cloudOn?`<span class="qm" data-aedit="${a.id}">✎ 编辑</span>
+          ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`
+          :(canDelReply?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:'')}
+        </div>
+        <div class="a-body" style="margin-top:8px">${renderBody(a.content)}</div>
+        <div class="reply-actions"><button type="button" class="rp-btn" data-rreply="${a.id}" data-rname="${esc(a.authorName)}">💬 回复</button></div>
+        ${a.children.length?`<div class="sub-replies">
+          <div class="sub-replies-head">全部 ${a.children.length} 条回复</div>
+          ${a.children.map(c=>subReplyHtml(c,1,curId,isAdmin,cloudOn)).join('')}
+        </div>`:''}
+        <div class="inline-reply hide" id="ir-${a.id}">
+          <textarea class="field ir-body" placeholder="回复 @${esc(a.authorName)}：" style="min-height:70px"></textarea>
+          <div class="ir-foot"><button class="btn btn-sm btn-ghost ir-cancel" data-rcancel="${a.id}">取消</button>
+          <button class="btn btn-sm btn-orange ir-send" data-rsub="${a.id}">发送</button></div>
+        </div>
+      </div></div>`;
+  };
   const panel2=`<div class="p-panel">
     <h2>${replies.length} 个回答</h2>
-    ${replies.map(a=>{
-      const liked=a.votes.includes(curId);
-      const canDelReply=cloudOn?(a.authorId===curId||isAdmin):isAdmin;
-      return `<div class="answer">
-        <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
-        <div class="q-main">
-          <div class="q-meta"><span class="mini-av">${esc(avText(a.authorName))}</span><span>${esc(a.authorName)}</span><span>${relTime(a.createdAt)}</span>
-            ${!cloudOn?`<span class="qm" data-aedit="${a.id}">✎ 编辑</span>
-            ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`
-            :(canDelReply?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:'')}
-          </div>
-          <div class="a-body" style="margin-top:8px">${renderBody(a.content)}</div>
-        </div></div>`;}).join('')||'<div class="empty">还没有回答，来写第一个回答吧</div>'}
+    ${tree.map(rootHtml).join('')||'<div class="empty">还没有回答，来写第一个回答吧</div>'}
     <div style="margin-top:20px">
       <label class="fl">写下你的回答</label>
       <textarea class="field" id="ans-body" style="min-height:130px" placeholder="分享你的见解……"></textarea>
@@ -1795,7 +1855,8 @@ function viewPost(id){
           createdAt:d.post.createdAt,pinned:d.post.pinned,views:d.post.views,
           votes:d.post.votes||[],simulatedLikes:0};
         const replies=(d.replies||[]).map(r=>({
-          id:r.id,postId:r.postId,authorId:r.authorId,authorName:r.authorName,
+          id:r.id,postId:r.postId,parentId:r.parentId||null,
+          authorId:r.authorId,authorName:r.authorName,
           content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
         $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true));
         /* 进入帖子即把该帖相关通知标为已读，并刷新红点 */
@@ -5291,6 +5352,24 @@ document.addEventListener('click',e=>{
     });
     return;
   }
+  /* 删除账号（管理员） */
+  const cmDel=t.closest('[data-cmdel]');
+  if(cmDel){
+    const targetId=cmDel.dataset.cmdel;
+    modal(`<h3>删除账号</h3><div class="m-body">
+      <p style="color:#FF6B6B;font-weight:700">此操作不可恢复！</p>
+      <p>将永久删除该账号，以及其名下的全部帖子、回复、点赞和消息；他人帖子下被该账号回复的内容会一并处理。</p>
+      <p>确认删除该账号吗？</p></div>
+      <div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="no">取消</button>
+      <button class="btn btn-sm btn-orange" data-m="yes">确认删除</button></div>`).then(async v=>{
+      if(v!=='yes')return;
+      try{
+        await Cloud.deleteUser(targetId);
+        toast('账号已删除','ok');loadCloudMod();
+      }catch(e){toast(e.message,'err');}
+    });
+    return;
+  }
   /* 弹层按钮 */
   const mBtn=t.closest('[data-m]');
   if(mBtn){const mask=t.closest('.modal-mask');if(mask)mask._close(mBtn.dataset.m);return;}
@@ -5444,6 +5523,49 @@ document.addEventListener('click',e=>{
     addPoints(u,Number(pointsRule().post)||0);
     const autoAdded=runForumAutoReply(p,null,`${p.title}\n${p.content}`);
     DB.save();syncUnreadBadges();toast(autoAdded?'已发布，关键词自动回复已生成':'已发布','ok');location.hash='#/post/'+p.id;return;
+  }
+  /* 楼中楼：打开内联回复框（顶层或子回复都落到所属楼层） */
+  const rreply=t.closest('[data-rreply]');
+  if(rreply){
+    const targetId=rreply.dataset.rreply;
+    const rootEl=t.closest('.answer');
+    const box=rootEl.querySelector('.inline-reply');
+    box.dataset.rtarget=targetId;
+    const ta=box.querySelector('.ir-body');
+    ta.placeholder='回复 @'+rreply.dataset.rname+'：';
+    ta.value='';
+    box.classList.remove('hide');
+    ta.focus();
+    return;
+  }
+  const rcancel=t.closest('[data-rcancel]');
+  if(rcancel){
+    const box=rcancel.closest('.inline-reply');
+    box.classList.add('hide');box.querySelector('.ir-body').value='';
+    return;
+  }
+  const rsub=t.closest('[data-rsub]');
+  if(rsub){
+    const box=rsub.closest('.inline-reply');
+    const parentId=box.dataset.rtarget||rsub.dataset.rsub;
+    const content=box.querySelector('.ir-body').value.trim();
+    if(!content){toast('回复内容不能为空','warn');return;}
+    rsub.disabled=true;
+    if(Cloud.connected){
+      const {seg}=parseHash();
+      Cloud.reply(seg[1],content,parentId).then(async()=>{
+        await Cloud.refresh().catch(()=>{});
+        toast('回复已提交','ok');await cloudRerender();
+      }).catch(err=>{rsub.disabled=false;toast(err.message,'err');});
+      return;
+    }
+    const post=DB.data.posts.find(x=>x.id===curPostId());
+    if(!post){toast('帖子不存在或已被删除','warn');rsub.disabled=false;return;}
+    const a={id:genId('a'),postId:post.id,parentId,authorId:DB.user.id,content,createdAt:nowStr(),votes:[],editedBy:[]};
+    DB.data.answers.push(a);
+    addPoints(DB.user,Number(pointsRule().reply)||0);
+    DB.save();router();toast('回复已提交','ok');
+    return;
   }
   if(t.closest('#ans-sub')){
     const body=$('#ans-body').value.trim();

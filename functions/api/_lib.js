@@ -109,7 +109,8 @@ const SCHEMA=[
    重复执行时捕获 "duplicate column" 错误并忽略，保证幂等） */
 const MIGRATIONS=[
   `ALTER TABLE users ADD COLUMN muted INTEGER DEFAULT 0`,
-  `ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`
+  `ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`,
+  `ALTER TABLE replies ADD COLUMN parent_id TEXT`
 ];
 let schemaPromise=null;
 async function ensureSchema(env){

@@ -42,3 +42,61 @@ export async function onRequestPost({request,env,params}){
   const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(params.id).first();
   return json({ok:true,user:publicUser(fresh)});
 }
+
+/* DELETE /api/users/:id —— 管理员删除账号；级联清理其全部数据（不能删自己） */
+export async function onRequestDelete({request,env,params}){
+  const me=await getAuthUser(request,env);
+  if(!me)return json({error:'请先登录云端账号'},401);
+  if(!isAdmin(me))return json({error:'仅管理员可删除账号'},403);
+  if(params.id===me.id)return json({error:'不能删除自己的账号'},400);
+  await ensureSchema(env);
+  const row=await env.DB.prepare('SELECT id FROM users WHERE id=?').bind(params.id).first();
+  if(!row)return json({error:'用户不存在'},404);
+  const uid=params.id;
+
+  /* 1) 该用户名下的帖子：连带删除帖下所有回复/点赞/通知 */
+  const pc=await env.DB.prepare('SELECT id FROM posts WHERE author_id=?').bind(uid).all();
+  const postIds=(pc.results||[]).map(p=>p.id);
+  if(postIds.length){
+    const ph=postIds.map(()=>'?').join(',');
+    const rc=await env.DB.prepare(
+      `SELECT id FROM replies WHERE post_id IN (${ph})`).bind(...postIds).all();
+    const rids=(rc.results||[]).map(r=>r.id);
+    if(rids.length){
+      const rph=rids.map(()=>'?').join(',');
+      await env.DB.prepare(
+        `DELETE FROM likes WHERE target_type='reply' AND target_id IN (${rph})`).bind(...rids).run();
+      await env.DB.prepare(
+        `DELETE FROM notifications WHERE target_type='reply' AND target_id IN (${rph})`).bind(...rids).run();
+    }
+    await env.DB.prepare(
+      `DELETE FROM replies WHERE post_id IN (${ph})`).bind(...postIds).run();
+    await env.DB.prepare(
+      `DELETE FROM likes WHERE target_type='post' AND target_id IN (${ph})`).bind(...postIds).run();
+    await env.DB.prepare(
+      `DELETE FROM notifications WHERE target_type='post' AND target_id IN (${ph})`).bind(...postIds).run();
+    await env.DB.prepare(
+      `DELETE FROM posts WHERE id IN (${ph})`).bind(...postIds).run();
+  }
+
+  /* 2) 该用户在他人帖子下的回复：先把其楼中楼子回复上移一层，再删该回复 */
+  const oc=await env.DB.prepare(
+    'SELECT id,parent_id FROM replies WHERE author_id=?').bind(uid).all();
+  const ownReplies=(oc.results||[]);
+  for(const r of ownReplies){
+    await env.DB.prepare('UPDATE replies SET parent_id=? WHERE parent_id=?')
+      .bind(r.parent_id||null,r.id).run();
+    await env.DB.prepare(
+      `DELETE FROM likes WHERE target_type='reply' AND target_id=?`).bind(r.id).run();
+    await env.DB.prepare(
+      `DELETE FROM notifications WHERE target_type='reply' AND target_id=?`).bind(r.id).run();
+    await env.DB.prepare('DELETE FROM replies WHERE id=?').bind(r.id).run();
+  }
+
+  /* 3) 该用户点过的赞、收到的通知 */
+  await env.DB.prepare('DELETE FROM likes WHERE user_id=?').bind(uid).run();
+  await env.DB.prepare('DELETE FROM notifications WHERE user_id=?').bind(uid).run();
+  /* 4) 账号本身 */
+  await env.DB.prepare('DELETE FROM users WHERE id=?').bind(uid).run();
+  return json({ok:true,deletedPosts:postIds.length,deletedReplies:ownReplies.length});
+}
