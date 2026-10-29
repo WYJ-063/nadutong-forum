@@ -506,6 +506,7 @@ function cloudAccountHtml(u){
     <p class="ph-sub" style="margin-top:14px">云端共享：论坛帖子、回复、点赞与积分等级。<br>仍保留在本地：聊天/聊天室、抽签问卦、小游戏、界面主题与个人设置。</p>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
       <div class="cloud-mod-head"><strong>成员管理</strong><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></div>
+      <div class="cloud-mod-search"><input class="field" id="cm-search" placeholder="搜索成员昵称 / 账号 / 编号…"></div>
       <div class="cloud-mod-list"><div class="cloud-loading"><span class="cl-spin"></span>正在加载成员…</div></div>
     </div>`:''}
   </div>`;
@@ -533,17 +534,40 @@ function cloudModListHtml(users){
     </div>`;
   }).join('');
 }
+/* 成员管理：已加载的全部成员 + 关键词过滤 */
+let _cloudModUsers=[];
+function filterCloudModUsers(term){
+  const q=String(term||'').trim().toLowerCase();
+  if(!q)return _cloudModUsers;
+  return _cloudModUsers.filter(u=>
+    String(u.name).toLowerCase().includes(q)
+    || String(u.login).toLowerCase().includes(q)
+    || String(u.id).toLowerCase().includes(q));
+}
+function renderCloudModFiltered(){
+  const box=document.querySelector('.cloud-mod-list');
+  if(!box)return;
+  const inp=document.querySelector('#cm-search');
+  const list=filterCloudModUsers(inp?inp.value:'');
+  box.innerHTML=list.length
+    ? cloudModListHtml(list)
+    : '<div class="empty">没有匹配的成员</div>';
+}
 /* 加载并渲染成员管理列表 */
 async function loadCloudMod(){
   const box=document.querySelector('.cloud-mod-list');
   if(!box)return;
   try{
-    const users=await Cloud.listUsers();
-    box.innerHTML=cloudModListHtml(users);
+    _cloudModUsers=await Cloud.listUsers();
+    renderCloudModFiltered();
   }catch(e){
     box.innerHTML=`<div class="empty">加载失败：${esc(e.message)}</div>`;
   }
 }
+document.addEventListener('input',e=>{
+  if(e.target.id!=='cm-search')return;
+  renderCloudModFiltered();
+});
 function viewCloud(){
   const c=`<div class="p-crumb">论坛 / <b>云端账号</b></div>
   <div class="p-panel">
@@ -2010,7 +2034,7 @@ function userProfileHtml(d){
     <div class="up-av">${avatarCircle(u.name,u.avatar,'up-av-circle')}</div>
     <div class="up-id">
       <div class="up-name">${esc(u.name)}${levelBadge(u.level,u.levelName)}</div>
-      <p class="ph-sub">账号 ${esc(u.login)} · 编号 ${esc(u.id)}</p>
+      <p class="ph-sub">编号 ${esc(u.id)}</p>
     </div>
   </div>`;
   const stats=`<div class="up-stats">
@@ -2043,7 +2067,7 @@ function localUserProfileHtml(u){
     <div class="up-av">${avatarCircle(u.name,u.avatar||'','up-av-circle')}</div>
     <div class="up-id">
       <div class="up-name">${esc(u.name)}${levelBadge(g.level,g.name)}</div>
-      <p class="ph-sub">本地账号 · 编号 ${esc(u.id)}</p>
+      <p class="ph-sub">编号 ${esc(u.id)}</p>
     </div>
   </div>`;
   const likedCount=replies.reduce((s,r)=>s+(r.votes?r.votes.length:0),0)

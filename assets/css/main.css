@@ -2743,6 +2743,8 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   padding:12px 16px;border-bottom:1px solid var(--pt-border);
   background:var(--pt-panel)}
 .cloud-mod-head strong{color:var(--pt-text)}
+.cloud-mod-search{padding:10px 14px;border-bottom:1px solid var(--pt-border);background:var(--pt-panel)}
+.cloud-mod-search .field{width:100%;padding:9px 12px;font-size:13px}
 .cloud-mod-list{max-height:380px;overflow-y:auto}
 .cm-row{
   display:flex;align-items:center;gap:12px;padding:11px 16px;
