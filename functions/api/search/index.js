@@ -26,7 +26,8 @@ export async function onRequestGet({request,env}){
       rows=r.results||[];
     }catch(e){ rows=null; }
   }
-  if(rows===null){
+  /* FTS 失败（null）或命中 0 条时，回退 LIKE 兜底，避免漏召回 */
+  if(rows===null||rows.length===0){
     const safe=term.replace(/[%_\\]/g,m=>'\\'+m);
     const like='%'+safe+'%';
     const r=await env.DB.prepare(

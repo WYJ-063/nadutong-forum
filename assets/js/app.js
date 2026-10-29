@@ -6927,7 +6927,11 @@ Store.open().then(async()=>{
   window.addEventListener('focus',pollCloudNotif);
   setTimeout(pollCloudNotif,3000);
   // 若本地存有云端 token，尝试恢复会话（失败不阻塞，可能是离线）。
-  Cloud.refresh().then(()=>pollCloudNotif()).catch(()=>{});
+  // 恢复成功后若当前正停留在云端/论坛相关页面，重渲染一次，避免刷新后仍显示登录框。
+  Cloud.refresh().then(()=>{
+    pollCloudNotif();
+    if(Cloud.connected&&/^#\/(cloud|forum|essence|search|u\/|post\/)/.test(location.hash))router();
+  }).catch(()=>{});
   // Service worker 仅在 HTTPS/localhost 等安全环境可用；file:// 本地直开不支持。
   if('serviceWorker' in navigator && window.isSecureContext){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
