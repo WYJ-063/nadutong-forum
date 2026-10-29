@@ -6930,7 +6930,7 @@ Store.open().then(async()=>{
   // 恢复成功后若当前正停留在云端/论坛相关页面，重渲染一次，避免刷新后仍显示登录框。
   Cloud.refresh().then(()=>{
     pollCloudNotif();
-    if(Cloud.connected&&/^#\/(cloud|forum|essence|search|u\/|post\/)/.test(location.hash))router();
+    if(Cloud.connected&&/^#\/(cloud|forum|forum-notices|essence|search|u\/|post\/)/.test(location.hash))router();
   }).catch(()=>{});
   // Service worker 仅在 HTTPS/localhost 等安全环境可用；file:// 本地直开不支持。
   if('serviceWorker' in navigator && window.isSecureContext){
