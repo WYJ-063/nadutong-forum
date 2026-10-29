@@ -39,7 +39,7 @@ export async function onRequestGet({request,env}){
   const sort=url.searchParams.get('sort')||'latest';
   const me=await getAuthUser(request,env);
   const PAGE=20;
-  const limit=Math.min(50,Math.max(1,parseInt(url.searchParams.get('limit')||PAGE,10)||PAGE);
+  const limit=Math.min(50,Math.max(1,parseInt(url.searchParams.get('limit')||PAGE,10)||PAGE));
   const offset=Math.max(0,parseInt(url.searchParams.get('offset')||0,10)||0);
 
   /* 组合过滤条件 */
