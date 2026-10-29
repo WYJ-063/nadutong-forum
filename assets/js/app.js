@@ -2544,39 +2544,44 @@ function cloudBoardManage(){
     try{await Cloud.createBoard(v);toast('分类已添加','ok');mask.querySelector('#cb-add').value='';render();}
     catch(e){toast(e.message,'err');}
   });
-  mask.querySelector('#cb-done').addEventListener('click',()=>mask._close('done'));
-  p.then(v=>{if(v==='done')router();});
+  mask.querySelector('#cb-done').addEventListener('click',()=>{mask.remove();router();});
 }
 function boardManage(){
   if(Cloud.connected){cloudBoardManage();return;}
   const html=`<h3>管理论坛分类</h3><div class="m-body">
-    ${DB.data.boards.map((b,i)=>{
-      const n=DB.data.posts.filter(p=>p.board===b).length;
-      return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input class="field bd-name" data-i="${i}" value="${esc(b)}">
-        <span class="muted" style="font-size:12px;white-space:nowrap">${n}帖</span>
-        <button class="btn btn-sm btn-ghost bd-del" data-i="${i}" ${n?'disabled title="分类下还有帖子，不能删除"':''}>删除</button>
-      </div>`;}).join('')}
+    <div id="bd-list"></div>
     <label class="fl">新增分类</label>
     <div style="display:flex;gap:8px"><input class="field" id="bd-add" placeholder="输入新分类名称" maxlength="10">
     <button class="btn btn-sm btn-orange" id="bd-add-go">添加</button></div>
     <p class="muted" style="font-size:12px;margin-top:10px">改名会同步到该分类下所有帖子；分类下有帖子时不能删除。</p></div>
     <div class="m-foot"><button class="btn btn-sm" id="bd-done">完成</button></div>`;
   const mask=openMask(html);
-  mask.querySelectorAll('.bd-del').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      if(btn.disabled)return;
-      const i=parseInt(btn.dataset.i);
-      DB.data.boards.splice(i,1);DB.save();
-      mask._close('reopen');
+  const render=()=>{
+    const box=mask.querySelector('#bd-list');
+    box.innerHTML=DB.data.boards.map((b,i)=>{
+      const n=DB.data.posts.filter(p=>p.board===b).length;
+      return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input class="field bd-name" data-i="${i}" value="${esc(b)}">
+        <span class="muted" style="font-size:12px;white-space:nowrap">${n}帖</span>
+        <button class="btn btn-sm btn-ghost bd-del" data-i="${i}" ${n?'disabled title="分类下还有帖子，不能删除"':''}>删除</button>
+      </div>`;}).join('');
+    box.querySelectorAll('.bd-del').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(btn.disabled)return;
+        const i=parseInt(btn.dataset.i);
+        DB.data.boards.splice(i,1);DB.save();
+        render();
+      });
     });
-  });
+  };
+  render();
   mask.querySelector('#bd-add-go').addEventListener('click',()=>{
     const v=mask.querySelector('#bd-add').value.trim();
     if(!v)return toast('请输入分类名称','warn');
     if(DB.data.boards.includes(v))return toast('分类已存在','warn');
     DB.data.boards.push(v);DB.save();
-    mask._close('reopen');
+    mask.querySelector('#bd-add').value='';
+    render();
   });
   mask.querySelector('#bd-done').addEventListener('click',()=>{
     mask.querySelectorAll('.bd-name').forEach(inp=>{
@@ -2588,11 +2593,7 @@ function boardManage(){
         DB.data.posts.forEach(p=>{if(p.board===old)p.board=nv;});
       }
     });
-    mask._close('done');
-  });
-  p.then(v=>{
-    if(v==='reopen'){boardManage();return;}
-    if(v==='done'){DB.save();router();toast('分类已更新','ok');}
+    DB.save();mask.remove();router();toast('分类已更新','ok');
   });
 }
 
