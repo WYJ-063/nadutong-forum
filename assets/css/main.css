@@ -2932,3 +2932,31 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   .share-act{padding:11px 3px;font-size:11.5px}
 }
 
+/* ========== 帖子编辑：已编辑标记 + 编辑记录版本时间线 ========== */
+.post-edited-flag{margin-top:12px;font-size:12.5px;color:var(--muted);
+  display:inline-flex;align-items:center;gap:5px;padding:5px 11px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:999px}
+.edit-history{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.edit-version{border:1px solid var(--line);border-radius:12px;background:var(--panel2);overflow:hidden}
+.edit-version.is-current{border-color:var(--orange);background:linear-gradient(135deg,#FFF8F1,#F6F8FE)}
+.ev-head{display:flex;align-items:center;gap:10px;padding:11px 13px;flex-wrap:wrap}
+.ev-version{font-size:13.5px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;gap:7px}
+.ev-current-tag{font-style:normal;font-size:10.5px;font-weight:700;color:#fff;background:var(--orange);
+  padding:2px 7px;border-radius:999px;letter-spacing:.5px}
+.ev-meta{font-size:11.5px;color:var(--muted);flex:1;min-width:0}
+.ev-toggle{border:1px solid var(--line);background:#fff;color:var(--ink);
+  font-size:11.5px;padding:5px 12px;border-radius:8px;cursor:pointer;transition:.15s}
+.ev-toggle:hover{border-color:var(--blue-2);color:var(--blue-2)}
+.ev-content{padding:0 13px 13px}
+.ev-content.hide{display:none}
+.ev-title{display:block;font-size:14.5px;color:var(--ink);margin:2px 0 8px;line-height:1.5}
+.ev-body-text{font-size:13.5px;line-height:1.9;color:var(--ink);
+  white-space:pre-wrap;word-break:break-word;
+  border-top:1px dashed var(--line);padding-top:10px}
+@media(max-width:480px){
+  .ev-head{gap:7px;padding:10px}
+  .ev-meta{flex-basis:100%;order:3}
+  .ev-content{padding:0 10px 11px}
+  .ev-body-text{font-size:13px}
+}
+
