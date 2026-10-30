@@ -594,6 +594,17 @@ document.addEventListener('input',e=>{
 function webPushSupported(){
   return ('serviceWorker' in navigator) && ('PushManager' in window) && !!window.isSecureContext;
 }
+/* 是否为 iPhone/iPad（iPadOS 13+ 会伪装成桌面 Mac，需结合触摸点判断） */
+function isIosDevice(){
+  const ua=navigator.userAgent||navigator.vendor||'';
+  if(/iPad|iPhone|iPod/.test(ua))return true;
+  if(/Macintosh/.test(ua)&&navigator.maxTouchPoints&&navigator.maxTouchPoints>1)return true;
+  return false;
+}
+/* 是否已“添加到主屏幕”以独立 App 模式运行（iOS Web Push 的必要条件） */
+function isStandaloneMode(){
+  return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+}
 function base64UrlToBytes(s){
   s=String(s).replace(/-/g,'+').replace(/_/g,'/');
   while(s.length%4)s+='=';
@@ -614,7 +625,11 @@ async function renderCloudPushState(){
   const status=document.getElementById('cloud-push-status');
   if(!webPushSupported()){
     btn.disabled=true;btn.textContent='不支持';btn.className='btn btn-sm btn-ghost';
-    status.textContent='当前浏览器或访问环境不支持云端推送（需 HTTPS 与较新的 Chrome/Edge/Firefox）；站内红点与轮询通知不受影响。';
+    if(isIosDevice()&&!isStandaloneMode()){
+      status.textContent='iPhone/iPad 需先添加到主屏幕：点 Safari 底部“分享”按钮，选“添加到主屏幕”，再从主屏幕图标打开本站，即可开启推送（需 iOS 16.4 或更高版本）。';
+    }else{
+      status.textContent='当前浏览器或访问环境不支持云端推送（需 HTTPS 与较新的 Chrome/Edge/Firefox）；站内红点与轮询通知不受影响。';
+    }
     return;
   }
   let sub=null;
