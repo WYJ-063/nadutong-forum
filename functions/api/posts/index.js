@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
-  addPoints,POINTS_RULE,nowStr,
+  addPoints,POINTS_RULE,nowStr,processMentions,
   isAdmin,ANNOUNCEMENT_BOARD,moderationBlock,shapePostRow,shapePostList
 } from '../_lib.js';
 /* 为帖子创建投票（含选项） */
@@ -98,6 +98,13 @@ export async function onRequestPost({request,env}){
   if(b.poll&&Array.isArray(b.poll.options)&&b.poll.options.length>=2)
     await createPoll(env,id,b.poll,createdAt);
   await addPoints(env,me.id,POINTS_RULE.post);
+  /* @提及：给正文中被点名的真实成员发系统通知 + Web Push（异常不影响发帖） */
+  try{
+    await processMentions(env,{
+      content,actorId:me.id,actorName:me.name,
+      targetType:'post',targetId:id,postId:id,postTitle:title
+    });
+  }catch(e){ /* 提及失败不阻断发帖主流程 */ }
   const row=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
   return json({post:shapePostRow(row,[],0)});
 }
