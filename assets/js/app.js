@@ -452,6 +452,18 @@ const Cloud={
       const d=await this.request('/notifications');
       this.notif.unread=d.unread;this.notif.total=d.total;this.notif.list=d.notifications;
     }catch(e){}
+  },
+  /* ---------- 浏览器 Web Push ---------- */
+  async pushKey(){
+    return (await this.request('/push/key')).publicKey;
+  },
+  async pushSubscribe(subscription){
+    return await this.request('/push/subscribe',
+      {method:'POST',body:JSON.stringify({subscription})});
+  },
+  async pushUnsubscribe(endpoint){
+    return await this.request('/push/unsubscribe',
+      {method:'POST',body:JSON.stringify({endpoint:endpoint||''})});
   }
 };
 
@@ -504,6 +516,16 @@ function cloudAccountHtml(u){
       ${u.role>=3?'<button class="btn btn-ghost btn-sm" id="cloud-export">导出数据备份</button>':''}
     </div>
     <p class="ph-sub" style="margin-top:14px">云端共享：论坛帖子、回复、点赞与积分等级。<br>仍保留在本地：聊天/聊天室、抽签问卦、小游戏、界面主题与个人设置。</p>
+    <div class="cloud-push-box" id="cloud-push-box" style="margin-top:14px;padding:14px 16px;border:1px solid var(--pt-line,#e5e8f0);border-radius:14px;background:var(--pt-soft,#f7f8fc)">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:0">
+          <strong>云端推送通知</strong>
+          <p class="ph-sub" style="margin:4px 0 0">浏览器关闭、手机后台也能收到回复与点赞提醒；消息经 Web Push 加密投递</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-orange" id="cloud-push-toggle" style="flex:none">检测中…</button>
+      </div>
+      <p class="ph-sub" id="cloud-push-status" style="margin:10px 0 0"></p>
+    </div>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
       <div class="cloud-mod-head"><strong>成员管理</strong><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></div>
       <div class="cloud-mod-search"><input class="field" id="cm-search" placeholder="搜索成员昵称 / 账号 / 编号…"></div>
@@ -568,6 +590,93 @@ document.addEventListener('input',e=>{
   if(e.target.id!=='cm-search')return;
   renderCloudModFiltered();
 });
+/* ---------- 云端 Web Push 订阅管理 ---------- */
+function webPushSupported(){
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && !!window.isSecureContext;
+}
+function base64UrlToBytes(s){
+  s=String(s).replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length%4)s+='=';
+  const bin=atob(s);
+  const out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+async function getPushSubscription(){
+  const reg=await navigator.serviceWorker.ready;
+  return await reg.pushManager.getSubscription();
+}
+/* 刷新推送卡片的按钮与状态文案 */
+async function renderCloudPushState(){
+  const box=document.getElementById('cloud-push-box');
+  if(!box)return;
+  const btn=document.getElementById('cloud-push-toggle');
+  const status=document.getElementById('cloud-push-status');
+  if(!webPushSupported()){
+    btn.disabled=true;btn.textContent='不支持';btn.className='btn btn-sm btn-ghost';
+    status.textContent='当前浏览器或访问环境不支持云端推送（需 HTTPS 与较新的 Chrome/Edge/Firefox）；站内红点与轮询通知不受影响。';
+    return;
+  }
+  let sub=null;
+  try{ sub=await getPushSubscription(); }catch(e){ sub=null; }
+  if(sub){
+    btn.disabled=false;btn.textContent='关闭推送';btn.className='btn btn-sm btn-ghost';
+    status.textContent='已开启：本设备将收到回复与点赞的系统级通知。';
+  }else{
+    btn.disabled=false;btn.textContent='开启推送';btn.className='btn btn-sm btn-orange';
+    if(('Notification' in window)&&Notification.permission==='denied')
+      status.textContent='浏览器通知权限已被禁止，需先在浏览器站点设置中允许通知，再点“开启推送”。';
+    else
+      status.textContent='未开启：点击“开启推送”并在浏览器弹窗中允许即可。';
+  }
+}
+async function enableWebPush(){
+  if(!Cloud.connected)throw new Error('请先登录云端账号');
+  if(!webPushSupported())throw new Error('当前浏览器不支持云端推送');
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){
+    const publicKey=await Cloud.pushKey();
+    sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:base64UrlToBytes(publicKey)
+    });
+  }
+  /* 幂等上报：每次开启都重新提交，服务端 upsert，也兼容订阅轮换后的修复 */
+  await Cloud.pushSubscribe(sub.toJSON());
+}
+async function disableWebPush(){
+  if(!webPushSupported())return;
+  let sub=null;
+  try{ sub=await getPushSubscription(); }catch(e){ sub=null; }
+  if(sub){
+    const endpoint=sub.endpoint;
+    try{ await sub.unsubscribe(); }catch(e){}
+    try{ await Cloud.pushUnsubscribe(endpoint); }catch(e){}
+  }
+}
+function bindCloudPush(){
+  const box=document.getElementById('cloud-push-box');
+  if(!box)return;
+  renderCloudPushState();
+  const btn=document.getElementById('cloud-push-toggle');
+  btn.addEventListener('click',async()=>{
+    btn.disabled=true;
+    try{
+      const cur=await getPushSubscription().catch(()=>null);
+      if(cur){
+        await disableWebPush();
+        toast('云端推送已关闭','ok');
+      }else{
+        await enableWebPush();
+        toast('云端推送已开启，关闭页面也能收到提醒','ok');
+      }
+    }catch(e){
+      toast(e.message||'操作失败','err');
+    }
+    renderCloudPushState();
+  });
+}
 function viewCloud(){
   const c=`<div class="p-crumb">论坛 / <b>云端账号</b></div>
   <div class="p-panel">
@@ -577,6 +686,7 @@ function viewCloud(){
   </div>`;
   const html=portalShell('cloud',c);
   if(Cloud.connected)setTimeout(bindCloudAvatar,0);
+  if(Cloud.connected)setTimeout(bindCloudPush,0);
   if(Cloud.connected&&Cloud.user.role>=3)setTimeout(loadCloudMod,0);
   return html;
 }
@@ -5862,7 +5972,15 @@ document.addEventListener('click',e=>{
     return;
   }
   const cloudLogout=t.closest('#cloud-logout');
-  if(cloudLogout){Cloud.logout();Cloud.notif={unread:0,total:0,list:[]};syncUnreadBadges();router();toast('已退出云端账号','ok');return;}
+  if(cloudLogout){
+    (async()=>{
+      /* 先关闭推送（此时仍需 token 调服务端清理），再退出会话 */
+      try{ await disableWebPush(); }catch(e){}
+      Cloud.logout();Cloud.notif={unread:0,total:0,list:[]};
+      syncUnreadBadges();router();toast('已退出云端账号，云端推送已关闭','ok');
+    })();
+    return;
+  }
   const cloudRefresh=t.closest('#cloud-refresh');
   if(cloudRefresh){
     cloudRefresh.disabled=true;
@@ -6931,12 +7049,24 @@ Store.open().then(async()=>{
   Cloud.refresh().then(()=>{
     pollCloudNotif();
     if(Cloud.connected&&/^#\/(cloud|forum|forum-notices|essence|search|u\/|post\/)/.test(location.hash))router();
+    /* 启动续订同步：设备上已有推送订阅时，幂等重新上报，
+       兼容订阅轮换/换设备登录后的服务端归属修复；失败静默 */
+    if(Cloud.connected&&webPushSupported()){
+      (async()=>{
+        try{
+          const sub=await getPushSubscription();
+          if(sub)await Cloud.pushSubscribe(sub.toJSON());
+        }catch(e){}
+      })();
+    }
   }).catch(()=>{});
   // Service worker 仅在 HTTPS/localhost 等安全环境可用；file:// 本地直开不支持。
   if('serviceWorker' in navigator && window.isSecureContext){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
     navigator.serviceWorker.addEventListener('message',event=>{
       if(event.data&&event.data.type==='NDT_NOTIFICATION_CLICK'&&event.data.url){location.hash=event.data.url;window.focus();}
+      /* 页面可见时 SW 转发的推送：只刷新红点，不重复弹窗 */
+      if(event.data&&event.data.type==='NDT_PUSH_RECEIVED')pollCloudNotif();
     });
   }
   if(!location.hash)location.hash='#/';else router();
