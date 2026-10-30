@@ -19,8 +19,8 @@ self.addEventListener('push',event=>{
       body:String(data.body||'您有一条新的动态').slice(0,180),
       tag:data.tag||'ndt-push',
       data:{url:data.url||'#/forum'},
-      icon:'./assets/logo.png',
-      badge:'./assets/logo.png',
+      icon:'./assets/icons/icon-192.png',
+      badge:'./assets/icons/icon-192.png',
       renotify:true
     };
     await self.registration.showNotification(title,options);
