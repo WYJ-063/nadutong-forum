@@ -468,12 +468,12 @@ const Cloud={
 };
 
 /* ==================================================================
-   @提及成员选择浮层（绑定论坛回答框 #ans-body 与楼中楼框 .ir-body）
+   @提及成员选择浮层（绑定发帖框 #a-body、回答框 #ans-body 与楼中楼框 .ir-body）
    手机/桌面通用：输入 @ 触发，支持点选与键盘上下/回车/Esc。
    ================================================================== */
 function isMentionField(el){
   return !!(el&&el.tagName==='TEXTAREA'&&
-    (el.id==='ans-body'||el.classList.contains('ir-body')));
+    (el.id==='ans-body'||el.id==='a-body'||el.classList.contains('ir-body')));
 }
 const MentionPicker={
   el:null,field:null,items:[],index:0,
