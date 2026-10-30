@@ -332,6 +332,53 @@ async function addNotification(env,o){
   }
 }
 
+/* ---------- @提及 ---------- */
+/* 提及标记：@[昵称](用户ID)。返回去重后的 [{id,name}]，按出现顺序。 */
+const MENTION_MARK_RE=/@\[([^\[\]]{1,40})\]\(([A-Za-z0-9][A-Za-z0-9\-]{0,63})\)/g;
+function parseMentionMarks(content){
+  const out=[],seen=new Set();let m;
+  MENTION_MARK_RE.lastIndex=0;
+  while((m=MENTION_MARK_RE.exec(String(content||'')))){
+    const name=m[1],id=m[2];
+    if(!seen.has(id)){seen.add(id);out.push({id,name});}
+  }
+  return out;
+}
+/* 把正文里的提及标记还原为纯文本 @昵称（用于通知摘要） */
+function mentionMarksToText(content){
+  return String(content||'').replace(MENTION_MARK_RE,'@$1');
+}
+/* 解析正文提及并逐个发送系统通知 + Web Push。
+   opts: {content, actorId, actorName, postId, postTitle, targetType, targetId,
+          commentId?, excludeIds?}；excludeIds 内的人不再重复通知（避免与回复通知撞车）。
+   自己 @ 自己由 addNotification 内部跳过。返回实际处理的提及人数。 */
+async function processMentions(env,opts){
+  const marks=parseMentionMarks(opts.content);
+  if(!marks.length)return 0;
+  const exclude=opts.excludeIds||new Set();
+  const ids=[];
+  for(const mk of marks){
+    if(!mk.id||exclude.has(mk.id)||ids.includes(mk.id))continue;
+    ids.push(mk.id);
+  }
+  if(!ids.length)return 0;
+  /* 校验 id 真实存在（防止正文里伪造不存在的标记），并以库里的权威 name 为准 */
+  const ph=ids.map(()=>'?').join(',');
+  const {results}=await env.DB.prepare(
+    `SELECT id,name FROM users WHERE id IN (${ph})`).bind(...ids).all();
+  const real=results||[];
+  const excerpt=mentionMarksToText(opts.content).slice(0,120);
+  for(const u of real){
+    await addNotification(env,{
+      userId:u.id,type:'mention',actorId:opts.actorId,actorName:opts.actorName,
+      targetType:opts.targetType||'post',targetId:opts.targetId||opts.postId,
+      postId:opts.postId,postTitle:opts.postTitle,
+      commentId:opts.commentId||null,excerpt
+    });
+  }
+  return real.length;
+}
+
 /* ---------- 浏览器 Web Push（VAPID / RFC 8291 aes128gcm） ---------- */
 /* 把一条业务通知转成推送负载（SW 端 showNotification 直接消费） */
 function buildPushPayload(o,notifId){
@@ -340,6 +387,12 @@ function buildPushPayload(o,notifId){
   if(o.type==='like'){
     title=actor+' 赞了你的'+(o.targetType==='reply'?'评论':'帖子');
     body=o.postTitle||'你的内容收到了新的点赞';
+  }else if(o.type==='mention'){
+    title=actor+' 在帖子中提到了你';
+    const parts=[];
+    if(o.postTitle)parts.push(o.postTitle);
+    if(o.excerpt)parts.push(o.excerpt);
+    body=parts.join(' · ')||'有人在帖子里提到了你';
   }else{
     title=actor+' 回复了你';
     const parts=[];
@@ -347,11 +400,14 @@ function buildPushPayload(o,notifId){
     if(o.excerpt)parts.push(o.excerpt);
     body=parts.join(' · ')||'你有一条新的回复';
   }
+  let url=o.postId?('#/post/'+o.postId):'#/forum-notices';
+  /* 回复/提及可带具体楼层，前端渲染后滚动定位并高亮 */
+  if(o.commentId)url+='?c='+encodeURIComponent(o.commentId);
   return {
     title,
     body:String(body).slice(0,180),
     tag:'ndt-'+o.type+'-'+(o.targetId||notifId),
-    url:o.postId?('#/post/'+o.postId):'#/forum-notices',
+    url,
     notifId
   };
 }
@@ -624,6 +680,7 @@ export {
   POINTS_RULE,addPoints,addPointsClamped,isAdmin,
   ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
+  parseMentionMarks,mentionMarksToText,processMentions,
   levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap,
   shapePostRow,shapePostList,shapeReplyList,
   getVapidKeys,dispatchWebPush
