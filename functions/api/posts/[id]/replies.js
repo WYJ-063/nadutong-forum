@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
-  addPoints,addNotification,POINTS_RULE,nowStr,moderationBlock
+  addPoints,addNotification,processMentions,POINTS_RULE,nowStr,moderationBlock
 } from '../../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -37,23 +37,38 @@ export async function onRequestPost({request,env,params}){
     .bind(id,params.id,parentId,me.id,me.name,content,createdAt).run();
   await addPoints(env,me.id,POINTS_RULE.reply);
 
+  /* 记录已会收到“回复”通知的人，@提及与之去重，避免同一人被重复打扰 */
+  const replyNotifyIds=new Set();
   if(parentId){
     /* 楼中楼：通知被回复的那条评论的作者（不通知自己） */
-    if(parent.author_id&&parent.author_id!==me.id)
+    if(parent.author_id&&parent.author_id!==me.id){
+      replyNotifyIds.add(parent.author_id);
       await addNotification(env,{
         userId:parent.author_id,type:'reply',actorId:me.id,actorName:me.name,
         targetType:'reply',targetId:parentId,postId:params.id,postTitle:post.title,
         excerpt:content.slice(0,120)
       });
+    }
   }else{
     /* 顶层回复：通知帖子作者（不通知自己） */
-    if(post.author_id&&post.author_id!==me.id)
+    if(post.author_id&&post.author_id!==me.id){
+      replyNotifyIds.add(post.author_id);
       await addNotification(env,{
         userId:post.author_id,type:'reply',actorId:me.id,actorName:me.name,
         targetType:'post',targetId:params.id,postId:params.id,postTitle:post.title,
         excerpt:content.slice(0,120)
       });
+    }
   }
+  /* @提及：被点名且未收到回复通知的成员，收到 mention 通知 + Web Push，
+     推送点击可直达这条新楼层（commentId）。异常不影响回复主流程。 */
+  try{
+    await processMentions(env,{
+      content,actorId:me.id,actorName:me.name,
+      targetType:'reply',targetId:id,postId:params.id,postTitle:post.title,
+      commentId:id,excludeIds:replyNotifyIds
+    });
+  }catch(e){ /* 提及失败不阻断回复 */ }
   return json({reply:{
     id,postId:params.id,parentId,authorId:me.id,authorName:me.name,
     content,createdAt,votes:[]
