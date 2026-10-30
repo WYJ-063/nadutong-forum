@@ -367,6 +367,15 @@ const Cloud={
     return (await this.request('/posts',
       {method:'POST',body:JSON.stringify(payload)})).post;
   },
+  /* 编辑自己的帖子（仅作者，后端强校验）；返回更新后的 post */
+  async editPost(id,title,content){
+    return (await this.request('/posts/'+encodeURIComponent(id)+'/edit',
+      {method:'POST',body:JSON.stringify({title,content})})).post;
+  },
+  /* 帖子编辑历史版本列表 */
+  async postEdits(id){
+    return await this.request('/posts/'+encodeURIComponent(id)+'/edits');
+  },
   async reply(postId,content,parentId){
     const payload={content};
     if(parentId)payload.parentId=parentId;
@@ -905,7 +914,8 @@ async function cloudRerender(){
       authorAvatar:d.post.authorAvatar||'',
       createdAt:d.post.createdAt,lastActivityAt:d.post.lastActivityAt||d.post.createdAt,
       pinned:d.post.pinned,views:d.post.views,
-      votes:d.post.votes||[],simulatedLikes:0};
+      votes:d.post.votes||[],simulatedLikes:0,
+      editedAt:d.post.editedAt||null,editCount:Number(d.post.editCount)||0};
     const replies=(d.replies||[]).map(r=>({
       id:r.id,postId:r.postId,parentId:r.parentId||null,
       authorId:r.authorId,authorName:r.authorName,
@@ -2527,6 +2537,9 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
   const postLiked=post.votes.includes(curId);
   const postCount=post.votes.length+(post.simulatedLikes||0);
   const canDelPost=cloudOn?(post.authorId===curId||isAdmin):isAdmin;
+  /* 编辑权限：仅帖子作者本人（云端），管理员也不能编辑他人帖子 */
+  const canEditPost=cloudOn && post.authorId===curId;
+  const editCount=Number(post.editCount)||0;
   /* 作者等级/头像 */
   let pLv=post.authorLevel,pLn=post.authorLevelName,pAv=post.authorAvatar;
   if(!cloudOn){
@@ -2547,13 +2560,16 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
       ${isAdmin?'<span class="qm" id="p-del" style="color:#FF9DA0">🗑 删除帖子</span>':''}`
       :(`${isAdmin?`<button type="button" class="btn btn-sm btn-ghost" data-pin="${post.id}">${post.pinned?"取消置顶":"置顶"}</button>
         <button type="button" class="btn btn-sm btn-ghost" data-essence="${post.id}">${post.essence?"取消加精":"加精"}</button>`:''}
+        ${canEditPost?`<button type="button" class="btn btn-sm btn-ghost" data-pedit="${post.id}"${canDelPost?'':' style="margin-left:auto"'}>✎ 编辑</button>`:''}
+        ${editCount?`<button type="button" class="btn btn-sm btn-ghost" data-pedits="${post.id}">📝 编辑记录${editCount>1?` (${editCount})`:''}</button>`:''}
         ${canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':''}`)}
       <button type="button" class="btn btn-sm btn-ghost" data-share="${post.id}"
         data-share-title="${esc(post.title||'')}" data-share-board="${esc(post.board||'')}"
         data-share-author="${esc(post.authorName||'')}"
-        style="${cloudOn&&!canDelPost?'margin-left:auto':''}">↗ 分享</button>
+        style="${cloudOn&&!canDelPost&&!canEditPost?'margin-left:auto':''}">↗ 分享</button>
     </div>
     <div style="color:var(--pt-text);font-size:15px;line-height:1.95;white-space:pre-wrap;margin-top:14px;word-break:break-word">${renderBody(post.content)}</div>
+    ${cloudOn&&editCount?`<div class="post-edited-flag" title="最后编辑时间：${esc(post.editedAt||'')}">✎ 已编辑 · 共 ${editCount} 次 · ${relTime(post.editedAt)}</div>`:''}
     ${cloudOn?pollHtml(poll):''}
     <div class="q-vote q-vote-detail">
       <button type="button" class="vt ${postLiked?'on':''}" data-vote="${post.id}" aria-label="赞同帖子" aria-pressed="${postLiked?'true':'false'}"><span class="vote-arrow">▲</span><span class="vote-label">赞同</span></button>
@@ -2631,7 +2647,8 @@ function viewPost(id){
           authorAvatar:d.post.authorAvatar||'',
           createdAt:d.post.createdAt,lastActivityAt:d.post.lastActivityAt||d.post.createdAt,
           pinned:d.post.pinned,essence:!!d.post.essence,views:d.post.views,
-          votes:d.post.votes||[],simulatedLikes:0};
+          votes:d.post.votes||[],simulatedLikes:0,
+          editedAt:d.post.editedAt||null,editCount:Number(d.post.editCount)||0};
         const replies=(d.replies||[]).map(r=>({
           id:r.id,postId:r.postId,parentId:r.parentId||null,
           authorId:r.authorId,authorName:r.authorName,
@@ -2741,6 +2758,82 @@ function openShareModal(post){
       qrMade=true;
     }
   };
+}
+
+/* ---------- 编辑自己的帖子（仅作者本人） ---------- */
+function openPostEditModal(post){
+  const mask=openMask(`
+    <h3>编辑帖子</h3>
+    <div class="m-body">
+      <p class="ph-sub" style="margin:0 0 10px">仅你本人可编辑；每次保存都会在“编辑记录”中保留修改前的版本。</p>
+      <label class="fl">标题</label>
+      <input class="field" id="pe-title" value="${esc(post.title)}">
+      <label class="fl" style="margin-top:10px">正文</label>
+      <textarea class="field" id="pe-content" style="min-height:200px">${esc(post.content)}</textarea>
+    </div>
+    <div class="m-foot">
+      <button type="button" class="btn btn-sm btn-ghost" id="pe-cancel">取消</button>
+      <button type="button" class="btn btn-sm btn-orange" id="pe-save">保存修改</button>
+    </div>`);
+  const q=s=>mask.querySelector(s);
+  let saving=false;
+  q('#pe-cancel').onclick=()=>mask.remove();
+  setTimeout(()=>q('#pe-title').focus(),0);
+  q('#pe-save').onclick=async()=>{
+    if(saving)return;
+    const title=q('#pe-title').value.trim();
+    const content=q('#pe-content').value;
+    if(!title){toast('标题不能为空','err');return;}
+    if(!content.trim()){toast('正文不能为空','err');return;}
+    saving=true;
+    try{
+      await Cloud.editPost(post.id,title,content);
+      mask.remove();
+      toast('已保存修改，编辑记录已更新','ok');
+      await cloudRerender();
+    }catch(e){
+      saving=false;
+      toast(e.message,'err');
+    }
+  };
+}
+
+/* ---------- 编辑记录（版本时间线，可展开查看历史版本） ---------- */
+async function openPostHistoryModal(post){
+  const mask=openMask(`
+    <h3>编辑记录</h3>
+    <div class="m-body">
+      <div class="cloud-loading" id="peh-loading"><span class="cl-spin"></span>正在加载编辑历史…</div>
+      <div class="edit-history" id="peh-list"></div>
+    </div>
+    <div class="m-foot"><button type="button" class="btn btn-sm btn-ghost" id="peh-close">关闭</button></div>`);
+  mask.querySelector('#peh-close').onclick=()=>mask.remove();
+  let d;
+  try{ d=await Cloud.postEdits(post.id); }
+  catch(e){ mask.remove();toast(e.message,'err');return; }
+  const list=mask.querySelector('#peh-list');
+  mask.querySelector('#peh-loading').classList.add('hide');
+  /* 版本倒序：最新在前 */
+  const versions=(d.versions||[]).slice().sort((a,b)=>b.version-a.version);
+  list.innerHTML=versions.map(v=>`
+    <div class="edit-version ${v.current?'is-current':''}" data-version="${v.version}">
+      <div class="ev-head">
+        <span class="ev-version">版本 ${v.version}${v.current?'<em class="ev-current-tag">当前</em>':''}</span>
+        <span class="ev-meta">${v.editorName?esc(v.editorName)+' · ':''}${esc(v.at)}</span>
+        <button type="button" class="ev-toggle" data-evtoggle="${v.version}">${v.current?'收起':'展开'}</button>
+      </div>
+      <div class="ev-content ${v.current?'':'hide'}" id="evc-${v.version}">
+        <b class="ev-title">${esc(v.title)}</b>
+        <div class="ev-body-text">${renderBody(v.content)}</div>
+      </div>
+    </div>`).join('')||'<div class="empty">暂无编辑记录</div>';
+  list.querySelectorAll('[data-evtoggle]').forEach(btn=>{
+    btn.onclick=()=>{
+      const box=list.querySelector('#evc-'+btn.dataset.evtoggle);
+      box.classList.toggle('hide');
+      btn.textContent=box.classList.contains('hide')?'展开':'收起';
+    };
+  });
 }
 
 /* 正文渲染：图片 token + 贴纸 emoji + 其余原样 */
@@ -6521,6 +6614,19 @@ document.addEventListener('click',e=>{
     addPoints(u,Number(pointsRule().post)||0);
     const autoAdded=runForumAutoReply(p,null,`${p.title}\n${p.content}`);
     DB.save();syncUnreadBadges();toast(autoAdded?'已发布，关键词自动回复已生成':'已发布','ok');location.hash='#/post/'+p.id;return;
+  }
+  /* 编辑自己的帖子（按钮仅作者可见；后端再做一次强校验）。拉取最新内容再弹窗 */
+  const peditBtn=t.closest('[data-pedit]');
+  if(peditBtn){
+    const postId=peditBtn.dataset.pedit||curPostId();
+    Cloud.getPost(postId).then(d=>openPostEditModal(d.post)).catch(e=>toast(e.message,'err'));
+    return;
+  }
+  /* 编辑记录（版本历史） */
+  const peditsBtn=t.closest('[data-pedits]');
+  if(peditsBtn){
+    openPostHistoryModal({id:peditsBtn.dataset.pedits||curPostId()});
+    return;
   }
   /* 转发分享：直接用按钮携带的帖子信息打开面板，无需额外请求 */
   const shareBtn=t.closest('[data-share]');
