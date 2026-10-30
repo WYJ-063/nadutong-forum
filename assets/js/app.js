@@ -467,6 +467,161 @@ const Cloud={
   }
 };
 
+/* ==================================================================
+   @提及成员选择浮层（绑定论坛回答框 #ans-body 与楼中楼框 .ir-body）
+   手机/桌面通用：输入 @ 触发，支持点选与键盘上下/回车/Esc。
+   ================================================================== */
+function isMentionField(el){
+  return !!(el&&el.tagName==='TEXTAREA'&&
+    (el.id==='ans-body'||el.classList.contains('ir-body')));
+}
+const MentionPicker={
+  el:null,field:null,items:[],index:0,
+  open:false,trigger:null,debounce:0,reqSeq:0,
+  ensureEl(){
+    if(this.el)return this.el;
+    const el=document.createElement('div');
+    el.className='mention-picker hide';
+    /* mousedown 阻止默认，避免 textarea 失焦；点击在内部委托处理 */
+    el.addEventListener('mousedown',e=>e.preventDefault());
+    el.addEventListener('click',e=>{
+      const b=e.target.closest('[data-midx]');
+      if(!b)return;
+      const i=Number(b.dataset.midx);
+      if(this.items[i])this.choose(this.items[i]);
+    });
+    document.body.appendChild(el);
+    this.el=el;
+    return el;
+  },
+  /* 找到光标前的 @触发片段；@ 前须为行首或空白/标点，query 内不含空格 */
+  readTrigger(field){
+    const pos=field.selectionStart;
+    const before=field.value.slice(0,pos);
+    const m=before.match(/(^|[\s，。、；：!?！？\n\r])@([A-Za-z0-9_\u4e00-\u9fa5]{0,20})$/);
+    if(!m)return null;
+    const query=m[2];
+    return {query,startPos:pos-query.length-1,endPos:pos};
+  },
+  onInput(field){
+    clearTimeout(this.debounce);
+    const tr=this.readTrigger(field);
+    if(!tr){this.hide();return;}
+    this.field=field;this.trigger=tr;
+    this.debounce=setTimeout(()=>this.search(tr.query),120);
+  },
+  async search(query){
+    if(!Cloud.connected){this.hide();return;}
+    const seq=++this.reqSeq;
+    this.showLoading();
+    try{
+      const d=await Cloud.request('/users/mention?q='+encodeURIComponent(query));
+      if(seq!==this.reqSeq)return; /* 过期响应丢弃 */
+      this.items=d.users||[];this.index=0;
+      this.render();
+    }catch(e){ if(seq===this.reqSeq)this.hide(); }
+  },
+  showLoading(){
+    const el=this.ensureEl();
+    el.innerHTML='<div class="mp-loading">正在查找成员…</div>';
+    el.classList.remove('hide');this.open=true;
+    this.position();
+  },
+  render(){
+    const el=this.ensureEl();
+    if(!this.items.length){
+      el.innerHTML='<div class="mp-empty">没有找到匹配的成员</div>';
+    }else{
+      el.innerHTML=this.items.map((u,i)=>`
+        <div class="mp-item ${i===this.index?'on':''}" data-midx="${i}">
+          <span class="mp-av">${u.avatar?`<img src="${u.avatar}" alt="">`:`<span>${esc(String(u.name).slice(0,1))}</span>`}</span>
+          <span class="mp-name">${esc(u.name)}</span>
+          <span class="mp-lv">${esc(u.levelName||('Lv'+u.level))}</span>
+        </div>`).join('');
+    }
+    el.classList.remove('hide');this.open=true;
+    this.position();
+  },
+  /* 镜像 div 测量光标在 textarea 内的坐标，再定位浮层，并做视口边界处理 */
+  position(){
+    const field=this.field;if(!field)return;
+    const st=getComputedStyle(field);
+    const r=field.getBoundingClientRect();
+    const mirror=document.createElement('div');
+    const props=['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing',
+      'lineHeight','textTransform','wordSpacing','borderTopWidth','borderLeftWidth',
+      'borderRightWidth','borderBottomWidth','paddingTop','paddingLeft','paddingRight',
+      'paddingBottom','boxSizing'];
+    props.forEach(p=>mirror.style[p]=st[p]);
+    mirror.style.position='absolute';mirror.style.visibility='hidden';
+    mirror.style.top='0';mirror.style.left='0';
+    mirror.style.width=r.width+'px';
+    mirror.style.whiteSpace='pre-wrap';mirror.style.wordBreak='break-word';
+    document.body.appendChild(mirror);
+    mirror.textContent=field.value.slice(0,field.selectionStart);
+    const probe=document.createElement('span');probe.textContent='\u200b';
+    mirror.appendChild(probe);
+    const caretX=r.left+probe.offsetLeft-field.scrollLeft;
+    const caretY=r.top+probe.offsetTop-field.scrollTop;
+    const caretH=probe.offsetHeight||parseInt(st.lineHeight,10)||20;
+    mirror.remove();
+    const el=this.ensureEl();
+    el.style.visibility='hidden';
+    const pw=el.offsetWidth,ph=el.offsetHeight;
+    const vw=document.documentElement.clientWidth;
+    const vh=document.documentElement.clientHeight;
+    let x=caretX;
+    if(x+pw>vw-8)x=Math.max(8,vw-pw-8);
+    let y=caretY+caretH+4;
+    if(y+ph>vh-8)y=Math.max(8,caretY-ph-4);
+    el.style.left=x+'px';el.style.top=y+'px';
+    el.style.visibility='';
+  },
+  move(d){
+    if(!this.items.length)return;
+    this.index=(this.index+d+this.items.length)%this.items.length;
+    const el=this.ensureEl();
+    el.querySelectorAll('.mp-item').forEach((n,i)=>n.classList.toggle('on',i===this.index));
+    const cur=el.querySelector('.mp-item.on');
+    if(cur)cur.scrollIntoView({block:'nearest'});
+  },
+  onKeydown(e){
+    if(!this.open)return;
+    if(e.key==='ArrowDown'){e.preventDefault();this.move(1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();this.move(-1);}
+    else if(e.key==='Enter'||e.key==='Tab'){
+      e.preventDefault();
+      const u=this.items[this.index];
+      if(u)this.choose(u);
+    }else if(e.key==='Escape'){e.preventDefault();this.hide();}
+  },
+  choose(u){
+    const field=this.field,tr=this.trigger;if(!field||!tr)return;
+    /* 清掉会破坏标记的字符，保证 @[昵称](id) 结构可被可靠解析 */
+    let nm=String(u.name||'').replace(/[\[\]()@]/g,'').trim();
+    if(!nm)nm=u.id;
+    const mark='@['+nm+']('+u.id+')';
+    const before=field.value.slice(0,tr.startPos);
+    const after=field.value.slice(tr.endPos);
+    field.value=before+mark+' '+after;
+    const c=before.length+mark.length+1;
+    field.selectionStart=field.selectionEnd=c;
+    field.focus();this.hide();
+  },
+  hide(){
+    this.open=false;this.items=[];this.field=null;this.trigger=null;
+    if(this.el)this.el.classList.add('hide');
+  }
+};
+document.addEventListener('input',e=>{if(isMentionField(e.target))MentionPicker.onInput(e.target);});
+document.addEventListener('keydown',e=>{
+  if(MentionPicker.open&&e.target===MentionPicker.field)MentionPicker.onKeydown(e);});
+/* 输入框失焦（点别处/切走）后延迟收起；点浮层本身因 mousedown 阻止默认不会失焦 */
+document.addEventListener('blur',e=>{
+  if(MentionPicker.open&&e.target===MentionPicker.field)
+    setTimeout(()=>MentionPicker.hide(),160);
+},true);
+
 /* ---------- 云端账号视图 ---------- */
 function cloudFormsHtml(mode){
   const isLogin=mode==='login';
@@ -1836,10 +1991,15 @@ function cloudNoticesHtml(list,unread,total,filter){
     </div></div>
     <div class="fnc-list">${list.length?list.map(n=>{
       const like=n.type==='like';
+      const mention=n.type==='mention';
       const target=like?(n.targetType==='reply'?'评论':'帖子'):'帖子';
-      const titleTxt=like?`${esc(n.actorName)} 赞了你的${target}`:`${esc(n.actorName)} 回复了你的帖子`;
+      const titleTxt=like?`${esc(n.actorName)} 赞了你的${target}`
+        :mention?`${esc(n.actorName)} 在帖子中提到了你`
+        :`${esc(n.actorName)} 回复了你的帖子`;
+      const iconCls=like?'is-growth':mention?'is-mention':'is-reply';
+      const iconSym=like?'♥':mention?'@':'✦';
       return `<article class="fnc-item ${n.read?'is-read':'is-unread'}" data-cn-item="${esc(n.id)}">
-        <span class="fnc-icon ${like?'is-growth':'is-reply'}">${like?'♥':'✦'}</span>
+        <span class="fnc-icon ${iconCls}">${iconSym}</span>
         <div class="fnc-body">
           <div class="fnc-title-row"><strong>${titleTxt}</strong><time>${esc(n.createdAt||'')}</time></div>
           ${like?'':`<p>${esc(n.excerpt||'')}</p>`}
@@ -2319,7 +2479,7 @@ function subReplyHtml(node,depth,curId,isAdmin,cloudOn){
     const au=DB.data.users.find(u=>u.id===node.authorId);
     if(au){const g=forumLevelOf(au);rLv=g.level;rLn=g.name;rAv=au.avatar||'';}
   }
-  return `<div class="sub-reply depth-${indent}">
+  return `<div class="sub-reply depth-${indent}" data-reply-id="${node.id}">
     <div class="sr-line">
       ${authorWrap(node.authorId,avatarCircle(node.authorName,rAv,'sm')+
         '<span class="sr-name">'+esc(node.authorName)+'</span>')}${levelBadge(rLv,rLn)}
@@ -2388,6 +2548,10 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
       :(`${isAdmin?`<button type="button" class="btn btn-sm btn-ghost" data-pin="${post.id}">${post.pinned?"取消置顶":"置顶"}</button>
         <button type="button" class="btn btn-sm btn-ghost" data-essence="${post.id}">${post.essence?"取消加精":"加精"}</button>`:''}
         ${canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':''}`)}
+      <button type="button" class="btn btn-sm btn-ghost" data-share="${post.id}"
+        data-share-title="${esc(post.title||'')}" data-share-board="${esc(post.board||'')}"
+        data-share-author="${esc(post.authorName||'')}"
+        style="${cloudOn&&!canDelPost?'margin-left:auto':''}">↗ 分享</button>
     </div>
     <div style="color:var(--pt-text);font-size:15px;line-height:1.95;white-space:pre-wrap;margin-top:14px;word-break:break-word">${renderBody(post.content)}</div>
     ${cloudOn?pollHtml(poll):''}
@@ -2405,7 +2569,7 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
       const au=DB.data.users.find(u=>u.id===a.authorId);
       if(au){const g=forumLevelOf(au);aLv=g.level;aLn=g.name;aAv=au.avatar||'';}
     }
-    return `<div class="answer">
+    return `<div class="answer" data-reply-id="${a.id}">
       <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
       <div class="q-main">
         <div class="q-meta">${authorWrap(a.authorId,avatarCircle(a.authorName,aAv)+'<span>'+esc(a.authorName)+'</span>')}${levelBadge(aLv,aLn)}<span>${relTime(a.createdAt)}</span>
@@ -2439,6 +2603,18 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
   return bread+panel1+panel2;
 }
 /* ---------- 帖子详情 ---------- */
+/* 滚动到指定楼层并短暂高亮（通知/推送带 ?c=commentId 时使用） */
+function highlightComment(commentId){
+  if(!commentId)return;
+  let el=null;
+  try{ el=document.querySelector('[data-reply-id="'+CSS.escape(commentId)+'"]'); }
+  catch(e){ el=document.querySelector('[data-reply-id="'+commentId+'"]'); }
+  if(!el)return;
+  el.classList.add('reply-highlight');
+  try{ el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  catch(e){ el.scrollIntoView(); }
+  setTimeout(()=>el.classList.remove('reply-highlight'),3200);
+}
 function viewPost(id){
   markForumNoticesSeen(id);
   const cloudOn=Cloud.connected;
@@ -2463,6 +2639,8 @@ function viewPost(id){
           authorAvatar:r.authorAvatar||'',
           content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
         $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true,d.poll||null));
+        /* 推送/通知带楼层时，渲染完成后滚动定位并高亮 */
+        highlightComment(parseHash().query.c||null);
         /* 进入帖子即把该帖相关通知标为已读，并刷新红点 */
         Cloud.readNotificationsForPost(id).then(async()=>{
           await Cloud.pollNotifications();syncUnreadBadges();
@@ -2481,7 +2659,88 @@ function viewPost(id){
     createdAt:p.createdAt,pinned:!!p.pinned,essence:!!p.essence,views:p.views,
     votes:p.votes||[],simulatedLikes:Number(p.simulatedLikes)||0};
   const replies=localReplies(id).sort((a,b)=>b.votes.length-a.votes.length);
+  const cid=parseHash().query.c||null;
+  if(cid)setTimeout(()=>highlightComment(cid),0);
   return portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,false));
+}
+
+/* ---------- 帖子转发分享 ---------- */
+function postShareUrl(postId){
+  return location.origin+location.pathname+'#/post/'+postId;
+}
+/* 复制文本：优先 Clipboard API，降级临时 textarea + execCommand */
+async function copyText(text){
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(text);return true;
+    }
+  }catch(e){ /* 继续尝试降级 */ }
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.setAttribute('readonly','');
+    ta.style.position='fixed';ta.style.top='-1000px';ta.style.left='0';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand('copy');ta.remove();return ok;
+  }catch(e){return false;}
+}
+function openShareModal(post){
+  const url=postShareUrl(post.id);
+  const canNative=typeof navigator.share==='function';
+  const mask=openMask(`
+    <h3>转发分享</h3>
+    <div class="m-body">
+      <div class="share-card">
+        <span class="sc-board">${esc(post.board||'论坛')}</span>
+        <b class="sc-title">${esc(post.title)}</b>
+        <span class="sc-author">${esc(post.authorName||'论坛成员')}</span>
+      </div>
+      <label class="fl">帖子链接</label>
+      <input class="field" id="sh-link" readonly value="${esc(url)}">
+      <div class="share-grid">
+        <button type="button" class="share-act" id="sh-copy"><span class="sa-ico">🔗</span>复制链接</button>
+        ${canNative?'<button type="button" class="share-act" id="sh-native"><span class="sa-ico">📤</span>系统分享</button>':''}
+        <button type="button" class="share-act" id="sh-weibo"><span class="sa-ico">🌐</span>分享到微博</button>
+        <button type="button" class="share-act" id="sh-qr"><span class="sa-ico">🔳</span>二维码</button>
+      </div>
+      <p class="ph-sub" style="margin-top:10px">微信/QQ 暂不支持网页直接唤起，点“复制链接”后到聊天框粘贴即可。</p>
+      <div class="share-qr-box hide" id="sh-qr-box">
+        <div class="sqr" id="sh-qr-canvas"></div>
+        <p class="ph-sub">扫码即可在手机打开这个帖子</p>
+      </div>
+    </div>
+    <div class="m-foot"><button type="button" class="btn btn-sm btn-ghost" id="sh-close">关闭</button></div>`);
+  const q=s=>mask.querySelector(s);
+  q('#sh-close').onclick=()=>mask.remove();
+  q('#sh-link').onclick=e=>e.target.select();
+  q('#sh-copy').onclick=async()=>{
+    const ok=await copyText(url);
+    toast(ok?'链接已复制，去粘贴给好友吧':'复制失败，请手动选择链接复制',ok?'ok':'err');
+  };
+  if(canNative){
+    q('#sh-native').onclick=async()=>{
+      try{ await navigator.share({title:post.title,text:post.title,url}); }
+      catch(e){ /* 用户取消分享，不提示错误 */ }
+    };
+  }
+  q('#sh-weibo').onclick=()=>{
+    const u='https://service.weibo.com/share/share.php?url='+encodeURIComponent(url)+
+      '&title='+encodeURIComponent(post.title);
+    window.open(u,'_blank','noopener');
+  };
+  let qrMade=false;
+  q('#sh-qr').onclick=()=>{
+    const box=q('#sh-qr-box');
+    box.classList.toggle('hide');
+    if(!qrMade){
+      if(typeof QRCode==='undefined'){toast('二维码组件未加载','err');return;}
+      new QRCode(q('#sh-qr-canvas'),{
+        text:url,width:168,height:168,
+        colorDark:'#1F2433',colorLight:'#ffffff',
+        correctLevel:QRCode.CorrectLevel.M});
+      qrMade=true;
+    }
+  };
 }
 
 /* 正文渲染：图片 token + 贴纸 emoji + 其余原样 */
@@ -2492,6 +2751,9 @@ function renderBody(t){
   s=s.replace(/(\p{Extended_Pictographic}[\uFE0f\uFE0e]?(\u200d\p{Extended_Pictographic}[\uFE0f\uFE0e]?)*)/gu,
     m=>`<span class="sticker" style="font-size:26px;width:auto;height:auto">${m}</span>`);
   s=s.replace(/\u0000(\d+)\u0000/g,(m,i)=>`<img class="inline-img" src="${imgs[i]}">`);
+  /* @提及：@[昵称](id) → 高亮可点击，跳成员主页；昵称已 esc，id 走白名单字符 */
+  s=s.replace(/@\[([^\[\]]{1,40})\]\(([A-Za-z0-9][A-Za-z0-9\-]{0,63})\)/g,
+    (m,name,id)=>`<a class="mention-link" href="#/space/${id}">@${name}</a>`);
   return s;
 }
 /* ---------- 权限不足 ---------- */
@@ -6259,6 +6521,17 @@ document.addEventListener('click',e=>{
     addPoints(u,Number(pointsRule().post)||0);
     const autoAdded=runForumAutoReply(p,null,`${p.title}\n${p.content}`);
     DB.save();syncUnreadBadges();toast(autoAdded?'已发布，关键词自动回复已生成':'已发布','ok');location.hash='#/post/'+p.id;return;
+  }
+  /* 转发分享：直接用按钮携带的帖子信息打开面板，无需额外请求 */
+  const shareBtn=t.closest('[data-share]');
+  if(shareBtn){
+    openShareModal({
+      id:shareBtn.dataset.share,
+      title:shareBtn.dataset.shareTitle||'',
+      board:shareBtn.dataset.shareBoard||'',
+      authorName:shareBtn.dataset.shareAuthor||''
+    });
+    return;
   }
   /* 楼中楼：打开内联回复框（顶层或子回复都落到所属楼层） */
   const rreply=t.closest('[data-rreply]');
