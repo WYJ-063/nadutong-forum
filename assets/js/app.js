@@ -2005,7 +2005,7 @@ function cloudNoticesHtml(list,unread,total,filter){
           ${like?'':`<p>${esc(n.excerpt||'')}</p>`}
           <div class="fnc-post-title">${esc(n.postTitle||'原帖子可能已删除')}</div>
           <div class="fnc-item-actions">
-            ${n.postId?`<a class="btn btn-sm btn-orange" href="#/post/${encodeURIComponent(n.postId)}" data-cn-open="${esc(n.id)}">查看帖子</a>`:''}
+            ${n.postId?`<a class="btn btn-sm btn-orange" href="#/post/${encodeURIComponent(n.postId)}${(n.targetType==='reply'&&n.targetId)?'?c='+encodeURIComponent(n.targetId):''}" data-cn-open="${esc(n.id)}">查看帖子</a>`:''}
             ${n.read?'':`<button class="btn btn-sm btn-ghost" data-cn-read="${esc(n.id)}">标为已读</button>`}
           </div>
         </div>${n.read?'':'<span class="fnc-dot" title="未读"></span>'}
