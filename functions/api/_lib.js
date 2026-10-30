@@ -135,7 +135,17 @@ const SCHEMA=[
   streak INTEGER DEFAULT 0,
   total_days INTEGER DEFAULT 0,
   updated_at TEXT
-)`
+)`,
+/* 浏览器 Web Push 订阅（RFC 8291）：endpoint 为主键，同一设备重复订阅幂等 */
+`CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  user_id TEXT,
+  p256dh TEXT,
+  auth TEXT,
+  user_agent TEXT,
+  created_at TEXT
+)`,
+`CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)`
 ];
 /* 默认板块（首次运行写入） */
 const DEFAULT_BOARDS=['公告','异人讨论','功法交流','天下见闻','求助','灌水'];
@@ -304,15 +314,173 @@ function moderationBlock(user){
 }
 
 /* ---------- 通知（被回复 / 被点赞） ---------- */
-/* 写入一条通知；不通知自己（actor===recipient） */
+/* 写入一条通知；不通知自己（actor===recipient）。
+   写入后尝试浏览器 Web Push（页面关闭也能收到）；推送失败完全不影响主流程。 */
 async function addNotification(env,o){
   if(!o.userId||!o.actorId||o.userId===o.actorId)return;
+  const notifId=genId('n');
   await env.DB.prepare(
     `INSERT INTO notifications
        (id,user_id,type,actor_id,actor_name,target_type,target_id,post_id,post_title,excerpt,read,created_at)
      VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`)
-    .bind(genId('n'),o.userId,o.type,o.actorId,o.actorName||'',
+    .bind(notifId,o.userId,o.type,o.actorId,o.actorName||'',
       o.targetType,o.targetId,o.postId||'',o.postTitle||'',o.excerpt||'',nowStr()).run();
+  const pushPayload=buildPushPayload(o,notifId);
+  if(pushPayload){
+    try{ await dispatchWebPush(env,o.userId,pushPayload); }
+    catch(e){ /* 推送通道异常不允许波及发帖/回复/点赞主流程 */ }
+  }
+}
+
+/* ---------- 浏览器 Web Push（VAPID / RFC 8291 aes128gcm） ---------- */
+/* 把一条业务通知转成推送负载（SW 端 showNotification 直接消费） */
+function buildPushPayload(o,notifId){
+  const actor=o.actorName||'论坛成员';
+  let title,body;
+  if(o.type==='like'){
+    title=actor+' 赞了你的'+(o.targetType==='reply'?'评论':'帖子');
+    body=o.postTitle||'你的内容收到了新的点赞';
+  }else{
+    title=actor+' 回复了你';
+    const parts=[];
+    if(o.postTitle)parts.push(o.postTitle);
+    if(o.excerpt)parts.push(o.excerpt);
+    body=parts.join(' · ')||'你有一条新的回复';
+  }
+  return {
+    title,
+    body:String(body).slice(0,180),
+    tag:'ndt-'+o.type+'-'+(o.targetId||notifId),
+    url:o.postId?('#/post/'+o.postId):'#/forum-notices',
+    notifId
+  };
+}
+
+/* VAPID 密钥对（ECDSA P-256），首次使用自动生成并持久化到 meta 表 */
+async function getVapidKeys(env){
+  let row=await env.DB.prepare('SELECT value FROM meta WHERE key=?').bind('vapid-keys').first();
+  if(row&&row.value){
+    let saved;
+    try{ saved=JSON.parse(row.value); }catch(e){ saved=null; }
+    if(saved&&saved.priv&&saved.pub){
+      const [privateKey,publicKey]=await Promise.all([
+        crypto.subtle.importKey('pkcs8',base64UrlToBuf(saved.priv),
+          {name:'ECDSA',namedCurve:'P-256'},false,['sign']),
+        crypto.subtle.importKey('raw',base64UrlToBuf(saved.pub),
+          {name:'ECDSA',namedCurve:'P-256'},false,['verify'])
+      ]);
+      return {privateKey,publicKey,publicB64u:saved.pub};
+    }
+  }
+  const pair=await crypto.subtle.generateKey(
+    {name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+  const [privRaw,pubRaw]=await Promise.all([
+    crypto.subtle.exportKey('pkcs8',pair.privateKey),
+    crypto.subtle.exportKey('raw',pair.publicKey)
+  ]);
+  const saved={priv:bufToBase64Url(privRaw),pub:bufToBase64Url(pubRaw)};
+  await env.DB.prepare('INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)')
+    .bind('vapid-keys',JSON.stringify(saved)).run();
+  return {privateKey:pair.privateKey,publicKey:pair.publicKey,publicB64u:saved.pub};
+}
+
+/* 构造 VAPID Authorization 头（ES256 JWT），aud 为推送服务 endpoint 的 origin */
+async function vapidAuthHeader(vapid,endpoint){
+  const audience=new URL(endpoint).origin;
+  const header=bufToBase64Url(enc.encode(JSON.stringify({typ:'JWT',alg:'ES256'})));
+  const claims=bufToBase64Url(enc.encode(JSON.stringify({
+    aud:audience,
+    exp:Math.floor(Date.now()/1000)+12*3600,
+    sub:'mailto:admin@nadutong-forum.pages.dev'
+  })));
+  const signingInput=header+'.'+claims;
+  const sig=await crypto.subtle.sign(
+    {name:'ECDSA',hash:'SHA-256'},vapid.privateKey,enc.encode(signingInput));
+  return 'vapid t='+signingInput+'.'+bufToBase64Url(sig)+', k='+vapid.publicB64u;
+}
+
+/* Web Crypto HKDF（SHA-256），返回指定长度字节 */
+async function hkdf(ikm,salt,info,len){
+  const key=await crypto.subtle.importKey('raw',ikm,'HKDF',false,['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits(
+    {name:'HKDF',hash:'SHA-256',salt,info},key,len*8));
+}
+function concatBytes(...parts){
+  const total=parts.reduce((n,p)=>n+p.byteLength,0);
+  const out=new Uint8Array(total);
+  let off=0;
+  for(const p of parts){out.set(new Uint8Array(p),off);off+=p.byteLength;}
+  return out;
+}
+
+/* RFC 8291 aes128gcm：加密单条推送消息，返回完整的二进制消息体 */
+async function encryptPushPayload(subscription,payloadBytes){
+  const clientPubRaw=base64UrlToBuf(subscription.p256dh);
+  const authSecret=base64UrlToBuf(subscription.auth);
+  /* 临时 ECDH 密钥对 */
+  const ephemeral=await crypto.subtle.generateKey(
+    {name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+  const clientPub=await crypto.subtle.importKey(
+    'raw',clientPubRaw,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const shared=await crypto.subtle.deriveBits(
+    {name:'ECDH',public:clientPub},ephemeral.privateKey,256);
+  const localPubRaw=await crypto.subtle.exportKey('raw',ephemeral.publicKey);
+  /* 第一步：auth 信息派生 IKM */
+  const authInfo=concatBytes(enc.encode('WebPush: info\0'),clientPubRaw,localPubRaw);
+  const ikm=await hkdf(new Uint8Array(shared),new Uint8Array(authSecret),authInfo,32);
+  /* 第二步：随机 salt 派生 CEK 与 nonce */
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const cek=await hkdf(ikm,salt,enc.encode('Content-Encoding: aes128gcm\0'),16);
+  const nonce=await hkdf(ikm,salt,enc.encode('Content-Encoding: nonce\0'),12);
+  /* 明文 = payload + 定界符 0x02 + 零填充（单记录） */
+  const plaintext=concatBytes(payloadBytes,new Uint8Array([0x02]));
+  const aesKey=await crypto.subtle.importKey(
+    'raw',cek,{name:'AES-GCM'},false,['encrypt']);
+  const ciphertext=await crypto.subtle.encrypt(
+    {name:'AES-GCM',iv:nonce,tagLength:128},aesKey,plaintext);
+  /* 消息头：salt(16) | record size(4) | keyid len(1) | keyid(65) */
+  const recordSize=4096;
+  const header=new Uint8Array(16+4+1+65);
+  header.set(salt,0);
+  const dv=new DataView(header.buffer);
+  dv.setUint32(16,recordSize);
+  header[20]=65;
+  header.set(new Uint8Array(localPubRaw),21);
+  return concatBytes(header,new Uint8Array(ciphertext));
+}
+
+/* 向单个订阅端点发送推送；404/410 表示端点已失效，自动清理 */
+async function sendToSubscription(env,sub,payloadBytes,vapid){
+  const body=await encryptPushPayload(sub,payloadBytes);
+  const res=await fetch(sub.endpoint,{
+    method:'POST',
+    headers:{
+      'Authorization':await vapidAuthHeader(vapid,sub.endpoint),
+      'Content-Type':'application/octet-stream',
+      'Content-Encoding':'aes128gcm',
+      'TTL':String(28*24*3600),
+      'Urgency':'normal'
+    },
+    body
+  });
+  if(res.status===404||res.status===410){
+    await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=?')
+      .bind(sub.endpoint).run();
+  }
+  return res.status;
+}
+
+/* 给某用户的全部设备推送同一条消息（多设备/多浏览器） */
+async function dispatchWebPush(env,userId,payload){
+  const {results}=await env.DB.prepare(
+    'SELECT endpoint,p256dh,auth FROM push_subscriptions WHERE user_id=?')
+    .bind(userId).all();
+  const subs=results||[];
+  if(!subs.length)return;
+  const vapid=await getVapidKeys(env);
+  const payloadBytes=enc.encode(JSON.stringify(payload));
+  await Promise.all(subs.map(sub=>
+    sendToSubscription(env,sub,payloadBytes,vapid).catch(()=>{})));
 }
 /* 删除某条点赞对应的通知（取消点赞时调用） */
 async function removeLikeNotification(env,actorId,targetType,targetId){
@@ -457,5 +625,6 @@ export {
   ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
   levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap,
-  shapePostRow,shapePostList,shapeReplyList
+  shapePostRow,shapePostList,shapeReplyList,
+  getVapidKeys,dispatchWebPush
 };
