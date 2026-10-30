@@ -145,7 +145,20 @@ const SCHEMA=[
   user_agent TEXT,
   created_at TEXT
 )`,
-`CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)`
+`CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)`,
+/* 帖子编辑历史：每次编辑先把"被替换的版本"完整快照写入此表，再更新 posts。
+   version 为该快照对应的版本号（初始发布=版本1），配合 posts 当前内容可还原任意历史版本。 */
+`CREATE TABLE IF NOT EXISTS post_edits (
+  id TEXT PRIMARY KEY,
+  post_id TEXT,
+  version INTEGER,
+  title TEXT,
+  content TEXT,
+  editor_id TEXT,
+  editor_name TEXT,
+  created_at TEXT
+)`,
+`CREATE INDEX IF NOT EXISTS idx_post_edits_post ON post_edits(post_id,version)`
 ];
 /* 默认板块（首次运行写入） */
 const DEFAULT_BOARDS=['公告','异人讨论','功法交流','天下见闻','求助','灌水'];
@@ -164,7 +177,9 @@ const MIGRATIONS=[
   `ALTER TABLE users ADD COLUMN muted INTEGER DEFAULT 0`,
   `ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`,
   `ALTER TABLE replies ADD COLUMN parent_id TEXT`,
-  `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`
+  `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`,
+  `ALTER TABLE posts ADD COLUMN edited_at TEXT`,
+  `ALTER TABLE posts ADD COLUMN edit_count INTEGER DEFAULT 0`
 ];
 /* 全文搜索：posts_fts（FTS5 trigram 分词，对中文子串友好，需 SQLite 3.34+）。
    触发器自动同步增删改；首次对历史帖子回填。任何失败都静默降级（搜索接口回退 LIKE）。 */
@@ -580,7 +595,9 @@ function shapePostRow(row,votes,replyCount,lastActivityAt,authorInfo){
     essence:!!Number(row.essence),
     views:Number(row.views)||0,
     votes:votes||[],
-    replyCount:replyCount||0
+    replyCount:replyCount||0,
+    editedAt:row.edited_at||null,
+    editCount:Number(row.edit_count)||0
   };
 }
 /* 批量把原始 post 行补齐点赞/回复/作者信息并归一化 */
