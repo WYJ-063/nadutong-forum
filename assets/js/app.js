@@ -414,6 +414,11 @@ const Cloud={
   async deleteUser(id){
     return await this.request('/users/'+encodeURIComponent(id),{method:'DELETE'});
   },
+  /* 设/撤管理员（最高权限管理员） */
+  async setRole(id,role){
+    return await this.request('/users/'+encodeURIComponent(id)+'/role',
+      {method:'POST',body:JSON.stringify({role})});
+  },
   /* 板块 */
   async listBoards(){return (await this.request('/boards')).boards;},
   async createBoard(name){
@@ -703,7 +708,8 @@ function cloudModListHtml(users){
   return users.map(u=>{
     const isMe=u.id===Cloud.user.id;
     const tags=[];
-    if(u.role>=3)tags.push('<span class="tag tag-blue">管理员</span>');
+    if(u.role>=4)tags.push('<span class="tag" style="background:#7B5CF0;color:#fff">超级管理员</span>');
+    else if(u.role>=3)tags.push('<span class="tag tag-blue">管理员</span>');
     if(u.muted)tags.push('<span class="tag tag-amber">已禁言</span>');
     if(u.banned)tags.push('<span class="tag tag-red">已拉黑</span>');
     return `<div class="cm-row ${u.banned?'is-banned':u.muted?'is-muted':''}">
@@ -713,6 +719,7 @@ function cloudModListHtml(users){
         <div class="ph-sub">${esc(u.login)} · ${u.points}积分</div>
       </div>
       ${isMe?'<span class="ph-sub cm-self">本人</span>':`<div class="cm-actions">
+        ${Cloud.user.role>=4&&u.role<4?`<button class="btn btn-sm btn-ghost" data-cmrole="${u.role>=3?'1':'3'}:${u.id}" ${u.role>=3?'':'style="color:#E8A33D"'}>${u.role>=3?'取消管理员':'设为管理员'}</button>`:''}
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
         <button class="btn btn-sm btn-ghost" data-cmdel="${u.id}" style="color:#FF6B6B">删除账号</button>
@@ -6551,6 +6558,22 @@ document.addEventListener('click',e=>{
       if(v!=='yes')return;
       try{
         await Cloud.moderateUser(targetId,action);
+        toast('已'+label,'ok');loadCloudMod();
+      }catch(e){toast(e.message,'err');}
+    });
+    return;
+  }
+  /* 设/撤管理员（最高权限管理员） */
+  const cmRole=t.closest('[data-cmrole]');
+  if(cmRole){
+    const [role,targetId]=cmRole.dataset.cmrole.split(':');
+    const label=role==='3'?'设为管理员':'取消管理员';
+    modal(`<h3>${label}</h3><div class="m-body">确认对该用户执行「${label}」操作吗？</div>
+      <div class="m-foot"><button class="btn btn-sm btn-ghost" data-m="no">取消</button>
+      <button class="btn btn-sm btn-orange" data-m="yes">确认</button></div>`).then(async v=>{
+      if(v!=='yes')return;
+      try{
+        await Cloud.setRole(targetId,Number(role));
         toast('已'+label,'ok');loadCloudMod();
       }catch(e){toast(e.message,'err');}
     });
