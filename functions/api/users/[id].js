@@ -68,6 +68,7 @@ export async function onRequestPost({request,env,params}){
   await ensureSchema(env);
   const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(params.id).first();
   if(!row)return json({error:'用户不存在'},404);
+  if(Number(me.role)<4&&Number(row.role)>=4)return json({error:'无权对最高权限管理员执行该操作'},403);
   const b=await readBody(request);
   const action=String(b.action||'');
   let muted=Number(row.muted)||0, banned=Number(row.banned)||0;
@@ -89,8 +90,9 @@ export async function onRequestDelete({request,env,params}){
   if(!isAdmin(me))return json({error:'仅管理员可删除账号'},403);
   if(params.id===me.id)return json({error:'不能删除自己的账号'},400);
   await ensureSchema(env);
-  const row=await env.DB.prepare('SELECT id FROM users WHERE id=?').bind(params.id).first();
+  const row=await env.DB.prepare('SELECT id,role FROM users WHERE id=?').bind(params.id).first();
   if(!row)return json({error:'用户不存在'},404);
+  if(Number(me.role)<4&&Number(row.role)>=4)return json({error:'无权对最高权限管理员执行该操作'},403);
   const uid=params.id;
 
   /* 1) 该用户名下的帖子：连带删除帖下所有回复/点赞/通知 */
