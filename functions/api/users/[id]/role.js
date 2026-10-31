@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,publicUser,getAuthUser
-} from '../_lib.js';
+} from '../../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
 
