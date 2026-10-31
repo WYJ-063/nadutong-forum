@@ -718,12 +718,12 @@ function cloudModListHtml(users){
         <div class="cm-name"><b>${esc(u.name)}</b>${levelBadge(u.level,u.levelName)}${tags.join('')}</div>
         <div class="ph-sub">${esc(u.login)} · ${u.points}积分</div>
       </div>
-      ${isMe?'<span class="ph-sub cm-self">本人</span>':`<div class="cm-actions">
+      ${isMe?'<span class="ph-sub cm-self">本人</span>':(Cloud.user.role>=4||u.role<4)?`<div class="cm-actions">
         ${Cloud.user.role>=4&&u.role<4?`<button class="btn btn-sm btn-ghost" data-cmrole="${u.role>=3?'1':'3'}:${u.id}" ${u.role>=3?'':'style="color:#E8A33D"'}>${u.role>=3?'取消管理员':'设为管理员'}</button>`:''}
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
         <button class="btn btn-sm btn-ghost" data-cmdel="${u.id}" style="color:#FF6B6B">删除账号</button>
-      </div>`}
+      </div>`:''}
     </div>`;
   }).join('');
 }
