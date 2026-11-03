@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getSecret,
-  verifyPassword,signToken,publicUser
+  verifyPassword,signToken,publicUserFull
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -18,5 +18,5 @@ export async function onRequestPost({request,env}){
   if(Number(row.banned))return json({error:'该账号已被拉黑，无法登录。如有疑问请联系管理员'},403);
   const secret=await getSecret(env);
   const token=await signToken({uid:row.id,exp:Date.now()+1000*60*60*24*30},secret);
-  return json({token,user:publicUser(row)});
+  return json({token,user:await publicUserFull(env,row)});
 }
