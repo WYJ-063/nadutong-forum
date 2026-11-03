@@ -14,6 +14,7 @@ export async function onRequestGet({request,env,params}){
   const u=publicUser(row);
 
   /* 统计 */
+  
   const pc=await env.DB.prepare(
     'SELECT COUNT(*) AS n FROM posts WHERE author_id=?').bind(uid).first();
   const rc=await env.DB.prepare(
