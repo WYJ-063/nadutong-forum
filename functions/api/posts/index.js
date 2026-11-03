@@ -1,7 +1,8 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
   addPoints,POINTS_RULE,nowStr,processMentions,
-  isAdmin,ANNOUNCEMENT_BOARD,moderationBlock,shapePostRow,shapePostList
+  isAdmin,ANNOUNCEMENT_BOARD,moderationBlock,shapePostRow,shapePostList,
+  grantActivityBadge
 } from '../_lib.js';
 /* 为帖子创建投票（含选项） */
 async function createPoll(env,postId,poll,createdAt){
@@ -10,6 +11,7 @@ async function createPoll(env,postId,poll,createdAt){
   const multi=poll.multi?1:0;
   const options=Array.isArray(poll.options)?poll.options.slice(0,8):[];
   if(options.length<2)return null;
+  
   await env.DB.prepare(
     `INSERT INTO polls (id,post_id,question,multi,created_at) VALUES (?,?,?,?,?)`)
     .bind(pollId,postId,question,multi,createdAt).run();
@@ -98,6 +100,8 @@ export async function onRequestPost({request,env}){
   if(b.poll&&Array.isArray(b.poll.options)&&b.poll.options.length>=2)
     await createPoll(env,id,b.poll,createdAt);
   await addPoints(env,me.id,POINTS_RULE.post);
+  /* 活动徽章：活动窗口内发帖自动授予「我来也」（幂等，异常不影响发帖） */
+  try{ await grantActivityBadge(env,me.id); }catch(e){ /* 忽略 */ }
   /* @提及：给正文中被点名的真实成员发系统通知 + Web Push（异常不影响发帖） */
   try{
     await processMentions(env,{
