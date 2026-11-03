@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getSecret,genId,
-  hashPassword,signToken,publicUser,nowStr
+  hashPassword,signToken,publicUserFull,nowStr
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -30,7 +30,7 @@ export async function onRequestPost({request,env}){
   const secret=await getSecret(env);
   const token=await signToken({uid:id,exp:Date.now()+1000*60*60*24*30},secret);
   const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
-  return json({token,user:publicUser(row)});
+  return json({token,user:await publicUserFull(env,row)});
  }catch(e){
    return json({error:String(e&&e.message||e)},500);
  }
