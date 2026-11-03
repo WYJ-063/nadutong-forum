@@ -1,6 +1,6 @@
 import {
-  json,readBody,preflight,ensureSchema,publicUser,getAuthUser,isAdmin,
-  shapePostList,shapeReplyList
+  json,readBody,preflight,ensureSchema,publicUser,publicUserFull,getAuthUser,isAdmin,
+  getUserBadges,shapePostList,shapeReplyList
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -11,10 +11,11 @@ export async function onRequestGet({request,env,params}){
   const uid=params.id;
   const row=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(uid).first();
   if(!row)return json({error:'用户不存在'},404);
-  const u=publicUser(row);
+  const u=await publicUserFull(env,row);
+  /* 徽章墙（全部已获得徽章，含佩戴状态） */
+  u.badges=await getUserBadges(env,uid);
 
   /* 统计 */
-  
   const pc=await env.DB.prepare(
     'SELECT COUNT(*) AS n FROM posts WHERE author_id=?').bind(uid).first();
   const rc=await env.DB.prepare(
@@ -110,7 +111,8 @@ export async function onRequestDelete({request,env,params}){
         `DELETE FROM likes WHERE target_type='reply' AND target_id IN (${rph})`).bind(...rids).run();
       await env.DB.prepare(
         `DELETE FROM notifications WHERE target_type='reply' AND target_id IN (${rph})`).bind(...rids).run();
-    }
+    }           
+    
     await env.DB.prepare(
       `DELETE FROM replies WHERE post_id IN (${ph})`).bind(...postIds).run();
     await env.DB.prepare(
