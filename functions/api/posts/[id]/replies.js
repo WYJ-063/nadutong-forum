@@ -1,8 +1,8 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
-  addPoints,addNotification,processMentions,POINTS_RULE,nowStr,moderationBlock
+  addPoints,addNotification,processMentions,POINTS_RULE,nowStr,moderationBlock,
+  grantActivityBadge
 } from '../../_lib.js';
-
 
 export async function onRequestOptions(){ return preflight(); }
 
@@ -37,6 +37,8 @@ export async function onRequestPost({request,env,params}){
      VALUES (?,?,?,?,?,?,?)`)
     .bind(id,params.id,parentId,me.id,me.name,content,createdAt).run();
   await addPoints(env,me.id,POINTS_RULE.reply);
+  /* 活动徽章：活动窗口内回复自动授予「我来也」（幂等，异常不影响回复） */
+  try{ await grantActivityBadge(env,me.id); }catch(e){ /* 忽略 */ }
 
   /* 记录已会收到“回复”通知的人，@提及与之去重，避免同一人被重复打扰 */
   const replyNotifyIds=new Set();
