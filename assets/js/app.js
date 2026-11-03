@@ -28,7 +28,9 @@ function levelBadge(level,levelName){
 /* 佩戴徽章（称号）：跟在名字/等级后展示 */
 function badgeHtml(badge){
   if(!badge||!badge.name)return '';
-  return `<span class="lv-badge bd-badge" title="${esc(badge.desc||badge.name)}">${esc(badge.icon||'🏅')} ${esc(badge.name)}</span>`;
+  const eff=badge.effect!=null?String(badge.effect):'0';
+  const icon=badge.icon?`<span>${esc(badge.icon)}</span>`:'';
+  return `<span class="lv-badge bd-badge bd-eff-${esc(eff)}" title="${esc(badge.desc||badge.name)}">${icon} ${esc(badge.name)}</span>`;
 }
 /* 圆形头像：优先 avatar 图片（data/http），否则首字占位 */
 function avatarCircle(name,avatar,cls=''){
@@ -426,8 +428,13 @@ const Cloud={
   },
   /* 徽章：目录 / 自建 / 发放 / 佩戴 / 资料 */
   async listBadges(){ return (await this.request('/badges')).badges; },
+  async getMyBadges(){ return (await this.request('/users/me/badges')).badges; },
   async createBadge(payload){
     return (await this.request('/badges',
+      {method:'POST',body:JSON.stringify(payload)})).badge;
+  },
+  async updateBadge(badgeId,payload){
+    return (await this.request('/badges/'+encodeURIComponent(badgeId),
       {method:'POST',body:JSON.stringify(payload)})).badge;
   },
   async grantBadge(userId,badgeId){
@@ -686,8 +693,9 @@ function cloudAccountHtml(u){
     :esc(avText(u.name));
   return `<div class="cloud-account">
     <div class="cloud-account-head">
-      <div class="cloud-av" id="cloud-av-wrap">${av}
-        <button type="button" class="cloud-av-edit" id="cloud-av-edit" title="更换头像">📷</button>
+      <div class="cloud-av-wrap">
+        <div class="cloud-av" id="cloud-av-wrap">${av}</div>
+        <button type="button" class="cloud-av-btn" id="cloud-av-edit" title="更换头像">📷 更换头像</button>
         <input type="file" id="cloud-av-file" accept="image/*" class="hide">
       </div>
       <div style="min-width:0">
@@ -703,6 +711,7 @@ function cloudAccountHtml(u){
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <a class="btn btn-orange btn-sm" href="#/forum">进入共享论坛</a>
+      <button class="btn btn-ghost btn-sm" data-editprofile>✏️ 编辑资料</button>
       <button class="btn btn-ghost btn-sm" id="cloud-logout">退出云端账号</button>
       <button class="btn btn-ghost btn-sm" id="cloud-refresh">刷新资料</button>
       ${u.role>=3?'<button class="btn btn-ghost btn-sm" id="cloud-export">导出数据备份</button>':''}
@@ -719,7 +728,7 @@ function cloudAccountHtml(u){
       <p class="ph-sub" id="cloud-push-status" style="margin:10px 0 0"></p>
     </div>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
-      <div class="cloud-mod-head"><strong>成员管理</strong><span style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm btn-ghost" data-bmanage>🎖 徽章管理</button><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></span></div>
+      <div class="cloud-mod-head"><strong>成员管理 <span class="ph-sub" id="cm-count" style="font-weight:400"></span></strong><span style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm btn-ghost" data-bmanage>🎖 徽章管理</button><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></span></div>
       <div class="cloud-mod-search"><input class="field" id="cm-search" placeholder="搜索成员昵称 / 账号 / 编号…"></div>
       <div class="cloud-mod-list"><div class="cloud-loading"><span class="cl-spin"></span>正在加载成员…</div></div>
     </div>`:''}
@@ -769,6 +778,14 @@ function renderCloudModFiltered(){
   box.innerHTML=list.length
     ? cloudModListHtml(list)
     : '<div class="empty">没有匹配的成员</div>';
+  const cnt=document.querySelector('#cm-count');
+  if(cnt){
+    const total=_cloudModUsers.length;
+    const term=String((inp&&inp.value)||'').trim();
+    cnt.textContent=(term&&list.length!==total)
+      ? `（共 ${total} 人 · 筛选 ${list.length} 人）`
+      : `（共 ${total} 人）`;
+  }
 }
 /* 加载并渲染成员管理列表 */
 async function loadCloudMod(){
@@ -2380,8 +2397,8 @@ function userProfileHtml(d){
   const badges=u.badges||[];
   const badgeWall=`<div class="up-section"><h3>徽章 ${isMe&&badges.length?'<span class="ph-sub" style="font-weight:400;margin-left:6px">点击可切换佩戴</span>':''}</h3>
     ${badges.length?`<div class="up-badges">${badges.map(b=>`
-      <button type="button" class="up-badge ${b.equipped?'on':''}" data-beq="${b.id}" title="${esc(b.desc||b.name)}" ${isMe?'':'disabled'}>
-        <span class="ub-icon">${esc(b.icon||'🏅')}</span><span class="ub-name">${esc(b.name)}</span>
+      <button type="button" class="up-badge bd-eff-${esc(b.effect!=null?String(b.effect):'0')} ${b.equipped?'on':''}" data-beq="${b.id}" title="${esc(b.desc||b.name)}" ${isMe?'':'disabled'}>
+        ${b.icon?`<span class="ub-icon">${esc(b.icon)}</span>`:''}<span class="ub-name">${esc(b.name)}</span>
         ${b.equipped?'<span class="ub-wear">佩戴中</span>':''}
       </button>`).join('')}</div>`
       :`<div class="empty">${isMe?'还没有徽章——活动期内（11月3日-5日）发帖或回复可自动获得「我来也」专属徽章':'TA 还没有徽章'}</div>`}
@@ -2444,52 +2461,158 @@ function openProfileEditModal(){
   };
 }
 /* 徽章管理（管理员）：目录 + 新建徽章 */
+/* ============ 徽章获得庆祝动画 + 新徽章检测 ============ */
+function badgeCelebration(badge){
+  if(!badge)return;
+  const eff=badge.effect!=null?String(badge.effect):'0';
+  const icon=badge.icon?`<span class="bc-bi">${esc(badge.icon)}</span>`:'';
+  const mask=document.createElement('div');
+  mask.className='bc-mask';
+  mask.innerHTML=`
+    <div class="bc-card">
+      <div class="bc-tag">恭喜获得新徽章</div>
+      <div class="bc-badge bd-eff-${esc(eff)}">${icon}<span>${esc(badge.name)}</span></div>
+      <p class="bc-name">${esc(badge.name)}</p>
+      <p class="bc-desc">${esc(badge.desc||'已收入你的徽章墙，可在个人主页佩戴展示')}</p>
+      <button class="btn btn-orange" id="bc-ok" style="width:100%">太棒了</button>
+    </div>`;
+  document.body.appendChild(mask);
+  /* 彩带：相对全屏遮罩从顶部落下 */
+  const colors=['#FF5E7D','#FFB03B','#4FE08A','#3BB6FF','#9B5CF0','#F6E85B'];
+  for(let i=0;i<16;i++){
+    const c=document.createElement('span');
+    c.className='bc-confetti';
+    c.style.left=(Math.random()*100)+'%';
+    c.style.background=colors[i%colors.length];
+    c.style.animationDuration=(1.6+Math.random()*1.4)+'s';
+    c.style.animationDelay=(Math.random()*0.5)+'s';
+    mask.appendChild(c);
+  }
+  const close=()=>mask.remove();
+  mask.querySelector('#bc-ok').onclick=close;
+  mask.addEventListener('click',e=>{if(e.target===mask)close();});
+}
+/* 已知徽章集合：null=尚未建立基线（登录后首次只记录不弹） */
+let _knownBadgeIds=null;
+async function initBadgeBaseline(){
+  if(!Cloud.connected){_knownBadgeIds=null;return;}
+  try{
+    const badges=await Cloud.getMyBadges();
+    _knownBadgeIds=new Set(badges.map(b=>b.id));
+  }catch(e){}
+}
+/* 检测新徽章并触发庆祝（活动自动获得、管理员手动发放都覆盖） */
+async function checkNewBadges(){
+  if(!Cloud.connected)return;
+  try{
+    const badges=await Cloud.getMyBadges();
+    const cur=new Set(badges.map(b=>b.id));
+    if(_knownBadgeIds===null){_knownBadgeIds=cur;return;}
+    const fresh=badges.filter(b=>!_knownBadgeIds.has(b.id));
+    if(fresh.length)fresh.forEach((b,i)=>setTimeout(()=>badgeCelebration(b),i*450));
+    _knownBadgeIds=cur;
+  }catch(e){}
+}
+/* 炫彩效果元数据（与 CSS .bd-eff-* 对应） */
+const BADGE_EFFECT_OPTIONS=[
+  {v:'0',label:'金辉'},{v:'1',label:'紫电'},{v:'2',label:'烈焰'},
+  {v:'3',label:'青碧'},{v:'4',label:'彩虹'},{v:'5',label:'银辉'}
+];
 async function openBadgeManageModal(){
+  let editingId=null; /* null=新建，否则为编辑中的徽章 id */
   const mask=openMask(`
     <h3>徽章管理</h3>
     <div class="m-body">
-      <button class="btn btn-sm btn-orange" id="b-create-open" style="width:100%">➕ 新建徽章</button>
-      <div id="b-create-box" class="hide" style="margin-top:10px;padding:12px;border:1px solid var(--pt-border,#e5e8f0);border-radius:10px">
+      <div id="b-form-box" style="padding:12px;border:1px solid var(--pt-border,#e5e8f0);border-radius:10px">
+        <div id="b-form-title" style="font-weight:700;margin-bottom:8px">➕ 新建徽章</div>
         <label class="fl">徽章名称</label>
         <input class="field" id="b-name" placeholder="必填，20字内">
-        <label class="fl" style="margin-top:8px">图标（emoji）</label>
-        <input class="field" id="b-icon" placeholder="如 🏅 ⚔ 🐉">
+        <label class="fl" style="margin-top:8px">图标（emoji，可留空＝纯文字徽章）</label>
+        <input class="field" id="b-icon" placeholder="留空则只显示文字">
+        <label class="fl" style="margin-top:8px">炫彩效果</label>
+        <div class="bd-eff-pick" id="b-eff-pick">
+          ${BADGE_EFFECT_OPTIONS.map((o,i)=>`<button type="button" class="bd-eff-opt p${o.v} ${i===0?'sel':''}" data-eff="${o.v}" title="${o.label}"></button>`).join('')}
+        </div>
         <label class="fl" style="margin-top:8px">说明</label>
         <input class="field" id="b-desc" placeholder="可选，介绍这个徽章">
-        <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-sm btn-orange" id="b-create">创建</button><button class="btn btn-sm btn-ghost" id="b-create-cancel">取消</button></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-sm btn-orange" id="b-save">创建</button>
+          <button class="btn btn-sm btn-ghost" id="b-form-cancel">取消</button>
+        </div>
       </div>
       <div id="b-list" style="margin-top:12px"><div class="cloud-loading"><span class="cl-spin"></span>正在加载徽章目录…</div></div>
     </div>`);
+  let selectedEffect='0';
+  mask.querySelectorAll('#b-eff-pick .bd-eff-opt').forEach(btn=>{
+    btn.onclick=()=>{
+      selectedEffect=btn.dataset.eff;
+      mask.querySelectorAll('#b-eff-pick .bd-eff-opt').forEach(b=>b.classList.remove('sel'));
+      btn.classList.add('sel');
+    };
+  });
+  const resetForm=()=>{
+    editingId=null;
+    mask.querySelector('#b-form-title').textContent='➕ 新建徽章';
+    mask.querySelector('#b-save').textContent='创建';
+    mask.querySelector('#b-name').value='';
+    mask.querySelector('#b-icon').value='';
+    mask.querySelector('#b-desc').value='';
+    mask.querySelectorAll('#b-eff-pick .bd-eff-opt').forEach((b,i)=>b.classList.toggle('sel',i===0));
+  };
+  const fillEditForm=(b)=>{
+    editingId=b.id;selectedEffect=b.effect||'0';
+    mask.querySelector('#b-form-title').textContent='✏️ 编辑徽章：'+b.name;
+    mask.querySelector('#b-save').textContent='保存修改';
+    mask.querySelector('#b-name').value=b.name;
+    mask.querySelector('#b-icon').value=b.icon||'';
+    mask.querySelector('#b-desc').value=b.desc||'';
+    mask.querySelectorAll('#b-eff-pick .bd-eff-opt').forEach(el=>
+      el.classList.toggle('sel',el.dataset.eff===selectedEffect));
+  };
   const render=async()=>{
     try{
       const badges=await Cloud.listBadges();
       const box=mask.querySelector('#b-list');
       if(!badges.length){box.innerHTML='<div class="empty">还没有徽章</div>';return;}
       box.innerHTML=`<div class="bd-manage-list">${badges.map(b=>`
-        <div class="bd-manage-row"><span class="bd-mi">${esc(b.icon||'🏅')}</span>
+        <div class="bd-manage-row bd-eff-${esc(b.effect||'0')}">
+          ${b.icon?`<span class="bd-mi">${esc(b.icon)}</span>`:''}
           <span class="bd-mn">${esc(b.name)}</span>
-          <span class="bd-mk">${b.kind==='activity'?'活动':'手动'}</span></div>`).join('')}</div>`;
+          <span class="bd-mk">${b.kind==='activity'?'活动':'手动'}</span>
+          <button class="btn btn-sm btn-ghost" data-bedit="${b.id}">编辑</button>
+        </div>`).join('')}</div>`;
+      box.querySelectorAll('[data-bedit]').forEach(btn=>{
+        btn.onclick=()=>{
+          const b=badges.find(x=>x.id===btn.dataset.bedit);
+          if(b)fillEditForm(b);
+        };
+      });
     }catch(e){const box=mask.querySelector('#b-list');if(box)box.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
   };
-  const cbtn=mask.querySelector('#b-create-open');
-  if(cbtn)cbtn.onclick=()=>{const box=mask.querySelector('#b-create-box');box.classList.toggle('hide');};
-  const ccbtn=mask.querySelector('#b-create-cancel');
-  if(ccbtn)ccbtn.onclick=()=>{mask.querySelector('#b-create-box').classList.add('hide');};
-  const cbtn2=mask.querySelector('#b-create');
-  if(cbtn2)cbtn2.onclick=async()=>{
+  mask.querySelector('#b-form-cancel').onclick=()=>{
+    if(editingId)resetForm();else mask.remove();
+  };
+  mask.querySelector('#b-save').onclick=async()=>{
     const name=mask.querySelector('#b-name').value.trim();
     if(!name){toast('请填写徽章名称','warn');return;}
-    cbtn2.disabled=true;
+    const btn=mask.querySelector('#b-save');btn.disabled=true;
+    const payload={
+      name,
+      icon:mask.querySelector('#b-icon').value.trim(),
+      desc:mask.querySelector('#b-desc').value.trim(),
+      effect:selectedEffect
+    };
     try{
-      const icon=mask.querySelector('#b-icon').value.trim();
-      const desc=mask.querySelector('#b-desc').value.trim();
-      await Cloud.createBadge({name,icon:icon||'🏅',desc});
-      toast('徽章已创建','ok');
-      mask.querySelector('#b-name').value='';mask.querySelector('#b-icon').value='';mask.querySelector('#b-desc').value='';
-      mask.querySelector('#b-create-box').classList.add('hide');
-      cbtn2.disabled=false;
+      if(editingId){
+        await Cloud.updateBadge(editingId,payload);
+        toast('徽章已更新','ok');
+      }else{
+        await Cloud.createBadge(payload);
+        toast('徽章已创建','ok');
+      }
+      resetForm();btn.disabled=false;
       await render();
-    }catch(e){cbtn2.disabled=false;toast(e.message,'err');}
+    }catch(e){btn.disabled=false;toast(e.message,'err');}
   };
   render();
 }
@@ -2506,8 +2629,8 @@ async function openGrantBadgeModal(userId,userName){
     const box=mask.querySelector('#g-b-list');
     if(!badges.length){box.innerHTML='<div class="empty">还没有可发放的徽章</div>';return;}
     box.innerHTML=`<div class="bd-grant-grid">${badges.map(b=>`
-      <button type="button" class="bd-grant" data-bgrant="${b.id}" data-bname="${esc(b.name)}" title="${esc(b.desc||'')}">
-        <span class="bd-gi">${esc(b.icon||'🏅')}</span><span class="bd-gn">${esc(b.name)}</span>
+      <button type="button" class="bd-grant bd-eff-${esc(b.effect||'0')}" data-bgrant="${b.id}" data-bname="${esc(b.name)}" title="${esc(b.desc||'')}">
+        ${b.icon?`<span class="bd-gi">${esc(b.icon)}</span>`:''}<span class="bd-gn">${esc(b.name)}</span>
       </button>`).join('')}</div>`;
     box.querySelectorAll('[data-bgrant]').forEach(btn=>{
       btn.onclick=async()=>{
@@ -6678,6 +6801,7 @@ document.addEventListener('click',e=>{
           await Cloud.login(login,pass);toast('已登录云端','ok');
         }
         router();
+        initBadgeBaseline();
         if(window._pollCloudNotif)window._pollCloudNotif();
       }catch(err){
         msg.className='cloud-msg err';msg.textContent=err.message;cloudSub.disabled=false;
@@ -6997,6 +7121,7 @@ document.addEventListener('click',e=>{
       const poll=readVoteBuilder();
       Cloud.createPost(board,title,body,poll).then(async p=>{
         await Cloud.refresh().catch(()=>{});
+        await checkNewBadges();
         toast('已发布到共享论坛','ok');location.hash='#/post/'+p.id;
       }).catch(err=>{btn.disabled=false;toast(err.message,'err');});
       return;
@@ -7063,6 +7188,7 @@ document.addEventListener('click',e=>{
       const {seg}=parseHash();
       Cloud.reply(seg[1],content,parentId).then(async()=>{
         await Cloud.refresh().catch(()=>{});
+        await checkNewBadges();
         toast('回复已提交','ok');await cloudRerender();
       }).catch(err=>{rsub.disabled=false;toast(err.message,'err');});
       return;
@@ -7083,6 +7209,7 @@ document.addEventListener('click',e=>{
       const {seg}=parseHash();
       Cloud.reply(seg[1],body).then(async()=>{
         await Cloud.refresh().catch(()=>{});
+        await checkNewBadges();
         toast('回答已提交到共享论坛','ok');
         await cloudRerender();
       }).catch(err=>{btn.disabled=false;toast(err.message,'err');});
@@ -7835,7 +7962,10 @@ Store.open().then(async()=>{
   // 恢复成功后若当前正停留在云端/论坛相关页面，重渲染一次，避免刷新后仍显示登录框。
   Cloud.refresh().then(()=>{
     pollCloudNotif();
-    if(Cloud.connected&&/^#\/(cloud|forum|forum-notices|essence|search|u\/|post\/)/.test(location.hash))router();
+    if(Cloud.connected){
+      initBadgeBaseline();
+      if(/^#\/(cloud|forum|forum-notices|essence|search|u\/|post\/)/.test(location.hash))router();
+    }
     /* 启动续订同步：设备上已有推送订阅时，幂等重新上报，
        兼容订阅轮换/换设备登录后的服务端归属修复；失败静默 */
     if(Cloud.connected&&webPushSupported()){

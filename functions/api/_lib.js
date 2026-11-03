@@ -166,6 +166,7 @@ const SCHEMA=[
   icon TEXT,
   desc TEXT,
   kind TEXT DEFAULT 'manual',
+  effect TEXT DEFAULT '0',
   created_at TEXT
 )`,
 /* 用户已获得的徽章（一用户一徽章一行）；equipped=1 表示当前佩戴 */
@@ -203,69 +204,95 @@ async function seedBoards(env){
 /* 徽章目录种子：1 个活动徽章 + 20 个管理员手动称号（INSERT OR IGNORE 幂等） */
 const BADGE_SEEDS=[
   /* 活动徽章（自动发放） */
-  ['act_20261103','我来也','🔥','活动期（11月3日-5日）内发帖或回复自动获得，永久纪念','activity'],
+  ['act_20261103','我来也','🔥','活动期（11月3日-5日）内发帖或回复自动获得，永久纪念','activity','4'],
   /* 管理员手动称号（20 个） */
-  ['title_01','哪都通临时工','📦','哪都通快递基层干员','manual'],
-  ['title_02','哪都通元老','🏛','论坛建站元勋','manual'],
-  ['title_03','罗天大醮冠军','🏆','罗天大醮夺魁者','manual'],
-  ['title_04','罗天大醮八强','🥋','罗天大醮入围高手','manual'],
-  ['title_05','异人榜探花','🥉','异人榜前三','manual'],
-  ['title_06','天师府传人','🀄','龙虎山天师府嫡传','manual'],
-  ['title_07','武当真人','🧘','武当山修道有成','manual'],
-  ['title_08','唐门高手','🗡','唐门暗器行家','manual'],
-  ['title_09','全性门徒','🎭','全性亦正亦邪','manual'],
-  ['title_10','天下会执事','🏮','天下会办事干员','manual'],
-  ['title_11','碧游村村民','🏡','碧游村常驻村民','manual'],
-  ['title_12','公司精英','💼','哪都通总部精英','manual'],
-  ['title_13','炼器宗师','⚒','神机百炼炉火纯青','manual'],
-  ['title_14','御物高手','🪃','御物之术出神入化','manual'],
-  ['title_15','符箓大师','🧿','符箓咒法信手拈来','manual'],
-  ['title_16','阿威十八式','🥊','张楚岚成名绝技，全活不打','manual'],
-  ['title_17','太极劲','☯','武当阴阳相济，以柔克刚','manual'],
-  ['title_18','逆生三重','🌀','逆生三重的传人','manual'],
-  ['title_19','阳五雷','⚡','阳五雷掌控者，掌心雷霆','manual'],
-  ['title_20','异人界新人','🌱','初入异人界的新人','manual']
+  ['title_01','哪都通临时工','📦','哪都通快递基层干员','manual','0'],
+  ['title_02','哪都通元老','🏛','论坛建站元勋','manual','5'],
+  ['title_03','罗天大醮冠军','🏆','罗天大醮夺魁者','manual','2'],
+  ['title_04','罗天大醮八强','🥋','罗天大醮入围高手','manual','1'],
+  ['title_05','异人榜探花','🥉','异人榜前三','manual','3'],
+  ['title_06','天师府传人','🀄','龙虎山天师府嫡传','manual','0'],
+  ['title_07','武当真人','🧘','武当山修道有成','manual','3'],
+  ['title_08','唐门高手','🗡','唐门暗器行家','manual','2'],
+  ['title_09','全性门徒','🎭','全性亦正亦邪','manual','1'],
+  ['title_10','天下会执事','🏮','天下会办事干员','manual','0'],
+  ['title_11','碧游村村民','🏡','碧游村常驻村民','manual','3'],
+  ['title_12','公司精英','💼','哪都通总部精英','manual','5'],
+  ['title_13','炼器宗师','⚒','神机百炼炉火纯青','manual','2'],
+  ['title_14','御物高手','🪃','御物之术出神入化','manual','1'],
+  ['title_15','符箓大师','🧿','符箓咒法信手拈来','manual','0'],
+  ['title_16','阿威十八式','🥊','张楚岚成名绝技，全活不打','manual','2'],
+  ['title_17','太极劲','☯','武当阴阳相济，以柔克刚','manual','3'],
+  ['title_18','逆生三重','🌀','逆生三重的传人','manual','1'],
+  ['title_19','阳五雷','⚡','阳五雷掌控者，掌心雷霆','manual','2'],
+  ['title_20','异人界新人','🌱','初入异人界的新人','manual','5']
 ];
 async function seedBadges(env){
-  for(const [id,name,icon,desc,kind] of BADGE_SEEDS){
+  for(const [id,name,icon,desc,kind,effect] of BADGE_SEEDS){
     await env.DB.prepare(
-      'INSERT OR IGNORE INTO badges (id,name,icon,desc,kind,created_at) VALUES (?,?,?,?,?,?)')
-      .bind(id,name,icon,desc,kind,nowStr()).run();
+      'INSERT OR IGNORE INTO badges (id,name,icon,desc,kind,effect,created_at) VALUES (?,?,?,?,?,?,?)')
+      .bind(id,name,icon,desc,kind,effect||'0',nowStr()).run();
   }
 }
 /* 活动徽章窗口：北京时间 2026-11-03 00:00:00 ～ 2026-11-05 23:59:59（UTC 换算） */
 const ACTIVITY_BADGE_ID='act_20261103';
 const ACTIVITY_START=new Date('2026-11-02T16:00:00Z').getTime();
 const ACTIVITY_END=new Date('2026-11-05T15:59:59.999Z').getTime();
-/* 幂等发放徽章（已拥有则忽略）；grantorId 为 null 表示系统/活动自动发放 */
-async function grantBadge(env,userId,badgeId,grantorId){
-  if(!userId||!badgeId)return false;
-  const exists=await env.DB.prepare(
-    'SELECT 1 FROM badges WHERE id=?').bind(badgeId).first();
-  if(!exists)return false;
+/* 发放徽章通知：写入通知中心并尝试 Web Push；系统/管理员发放均支持 */
+async function notifyBadgeGranted(env,userId,badge,grantorId){
+  let actorId='system',actorName='系统';
+  if(grantorId&&grantorId!=='system'){
+    actorId=grantorId;
+    const g=await env.DB.prepare('SELECT name FROM users WHERE id=?').bind(grantorId).first();
+    if(g)actorName=g.name;
+  }
+  const excerpt='获得徽章「'+badge.name+'」';
+  const notifId=genId('n');
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO user_badges (user_id,badge_id,granted_by,granted_at,equipped)
+    `INSERT INTO notifications
+       (id,user_id,type,actor_id,actor_name,target_type,target_id,post_id,post_title,excerpt,read,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`)
+    .bind(notifId,userId,'badge',actorId,actorName,'badge',badge.id,'','',excerpt,nowStr()).run();
+  try{
+    const payload=buildPushPayload(
+      {type:'badge',actorName,targetType:'badge',targetId:badge.id,excerpt},notifId);
+    await dispatchWebPush(env,userId,payload);
+  }catch(e){ /* 推送失败不影响发放主流程 */ }
+}
+/* 幂等发放徽章（已拥有则返回 granted:false）；grantorId 为 null 表示系统/活动自动发放 */
+async function grantBadge(env,userId,badgeId,grantorId){
+  if(!userId||!badgeId)return {granted:false,badge:null};
+  const badgeRow=await env.DB.prepare('SELECT * FROM badges WHERE id=?').bind(badgeId).first();
+  if(!badgeRow)return {granted:false,badge:null};
+  const owned=await env.DB.prepare(
+    'SELECT 1 FROM user_badges WHERE user_id=? AND badge_id=?').bind(userId,badgeId).first();
+  if(owned)return {granted:false,badge:null};
+  await env.DB.prepare(
+    `INSERT INTO user_badges (user_id,badge_id,granted_by,granted_at,equipped)
      VALUES (?,?,?,?,1)`)
     .bind(userId,badgeId,grantorId||'system',nowStr()).run();
-  return true;
+  const badge={id:badgeRow.id,name:badgeRow.name,icon:badgeRow.icon||'',
+    desc:badgeRow.desc,kind:badgeRow.kind,effect:normEffect(badgeRow.effect)};
+  await notifyBadgeGranted(env,userId,badge,grantorId);
+  return {granted:true,badge};
 }
 /* 活动徽章：仅在活动窗口内发帖/回复时自动授予（幂等，每人一份） */
 async function grantActivityBadge(env,userId){
-  if(!userId)return false;
+  if(!userId)return {granted:false,badge:null};
   const now=Date.now();
-  if(now<ACTIVITY_START||now>ACTIVITY_END)return false;
+  if(now<ACTIVITY_START||now>ACTIVITY_END)return {granted:false,badge:null};
   return grantBadge(env,userId,ACTIVITY_BADGE_ID,null);
 }
 /* 用户已获得的徽章（含佩戴状态） */
 async function getUserBadges(env,userId){
   const {results}=await env.DB.prepare(
-    `SELECT b.id,b.name,b.icon,b.desc,b.kind,ub.equipped
+    `SELECT b.id,b.name,b.icon,b.desc,b.kind,b.effect,ub.equipped
      FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
      WHERE ub.user_id=? ORDER BY ub.granted_at`)
     .bind(userId).all();
   return (results||[]).map(r=>({
     id:r.id,name:r.name,icon:r.icon,desc:r.desc,
-    kind:r.kind,equipped:!!Number(r.equipped)
+    kind:r.kind,effect:normEffect(r.effect),equipped:!!Number(r.equipped)
   }));
 }
 /* 佩戴/取消佩戴徽章：只能佩戴自己已获得的；badgeId 传 null 表示卸下 */
@@ -288,27 +315,49 @@ async function equipBadge(env,userId,badgeId){
 /* 当前佩戴的徽章（供名字后展示） */
 async function getEquippedBadge(env,userId){
   const row=await env.DB.prepare(
-    `SELECT b.id,b.name,b.icon,b.desc
+    `SELECT b.id,b.name,b.icon,b.desc,b.effect
      FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
      WHERE ub.user_id=? AND ub.equipped=1`)
     .bind(userId).first();
-  return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc}:null;
+  return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc,effect:normEffect(row.effect)}:null;
+}
+/* 炫彩效果取值范围：0~5，非法值统一回退为 0 */
+const BADGE_EFFECTS=['0','1','2','3','4','5'];
+function normEffect(v){
+  const s=String(v==null?'0':v);
+  return BADGE_EFFECTS.includes(s)?s:'0';
 }
 /* 徽章全目录（按 kind 分组排序：手动称号在前、活动在后） */
 async function getBadgeCatalog(env){
   const {results}=await env.DB.prepare(
-    'SELECT id,name,icon,desc,kind FROM badges ORDER BY kind,id').all();
+    'SELECT id,name,icon,desc,kind,effect FROM badges ORDER BY kind,id').all();
   return (results||[]).map(r=>({
-    id:r.id,name:r.name,icon:r.icon,desc:r.desc,kind:r.kind
+    id:r.id,name:r.name,icon:r.icon,desc:r.desc,
+    kind:r.kind,effect:normEffect(r.effect)
   }));
 }
 /* 管理员自建徽章：生成唯一 id 并入库，返回新徽章（kind 固定为 manual） */
-async function createBadge(env,{name,icon,desc}){
+async function createBadge(env,{name,icon,desc,effect}){
   const id=genId('b');
+  const eff=normEffect(effect);
   await env.DB.prepare(
-    'INSERT INTO badges (id,name,icon,desc,kind,created_at) VALUES (?,?,?,?,?,?)')
-    .bind(id,name,icon,desc,'manual',nowStr()).run();
-  return {id,name,icon,desc,kind:'manual'};
+    'INSERT INTO badges (id,name,icon,desc,kind,effect,created_at) VALUES (?,?,?,?,?,?,?)')
+    .bind(id,name,icon||'',desc,'manual',eff,nowStr()).run();
+  return {id,name,icon:icon||'',desc,kind:'manual',effect:eff};
+}
+/* 管理员编辑徽章：只更新传入字段；活动徽章也允许改名/图标/炫彩 */
+async function updateBadge(env,badgeId,fields){
+  const row=await env.DB.prepare('SELECT * FROM badges WHERE id=?').bind(badgeId).first();
+  if(!row)return null;
+  const name=fields.name!=null?String(fields.name).trim().slice(0,20):row.name;
+  const icon=fields.icon!=null?String(fields.icon).trim().slice(0,8):(row.icon||'');
+  const desc=fields.desc!=null?String(fields.desc).trim().slice(0,100):(row.desc||'');
+  const effect=normEffect(fields.effect!=null?fields.effect:row.effect);
+  if(!name)return {error:'徽章名称不能为空'};
+  await env.DB.prepare(
+    'UPDATE badges SET name=?,icon=?,desc=?,effect=? WHERE id=?')
+    .bind(name,icon,desc,effect,badgeId).run();
+  return {id:badgeId,name,icon,desc,kind:row.kind,effect};
 }
 /* 用户扩展资料（无则返回 null 字段） */
 async function getUserProfile(env,userId){
@@ -346,7 +395,8 @@ const MIGRATIONS=[
   `ALTER TABLE replies ADD COLUMN parent_id TEXT`,
   `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`,
   `ALTER TABLE posts ADD COLUMN edited_at TEXT`,
-  `ALTER TABLE posts ADD COLUMN edit_count INTEGER DEFAULT 0`
+  `ALTER TABLE posts ADD COLUMN edit_count INTEGER DEFAULT 0`,
+  `ALTER TABLE badges ADD COLUMN effect TEXT DEFAULT '0'`
 ];
 /* 全文搜索：posts_fts（FTS5 trigram 分词，对中文子串友好，需 SQLite 3.34+）。
    触发器自动同步增删改；首次对历史帖子回填。任何失败都静默降级（搜索接口回退 LIKE）。 */
@@ -576,6 +626,9 @@ function buildPushPayload(o,notifId){
     if(o.postTitle)parts.push(o.postTitle);
     if(o.excerpt)parts.push(o.excerpt);
     body=parts.join(' · ')||'有人在帖子里提到了你';
+  }else if(o.type==='badge'){
+    title='恭喜获得新徽章';
+    body=o.excerpt||'你获得了一枚新徽章';
   }else{
     title=actor+' 回复了你';
     const parts=[];
@@ -868,7 +921,6 @@ async function getPollForPost(env,postId,viewerId){
   totalVoters=votersSet.size;
   return {
     id:poll.id,question:poll.question,multi:!!poll.multi,totalVoters,
-     
     myVotes,
     options:options.map(o=>({
       id:o.id,text:o.text,votes:(countMap[o.id]||[]).length
@@ -887,6 +939,6 @@ export {
   shapePostRow,shapePostList,shapeReplyList,
   getVapidKeys,dispatchWebPush,
   grantBadge,grantActivityBadge,getUserBadges,equipBadge,
-  getEquippedBadge,getBadgeCatalog,createBadge,
+  getEquippedBadge,getBadgeCatalog,createBadge,updateBadge,
   getUserProfile,saveUserProfile
 };
