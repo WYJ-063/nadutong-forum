@@ -25,6 +25,11 @@ function levelBadge(level,levelName){
   const cls=level>=18?'lv-top':(level>=12?'lv-hi':'');
   return `<span class="lv-badge ${cls}" title="${esc(levelName||'')}">Lv${level}${levelName?`<span class="lv-bn">${esc(levelName)}</span>`:''}</span>`;
 }
+/* 佩戴徽章（称号）：跟在名字/等级后展示 */
+function badgeHtml(badge){
+  if(!badge||!badge.name)return '';
+  return `<span class="lv-badge bd-badge" title="${esc(badge.desc||badge.name)}">${esc(badge.icon||'🏅')} ${esc(badge.name)}</span>`;
+}
 /* 圆形头像：优先 avatar 图片（data/http），否则首字占位 */
 function avatarCircle(name,avatar,cls=''){
   if(avatar&&(avatar.startsWith('data:')||avatar.startsWith('http')))
@@ -419,6 +424,24 @@ const Cloud={
     return await this.request('/users/'+encodeURIComponent(id)+'/role',
       {method:'POST',body:JSON.stringify({role})});
   },
+  /* 徽章：目录 / 自建 / 发放 / 佩戴 / 资料 */
+  async listBadges(){ return (await this.request('/badges')).badges; },
+  async createBadge(payload){
+    return (await this.request('/badges',
+      {method:'POST',body:JSON.stringify(payload)})).badge;
+  },
+  async grantBadge(userId,badgeId){
+    return await this.request('/badges/grant',
+      {method:'POST',body:JSON.stringify({userId,badgeId})});
+  },
+  async equipBadge(badgeId){
+    return await this.request('/users/'+encodeURIComponent(this.user.id)+'/equip',
+      {method:'POST',body:JSON.stringify({badgeId})});
+  },
+  async saveProfile(fields){
+    return (await this.request('/users/'+encodeURIComponent(this.user.id)+'/profile',
+      {method:'POST',body:JSON.stringify(fields)})).profile;
+  },
   /* 板块 */
   async listBoards(){return (await this.request('/boards')).boards;},
   async createBoard(name){
@@ -696,7 +719,7 @@ function cloudAccountHtml(u){
       <p class="ph-sub" id="cloud-push-status" style="margin:10px 0 0"></p>
     </div>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
-      <div class="cloud-mod-head"><strong>成员管理</strong><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></div>
+      <div class="cloud-mod-head"><strong>成员管理</strong><span style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm btn-ghost" data-bmanage>🎖 徽章管理</button><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></span></div>
       <div class="cloud-mod-search"><input class="field" id="cm-search" placeholder="搜索成员昵称 / 账号 / 编号…"></div>
       <div class="cloud-mod-list"><div class="cloud-loading"><span class="cl-spin"></span>正在加载成员…</div></div>
     </div>`:''}
@@ -715,11 +738,12 @@ function cloudModListHtml(users){
     return `<div class="cm-row ${u.banned?'is-banned':u.muted?'is-muted':''}">
       ${avatarCircle(u.name,u.avatar)}
       <div class="cm-info">
-        <div class="cm-name"><b>${esc(u.name)}</b>${levelBadge(u.level,u.levelName)}${tags.join('')}</div>
+        <div class="cm-name"><b>${esc(u.name)}</b>${levelBadge(u.level,u.levelName)}${badgeHtml(u.badge)}${tags.join('')}</div>
         <div class="ph-sub">${esc(u.login)} · ${u.points}积分</div>
       </div>
       ${isMe?'<span class="ph-sub cm-self">本人</span>':(Cloud.user.role>=4||u.role<4)?`<div class="cm-actions">
         ${Cloud.user.role>=4&&u.role<4?`<button class="btn btn-sm btn-ghost" data-cmrole="${u.role>=3?'1':'3'}:${u.id}" ${u.role>=3?'':'style="color:#E8A33D"'}>${u.role>=3?'取消管理员':'设为管理员'}</button>`:''}
+        <button class="btn btn-sm btn-ghost" data-cmbadge="${u.id}" title="手动发放徽章/称号">🎖 发徽章</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
         <button class="btn btn-sm btn-ghost" data-cmdel="${u.id}" style="color:#FF6B6B">删除账号</button>
@@ -2113,7 +2137,7 @@ function forumListHtml(list,curId,showPin){
         <h3 data-open="${p.id}">${p.pinned?'<span class="tag tag-red" style="margin-right:6px">置顶</span>':''}${p.essence?'<span class="tag tag-essence" style="margin-right:6px">精</span>':''}${esc(p.title)}</h3>
         <div class="q-ex">${esc(p.content)}</div>
         <div class="q-meta">
-          ${authorWrap(p.authorId,avatarCircle(p.authorName,aAv)+'<span>'+esc(p.authorName)+'</span>')}${levelBadge(aLv,aLn)}
+          ${authorWrap(p.authorId,avatarCircle(p.authorName,aAv)+'<span>'+esc(p.authorName)+'</span>')}${levelBadge(aLv,aLn)}${badgeHtml(p.authorBadge)}
           <span class="tag">${p.board}</span>
           <span class="qm" data-open="${p.id}">💬 ${p.replyCount} 个回答</span>
           <span>👁 ${p.views}</span>
@@ -2332,12 +2356,35 @@ function viewUserProfile(id){
 }
 function userProfileHtml(d){
   const u=d.user;
+  const isMe=Cloud.connected&&u.id===Cloud.user.id;
   const head=`<div class="up-hero">
     <div class="up-av">${avatarCircle(u.name,u.avatar,'up-av-circle')}</div>
     <div class="up-id">
-      <div class="up-name">${esc(u.name)}${levelBadge(u.level,u.levelName)}</div>
+      <div class="up-name">${esc(u.name)}${levelBadge(u.level,u.levelName)}${badgeHtml(u.badge)}</div>
       <p class="ph-sub">编号 ${esc(u.id)}</p>
     </div>
+  </div>`;
+  /* 异人档案（资料编辑：流派/性别/城市/生日/签名） */
+  const pf=u.profile||{};
+  const pfRows=[];
+  if(pf.faction)pfRows.push(`<span class="up-pi">⚔ 流派 <b>${esc(pf.faction)}</b></span>`);
+  if(pf.gender)pfRows.push(`<span class="up-pi">🚻 ${esc(pf.gender)}</span>`);
+  if(pf.city)pfRows.push(`<span class="up-pi">📍 ${esc(pf.city)}</span>`);
+  if(pf.birthday)pfRows.push(`<span class="up-pi">🎂 ${esc(pf.birthday)}</span>`);
+  const profile=`<div class="up-section"><h3>异人档案 ${isMe?'<button class="btn btn-sm btn-ghost" data-editprofile style="margin-left:auto">✏️ 编辑</button>':''}</h3>
+    ${pfRows.length?`<div class="up-profile">${pfRows.join('')}</div>`:''}
+    ${pf.bio?`<p class="up-bio">${esc(pf.bio)}</p>`:''}
+    ${!pfRows.length&&!pf.bio?`<p class="ph-sub" style="margin:0">${isMe?'还没有填写异人档案，点右上角「编辑」完善（流派/签名/城市等）':'这位异人还没有填写档案'}</p>`:''}
+  </div>`;
+  /* 徽章墙（本人可点击切换佩戴） */
+  const badges=u.badges||[];
+  const badgeWall=`<div class="up-section"><h3>徽章 ${isMe&&badges.length?'<span class="ph-sub" style="font-weight:400;margin-left:6px">点击可切换佩戴</span>':''}</h3>
+    ${badges.length?`<div class="up-badges">${badges.map(b=>`
+      <button type="button" class="up-badge ${b.equipped?'on':''}" data-beq="${b.id}" title="${esc(b.desc||b.name)}" ${isMe?'':'disabled'}>
+        <span class="ub-icon">${esc(b.icon||'🏅')}</span><span class="ub-name">${esc(b.name)}</span>
+        ${b.equipped?'<span class="ub-wear">佩戴中</span>':''}
+      </button>`).join('')}</div>`
+      :`<div class="empty">${isMe?'还没有徽章——活动期内（11月3日-5日）发帖或回复可自动获得「我来也」专属徽章':'TA 还没有徽章'}</div>`}
   </div>`;
   const stats=`<div class="up-stats">
     <div class="up-stat"><b>${u.postCount}</b><span>帖子</span></div>
@@ -2351,7 +2398,128 @@ function userProfileHtml(d){
   const replies=`<div class="up-section"><h3>TA 的回复</h3>
     ${d.replies.length?replyProfileListHtml(d.replies):'<div class="empty">还没有回复</div>'}</div>`;
   return `<div class="p-crumb"><a href="#/forum">论坛</a> / <b>异人主页</b></div>
-    <div class="p-panel">${head}${stats}${posts}${replies}</div>`;
+    <div class="p-panel">${head}${profile}${badgeWall}${stats}${posts}${replies}</div>`;
+}
+/* ---------- 徽章与档案（弹窗） ---------- */
+/* 编辑异人档案（本人）：流派/性别/城市/生日/签名 */
+function openProfileEditModal(){
+  const p=(Cloud.user&&Cloud.user.profile)||{};
+  const mask=openMask(`
+    <h3>编辑异人档案</h3>
+    <div class="m-body">
+      <label class="fl">流派</label>
+      <input class="field" id="pf-faction" value="${esc(p.faction||'')}" placeholder="如：哪都通 / 全性 / 武当 / 天师府 / 唐门…">
+      <label class="fl" style="margin-top:10px">性别</label>
+      <select class="field" id="pf-gender">
+        <option value="">保密</option>
+        <option value="男" ${p.gender==='男'?'selected':''}>男</option>
+        <option value="女" ${p.gender==='女'?'selected':''}>女</option>
+      </select>
+      <label class="fl" style="margin-top:10px">城市</label>
+      <input class="field" id="pf-city" value="${esc(p.city||'')}" placeholder="可选">
+      <label class="fl" style="margin-top:10px">生日</label>
+      <input class="field" id="pf-birthday" value="${esc(p.birthday||'')}" placeholder="如 1998-08-08（可选）">
+      <label class="fl" style="margin-top:10px">签名</label>
+      <textarea class="field" id="pf-bio" style="min-height:80px" placeholder="介绍一下自己…">${esc(p.bio||'')}</textarea>
+      <div class="m-actions">
+        <button class="btn btn-orange" id="pf-save">保存</button>
+        <button class="btn btn-ghost" id="pf-cancel">取消</button>
+      </div>
+    </div>`);
+  mask.querySelector('#pf-cancel').onclick=()=>mask.remove();
+  mask.querySelector('#pf-save').onclick=async()=>{
+    const btn=mask.querySelector('#pf-save');btn.disabled=true;
+    try{
+      const profile=await Cloud.saveProfile({
+        faction:mask.querySelector('#pf-faction').value.trim(),
+        gender:mask.querySelector('#pf-gender').value,
+        city:mask.querySelector('#pf-city').value.trim(),
+        birthday:mask.querySelector('#pf-birthday').value.trim(),
+        bio:mask.querySelector('#pf-bio').value.trim()
+      });
+      if(Cloud.user)Cloud.user.profile=profile;
+      toast('档案已保存','ok');mask.remove();
+      router();
+    }catch(e){btn.disabled=false;toast(e.message,'err');}
+  };
+}
+/* 徽章管理（管理员）：目录 + 新建徽章 */
+async function openBadgeManageModal(){
+  const mask=openMask(`
+    <h3>徽章管理</h3>
+    <div class="m-body">
+      <button class="btn btn-sm btn-orange" id="b-create-open" style="width:100%">➕ 新建徽章</button>
+      <div id="b-create-box" class="hide" style="margin-top:10px;padding:12px;border:1px solid var(--pt-border,#e5e8f0);border-radius:10px">
+        <label class="fl">徽章名称</label>
+        <input class="field" id="b-name" placeholder="必填，20字内">
+        <label class="fl" style="margin-top:8px">图标（emoji）</label>
+        <input class="field" id="b-icon" placeholder="如 🏅 ⚔ 🐉">
+        <label class="fl" style="margin-top:8px">说明</label>
+        <input class="field" id="b-desc" placeholder="可选，介绍这个徽章">
+        <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-sm btn-orange" id="b-create">创建</button><button class="btn btn-sm btn-ghost" id="b-create-cancel">取消</button></div>
+      </div>
+      <div id="b-list" style="margin-top:12px"><div class="cloud-loading"><span class="cl-spin"></span>正在加载徽章目录…</div></div>
+    </div>`);
+  const render=async()=>{
+    try{
+      const badges=await Cloud.listBadges();
+      const box=mask.querySelector('#b-list');
+      if(!badges.length){box.innerHTML='<div class="empty">还没有徽章</div>';return;}
+      box.innerHTML=`<div class="bd-manage-list">${badges.map(b=>`
+        <div class="bd-manage-row"><span class="bd-mi">${esc(b.icon||'🏅')}</span>
+          <span class="bd-mn">${esc(b.name)}</span>
+          <span class="bd-mk">${b.kind==='activity'?'活动':'手动'}</span></div>`).join('')}</div>`;
+    }catch(e){const box=mask.querySelector('#b-list');if(box)box.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
+  };
+  const cbtn=mask.querySelector('#b-create-open');
+  if(cbtn)cbtn.onclick=()=>{const box=mask.querySelector('#b-create-box');box.classList.toggle('hide');};
+  const ccbtn=mask.querySelector('#b-create-cancel');
+  if(ccbtn)ccbtn.onclick=()=>{mask.querySelector('#b-create-box').classList.add('hide');};
+  const cbtn2=mask.querySelector('#b-create');
+  if(cbtn2)cbtn2.onclick=async()=>{
+    const name=mask.querySelector('#b-name').value.trim();
+    if(!name){toast('请填写徽章名称','warn');return;}
+    cbtn2.disabled=true;
+    try{
+      const icon=mask.querySelector('#b-icon').value.trim();
+      const desc=mask.querySelector('#b-desc').value.trim();
+      await Cloud.createBadge({name,icon:icon||'🏅',desc});
+      toast('徽章已创建','ok');
+      mask.querySelector('#b-name').value='';mask.querySelector('#b-icon').value='';mask.querySelector('#b-desc').value='';
+      mask.querySelector('#b-create-box').classList.add('hide');
+      cbtn2.disabled=false;
+      await render();
+    }catch(e){cbtn2.disabled=false;toast(e.message,'err');}
+  };
+  render();
+}
+/* 发放徽章给用户（管理员） */
+async function openGrantBadgeModal(userId,userName){
+  const mask=openMask(`
+    <h3>发放徽章</h3>
+    <div class="m-body">
+      <p class="ph-sub" style="margin:0 0 10px">发放给 <b>${esc(userName)}</b>，点击徽章即可发放（已拥有会提示）</p>
+      <div id="g-b-list"><div class="cloud-loading"><span class="cl-spin"></span>正在加载徽章目录…</div></div>
+    </div>`);
+  try{
+    const badges=await Cloud.listBadges();
+    const box=mask.querySelector('#g-b-list');
+    if(!badges.length){box.innerHTML='<div class="empty">还没有可发放的徽章</div>';return;}
+    box.innerHTML=`<div class="bd-grant-grid">${badges.map(b=>`
+      <button type="button" class="bd-grant" data-bgrant="${b.id}" data-bname="${esc(b.name)}" title="${esc(b.desc||'')}">
+        <span class="bd-gi">${esc(b.icon||'🏅')}</span><span class="bd-gn">${esc(b.name)}</span>
+      </button>`).join('')}</div>`;
+    box.querySelectorAll('[data-bgrant]').forEach(btn=>{
+      btn.onclick=async()=>{
+        btn.disabled=true;
+        try{
+          const r=await Cloud.grantBadge(userId,btn.dataset.bgrant);
+          toast(r.granted?`已发放「${btn.dataset.bname}」`:'该用户已拥有此徽章','ok');
+          mask.remove();
+        }catch(e){btn.disabled=false;toast(e.message,'err');}
+      };
+    });
+  }catch(e){const box=mask.querySelector('#g-b-list');if(box)box.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
 }
 function replyProfileListHtml(replies){
   return replies.map(r=>`<div class="up-reply">
@@ -2499,7 +2667,7 @@ function subReplyHtml(node,depth,curId,isAdmin,cloudOn){
   return `<div class="sub-reply depth-${indent}" data-reply-id="${node.id}">
     <div class="sr-line">
       ${authorWrap(node.authorId,avatarCircle(node.authorName,rAv,'sm')+
-        '<span class="sr-name">'+esc(node.authorName)+'</span>')}${levelBadge(rLv,rLn)}
+        '<span class="sr-name">'+esc(node.authorName)+'</span>')}${levelBadge(rLv,rLn)}${badgeHtml(node.authorBadge)}
       <span class="sr-time">${relTime(node.createdAt)}</span>
       <button type="button" class="sr-vote ${liked?'on':''}" data-avote="${node.id}" aria-label="赞同">▲ ${node.votes.length}</button>
       <button type="button" class="sr-reply" data-rreply="${node.id}" data-rname="${esc(node.authorName)}">回复</button>
@@ -2559,7 +2727,7 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
   const panel1=`<div class="p-panel">
     <h2 style="font-size:23px;line-height:1.4">${titleTags}${esc(post.title)}</h2>
     <div class="q-meta" style="margin:12px 0 4px">
-      ${authorWrap(post.authorId,avatarCircle(post.authorName,pAv)+'<span>'+esc(post.authorName)+'</span>')}${levelBadge(pLv,pLn)}
+      ${authorWrap(post.authorId,avatarCircle(post.authorName,pAv)+'<span>'+esc(post.authorName)+'</span>')}${levelBadge(pLv,pLn)}${badgeHtml(post.authorBadge)}
       <span>${relTime(post.createdAt)}</span><span>👁 ${post.views||0}</span>
       ${!cloudOn?`<button class="btn btn-sm btn-ghost" data-pin="${post.id}" style="margin-left:auto">${post.pinned?"取消置顶":"置顶"}</button>
       ${isAdmin?`<button type="button" class="btn btn-sm btn-ghost" data-essence="${post.id}">${post.essence?"取消加精":"加精"}</button>`:''}
@@ -2568,7 +2736,6 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
       :(`${isAdmin?`<button type="button" class="btn btn-sm btn-ghost" data-pin="${post.id}">${post.pinned?"取消置顶":"置顶"}</button>
         <button type="button" class="btn btn-sm btn-ghost" data-essence="${post.id}">${post.essence?"取消加精":"加精"}</button>`:''}
         ${canEditPost?`<button type="button" class="btn btn-sm btn-ghost" data-pedit="${post.id}"${canDelPost?'':' style="margin-left:auto"'}>✎ 编辑</button>`:''}
-        ${editCount?`<button type="button" class="btn btn-sm btn-ghost" data-pedits="${post.id}">📝 编辑记录${editCount>1?` (${editCount})`:''}</button>`:''}
         ${canDelPost?'<button type="button" class="btn btn-sm btn-ghost" id="p-del" style="margin-left:auto;color:#FF9DA0">🗑 删除帖子</button>':''}`)}
       <button type="button" class="btn btn-sm btn-ghost" data-share="${post.id}"
         data-share-title="${esc(post.title||'')}" data-share-board="${esc(post.board||'')}"
@@ -2595,7 +2762,7 @@ function postDetailHtml(post,replies,curId,isAdmin,cloudOn,poll){
     return `<div class="answer" data-reply-id="${a.id}">
       <div class="q-vote q-vote-answer"><button type="button" class="vt ${liked?'on':''}" data-avote="${a.id}" aria-label="赞同回答" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span></button><b class="vote-count">${a.votes.length}</b></div>
       <div class="q-main">
-        <div class="q-meta">${authorWrap(a.authorId,avatarCircle(a.authorName,aAv)+'<span>'+esc(a.authorName)+'</span>')}${levelBadge(aLv,aLn)}<span>${relTime(a.createdAt)}</span>
+        <div class="q-meta">${authorWrap(a.authorId,avatarCircle(a.authorName,aAv)+'<span>'+esc(a.authorName)+'</span>')}${levelBadge(aLv,aLn)}${badgeHtml(a.authorBadge)}<span>${relTime(a.createdAt)}</span>
           ${!cloudOn?`<span class="qm" data-aedit="${a.id}">✎ 编辑</span>
           ${isAdmin?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:''}`
           :(canDelReply?`<span class="qm" data-adel="${a.id}" style="color:#FF9DA0">🗑 删除</span>`:'')}
@@ -6595,6 +6762,32 @@ document.addEventListener('click',e=>{
         toast('账号已删除','ok');loadCloudMod();
       }catch(e){toast(e.message,'err');}
     });
+    return;
+  }
+  /* 徽章管理（管理员）：目录 + 新建徽章 */
+  if(t.closest('[data-bmanage]')){openBadgeManageModal();return;}
+  /* 发放徽章（管理员） */
+  const cmBadge=t.closest('[data-cmbadge]');
+  if(cmBadge){
+    const targetId=cmBadge.dataset.cmbadge;
+    const row=cmBadge.closest('.cm-row');
+    const targetName=row?row.querySelector('.cm-name b').textContent:'';
+    openGrantBadgeModal(targetId,targetName||'该用户');
+    return;
+  }
+  /* 主页：编辑异人档案（本人） */
+  if(t.closest('[data-editprofile]')){openProfileEditModal();return;}
+  /* 主页：点击徽章切换佩戴/卸下（本人） */
+  const beqBtn=t.closest('[data-beq]');
+  if(beqBtn){
+    const bid=beqBtn.dataset.beq;
+    const cur=Cloud.user.badge;
+    const target=(cur&&cur.id===bid)?null:bid;
+    Cloud.equipBadge(target).then(async()=>{
+      await Cloud.refresh().catch(()=>{});
+      toast(target?'已佩戴徽章':'已卸下徽章','ok');
+      router();
+    }).catch(e=>toast(e.message,'err'));
     return;
   }
   /* 弹层按钮 */
