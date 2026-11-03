@@ -158,7 +158,36 @@ const SCHEMA=[
   editor_name TEXT,
   created_at TEXT
 )`,
-`CREATE INDEX IF NOT EXISTS idx_post_edits_post ON post_edits(post_id,version)`
+`CREATE INDEX IF NOT EXISTS idx_post_edits_post ON post_edits(post_id,version)`,
+/* 徽章目录：id 唯一码（title_xx=手动称号，act_xxx=活动徽章）；kind: manual=管理员手动发放 / activity=活动自动发放 */
+`CREATE TABLE IF NOT EXISTS badges (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  icon TEXT,
+  desc TEXT,
+  kind TEXT DEFAULT 'manual',
+  created_at TEXT
+)`,
+/* 用户已获得的徽章（一用户一徽章一行）；equipped=1 表示当前佩戴 */
+`CREATE TABLE IF NOT EXISTS user_badges (
+  user_id TEXT,
+  badge_id TEXT,
+  granted_by TEXT,
+  granted_at TEXT,
+  equipped INTEGER DEFAULT 0,
+  PRIMARY KEY (user_id, badge_id)
+)`,
+`CREATE INDEX IF NOT EXISTS idx_user_badges_uid ON user_badges(user_id)`,
+/* 用户扩展资料（个人主页装修：流派/签名/性别/城市/生日） */
+`CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id TEXT PRIMARY KEY,
+  faction TEXT,
+  bio TEXT,
+  gender TEXT,
+  city TEXT,
+  birthday TEXT,
+  updated_at TEXT
+)`
 ];
 /* 默认板块（首次运行写入） */
 const DEFAULT_BOARDS=['公告','异人讨论','功法交流','天下见闻','求助','灌水'];
@@ -170,6 +199,144 @@ async function seedBoards(env){
       await env.DB.prepare('INSERT OR IGNORE INTO boards (name,created_by,created_at) VALUES (?,?,?)')
         .bind(n,'system',nowStr()).run();
   }
+}
+/* 徽章目录种子：1 个活动徽章 + 20 个管理员手动称号（INSERT OR IGNORE 幂等） */
+const BADGE_SEEDS=[
+  /* 活动徽章（自动发放） */
+  ['act_20261103','我来也','🔥','活动期（11月3日-5日）内发帖或回复自动获得，永久纪念','activity'],
+  /* 管理员手动称号（20 个） */
+  ['title_01','哪都通临时工','📦','哪都通快递基层干员','manual'],
+  ['title_02','哪都通元老','🏛','论坛建站元勋','manual'],
+  ['title_03','罗天大醮冠军','🏆','罗天大醮夺魁者','manual'],
+  ['title_04','罗天大醮八强','🥋','罗天大醮入围高手','manual'],
+  ['title_05','异人榜探花','🥉','异人榜前三','manual'],
+  ['title_06','天师府传人','🀄','龙虎山天师府嫡传','manual'],
+  ['title_07','武当真人','🧘','武当山修道有成','manual'],
+  ['title_08','唐门高手','🗡','唐门暗器行家','manual'],
+  ['title_09','全性门徒','🎭','全性亦正亦邪','manual'],
+  ['title_10','天下会执事','🏮','天下会办事干员','manual'],
+  ['title_11','碧游村村民','🏡','碧游村常驻村民','manual'],
+  ['title_12','公司精英','💼','哪都通总部精英','manual'],
+  ['title_13','炼器宗师','⚒','神机百炼炉火纯青','manual'],
+  ['title_14','御物高手','🪃','御物之术出神入化','manual'],
+  ['title_15','符箓大师','🧿','符箓咒法信手拈来','manual'],
+  ['title_16','阿威十八式','🥊','张楚岚成名绝技，全活不打','manual'],
+  ['title_17','太极劲','☯','武当阴阳相济，以柔克刚','manual'],
+  ['title_18','逆生三重','🌀','逆生三重的传人','manual'],
+  ['title_19','阳五雷','⚡','阳五雷掌控者，掌心雷霆','manual'],
+  ['title_20','异人界新人','🌱','初入异人界的新人','manual']
+];
+async function seedBadges(env){
+  for(const [id,name,icon,desc,kind] of BADGE_SEEDS){
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO badges (id,name,icon,desc,kind,created_at) VALUES (?,?,?,?,?,?)')
+      .bind(id,name,icon,desc,kind,nowStr()).run();
+  }
+}
+/* 活动徽章窗口：北京时间 2026-11-03 00:00:00 ～ 2026-11-05 23:59:59（UTC 换算） */
+const ACTIVITY_BADGE_ID='act_20261103';
+const ACTIVITY_START=new Date('2026-11-02T16:00:00Z').getTime();
+const ACTIVITY_END=new Date('2026-11-05T15:59:59.999Z').getTime();
+/* 幂等发放徽章（已拥有则忽略）；grantorId 为 null 表示系统/活动自动发放 */
+async function grantBadge(env,userId,badgeId,grantorId){
+  if(!userId||!badgeId)return false;
+  const exists=await env.DB.prepare(
+    'SELECT 1 FROM badges WHERE id=?').bind(badgeId).first();
+  if(!exists)return false;
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO user_badges (user_id,badge_id,granted_by,granted_at,equipped)
+     VALUES (?,?,?,?,1)`)
+    .bind(userId,badgeId,grantorId||'system',nowStr()).run();
+  return true;
+}
+/* 活动徽章：仅在活动窗口内发帖/回复时自动授予（幂等，每人一份） */
+async function grantActivityBadge(env,userId){
+  if(!userId)return false;
+  const now=Date.now();
+  if(now<ACTIVITY_START||now>ACTIVITY_END)return false;
+  return grantBadge(env,userId,ACTIVITY_BADGE_ID,null);
+}
+/* 用户已获得的徽章（含佩戴状态） */
+async function getUserBadges(env,userId){
+  const {results}=await env.DB.prepare(
+    `SELECT b.id,b.name,b.icon,b.desc,b.kind,ub.equipped
+     FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
+     WHERE ub.user_id=? ORDER BY ub.granted_at`)
+    .bind(userId).all();
+  return (results||[]).map(r=>({
+    id:r.id,name:r.name,icon:r.icon,desc:r.desc,
+    kind:r.kind,equipped:!!Number(r.equipped)
+  }));
+}
+/* 佩戴/取消佩戴徽章：只能佩戴自己已获得的；badgeId 传 null 表示卸下 */
+async function equipBadge(env,userId,badgeId){
+  if(badgeId){
+    const have=await env.DB.prepare(
+      'SELECT 1 FROM user_badges WHERE user_id=? AND badge_id=?')
+      .bind(userId,badgeId).first();
+    if(!have)return {ok:false,error:'尚未获得该徽章'};
+    await env.DB.prepare('UPDATE user_badges SET equipped=0 WHERE user_id=?')
+      .bind(userId).run();
+    await env.DB.prepare('UPDATE user_badges SET equipped=1 WHERE user_id=? AND badge_id=?')
+      .bind(userId,badgeId).run();
+  }else{
+    await env.DB.prepare('UPDATE user_badges SET equipped=0 WHERE user_id=?')
+      .bind(userId).run();
+  }
+  return {ok:true};
+}
+/* 当前佩戴的徽章（供名字后展示） */
+async function getEquippedBadge(env,userId){
+  const row=await env.DB.prepare(
+    `SELECT b.id,b.name,b.icon,b.desc
+     FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
+     WHERE ub.user_id=? AND ub.equipped=1`)
+    .bind(userId).first();
+  return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc}:null;
+}
+/* 徽章全目录（按 kind 分组排序：手动称号在前、活动在后） */
+async function getBadgeCatalog(env){
+  const {results}=await env.DB.prepare(
+    'SELECT id,name,icon,desc,kind FROM badges ORDER BY kind,id').all();
+  return (results||[]).map(r=>({
+    id:r.id,name:r.name,icon:r.icon,desc:r.desc,kind:r.kind
+  }));
+}
+/* 管理员自建徽章：生成唯一 id 并入库，返回新徽章（kind 固定为 manual） */
+async function createBadge(env,{name,icon,desc}){
+  const id=genId('b');
+  await env.DB.prepare(
+    'INSERT INTO badges (id,name,icon,desc,kind,created_at) VALUES (?,?,?,?,?,?)')
+    .bind(id,name,icon,desc,'manual',nowStr()).run();
+  return {id,name,icon,desc,kind:'manual'};
+}
+/* 用户扩展资料（无则返回 null 字段） */
+async function getUserProfile(env,userId){
+  const row=await env.DB.prepare(
+    'SELECT * FROM user_profiles WHERE user_id=?').bind(userId).first();
+  return row?{
+    faction:row.faction||'',bio:row.bio||'',gender:row.gender||'',
+    city:row.city||'',birthday:row.birthday||''
+  }:null;
+}
+/* 保存用户扩展资料（只更新传入的非空字段，空串=清空） */
+async function saveUserProfile(env,userId,fields){
+  const cur=(await getUserProfile(env,userId))||{};
+  const next={
+    faction:fields.faction!==undefined?String(fields.faction).slice(0,30):cur.faction,
+    bio:fields.bio!==undefined?String(fields.bio).slice(0,200):cur.bio,
+    gender:fields.gender!==undefined?String(fields.gender).slice(0,10):cur.gender,
+    city:fields.city!==undefined?String(fields.city).slice(0,30):cur.city,
+    birthday:fields.birthday!==undefined?String(fields.birthday).slice(0,20):cur.birthday
+  };
+  await env.DB.prepare(
+    `INSERT INTO user_profiles (user_id,faction,bio,gender,city,birthday,updated_at)
+     VALUES (?,?,?,?,?,?,?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       faction=excluded.faction,bio=excluded.bio,gender=excluded.gender,
+       city=excluded.city,birthday=excluded.birthday,updated_at=excluded.updated_at`)
+    .bind(userId,next.faction,next.bio,next.gender,next.city,next.birthday,nowStr()).run();
+  return next;
 }
 /* 增量迁移：给已存在的表补列（SQLite 不支持 IF NOT EXISTS 的 ADD COLUMN，
    重复执行时捕获 "duplicate column" 错误并忽略，保证幂等） */
@@ -215,6 +382,7 @@ async function ensureSchema(env){
       catch(e){ if(!/duplicate column/i.test(String((e&&e.message)||e))) throw e; }
     }
     await seedBoards(env);
+    await seedBadges(env);
     await setupFts(env);
   })().catch(e=>{schemaPromise=null;throw e;});
   return schemaPromise;
@@ -573,6 +741,13 @@ function publicUser(row){
     createdAt:row.created_at
   };
 }
+/* 公开用户资料 + 佩戴徽章 + 扩展资料（需要 DB，用于登录/主页/成员列表） */
+async function publicUserFull(env,row){
+  const u=publicUser(row);
+  u.badge=await getEquippedBadge(env,row.id);
+  u.profile=await getUserProfile(env,row.id);
+  return u;
+}
 function nowStr(){
   return new Date().toISOString();
 }
@@ -589,6 +764,7 @@ function shapePostRow(row,votes,replyCount,lastActivityAt,authorInfo){
     authorLevel:authorInfo?authorInfo.level:0,
     authorLevelName:authorInfo?authorInfo.levelName:'',
     authorAvatar:authorInfo?authorInfo.avatar:'',
+    authorBadge:authorInfo?authorInfo.badge:null,
     createdAt:row.created_at,
     lastActivityAt:lastActivityAt||row.created_at,
     pinned:!!row.pinned,
@@ -639,14 +815,14 @@ async function shapeReplyList(env,rows){
       id:r.id,postId:r.post_id,parentId:r.parent_id||null,
       authorId:r.author_id,authorName:r.author_name,
       authorLevel:info.level||0,authorLevelName:info.levelName||'',
-      authorAvatar:info.avatar||'',
+      authorAvatar:info.avatar||'',authorBadge:info.badge||null,
       content:r.content,createdAt:r.created_at,votes:vMap[r.id]||[]
     };
   });
 }
 
 /* ---------- 投票 ---------- */
-/* 批量取用户展示信息（等级/等级名/头像），返回 {id:{level,levelName,avatar}} */
+/* 批量取用户展示信息（等级/等级名/头像/佩戴徽章），返回 {id:{level,levelName,avatar,badge}} */
 async function userInfoMap(env,ids){
   const uniq=[...new Set(ids.filter(Boolean))];
   const out={};
@@ -656,7 +832,15 @@ async function userInfoMap(env,ids){
     `SELECT id,points,avatar FROM users WHERE id IN (${ph})`).bind(...uniq).all();
   (r.results||[]).forEach(u=>{
     const g=levelOfPoints(Number(u.points)||0);
-    out[u.id]={level:g.level,levelName:g.name,avatar:u.avatar||''};
+    out[u.id]={level:g.level,levelName:g.name,avatar:u.avatar||'',badge:null};
+  });
+  /* 批量取这些用户的佩戴徽章 */
+  const br=await env.DB.prepare(
+    `SELECT ub.user_id,b.id,b.name,b.icon,b.desc
+     FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
+     WHERE ub.equipped=1 AND ub.user_id IN (${ph})`).bind(...uniq).all();
+  (br.results||[]).forEach(x=>{
+    if(out[x.user_id])out[x.user_id].badge={id:x.id,name:x.name,icon:x.icon,desc:x.desc};
   });
   return out;
 }
@@ -684,6 +868,7 @@ async function getPollForPost(env,postId,viewerId){
   totalVoters=votersSet.size;
   return {
     id:poll.id,question:poll.question,multi:!!poll.multi,totalVoters,
+     
     myVotes,
     options:options.map(o=>({
       id:o.id,text:o.text,votes:(countMap[o.id]||[]).length
@@ -698,7 +883,10 @@ export {
   ANNOUNCEMENT_BOARD,moderationBlock,
   addNotification,removeLikeNotification,
   parseMentionMarks,mentionMarksToText,processMentions,
-  levelOfPoints,publicUser,nowStr,getPollForPost,userInfoMap,
+  levelOfPoints,publicUser,publicUserFull,nowStr,getPollForPost,userInfoMap,
   shapePostRow,shapePostList,shapeReplyList,
-  getVapidKeys,dispatchWebPush
+  getVapidKeys,dispatchWebPush,
+  grantBadge,grantActivityBadge,getUserBadges,equipBadge,
+  getEquippedBadge,getBadgeCatalog,createBadge,
+  getUserProfile,saveUserProfile
 };
