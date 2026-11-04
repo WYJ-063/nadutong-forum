@@ -3121,4 +3121,66 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   animation:bcFall linear forwards}
 @keyframes bcFall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
 
+/* ==================================================================
+   聊天界面 UI 美化：统一 SVG 图标 + 头部图标按钮（替换原 emoji）
+   纯样式增强，不改结构与主题变量，兼容默认/日间/古风/赛博/玫瑰金/极光
+   ================================================================== */
+/* 图标默认 block，避免 inline 基线空隙，flex 内不被压缩 */
+.ic{display:block;flex-shrink:0}
+
+/* 头部统一方形图标按钮（改名/成员/清除/设置） */
+.portal .btn.btn-icon{
+  width:38px;height:38px;padding:0;gap:0;border-radius:10px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--pt-input);border:1px solid var(--pt-border);color:var(--pt-text-soft);
+}
+.portal .btn.btn-icon:hover{
+  background:var(--pt-panel-2);border-color:var(--pt-accent);color:var(--pt-accent);
+}
+.portal .btn.btn-icon.btn-danger-ic{color:var(--pt-muted)}
+.portal .btn.btn-icon.btn-danger-ic:hover{
+  background:var(--pt-danger);border-color:var(--pt-danger);color:#fff;
+}
+/* 主操作橙色按钮内图标与文字对齐 */
+.portal .btn-orange .ic{display:inline-block;vertical-align:middle}
+
+/* 分页条：补齐 flex 布局（原内联样式已移除），单页时整块不渲染 */
+.chat-window .chat-pagination{
+  display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;
+}
+
+/* 空状态图标容器（SVG 用 currentColor，跟随 muted） */
+.empty .es.is-ic{display:flex;justify-content:center;opacity:.55}
+.empty .es.is-ic .ic{display:block}
+
+/* 私信右侧空状态大图标 */
+.wx-empty-ic{color:var(--pt-muted)}
+.wx-empty-ic .ic{opacity:.75}
+
+/* 语音播放键：白色播放三角，保证在气泡上可见 */
+.voice-play{color:#fff}
+
+/* 置顶星标：置顶时常驻并显示主题色 */
+.wx-pin-btn .ic{display:block}
+.wx-pin-btn.is-on{color:var(--pt-accent);opacity:1}
+
+/* ＋面板功能图标：图标用柔和文字色，hover 跟随当前项高亮 */
+.pi-ic .ic{color:var(--pt-text-soft)}
+.plus-item:hover .pi-ic .ic{color:var(--pt-accent)}
+
+/* 录音弹层麦克风图标保持白色 */
+.rec-mic .ic{color:#fff}
+
+/* ---------- 手机端：头部图标按钮紧凑等宽，触控不溢出 ---------- */
+@media(max-width:680px){
+  .portal .chat-head .ch-actions .btn.btn-icon{
+    flex:0 1 auto;width:40px;min-width:40px;height:38px;min-height:38px;padding:0;
+  }
+  .chat-window .chat-pagination{padding:8px 6px}
+  .pi-ic .ic{width:24px;height:24px}
+}
+@media(max-width:380px){
+  .portal .chat-head .ch-actions .btn.btn-icon{width:36px;min-width:36px}
+}
+
 

@@ -19,6 +19,40 @@ function modal(html){return new Promise(resolve=>{const mask=document.createElem
 function confirmDlg(title,body){return modal(`<h3>${esc(title)}</h3><div class="m-body">${esc(body)}</div><div class="m-foot"><button class="btn btn-ghost btn-sm" data-m="no">取消</button><button class="btn btn-sm" data-m="yes">确定</button></div>`).then(v=>v==='yes');}
 function avText(name){return (name||'?').slice(0,1).toUpperCase();}
 function avHtml(user,cls=''){if(user&&user.avatar&&user.avatar.startsWith('http'))return `<img class="${cls}" src="${esc(user.avatar)}" alt="">`;return `<span class="${cls}">${esc(avText(user?user.name:'?'))}</span>`;}
+
+/* ---------- 统一线性 SVG 图标库（Lucide 风格，currentColor 继承，可缩放） ----------
+   仅替换聊天界面里原本的 emoji/符号图标；用户发送的表情贴纸 STICKERS 保留。 */
+const ICONS={
+  users:`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+  user:`<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+  edit:`<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>`,
+  trash:`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>`,
+  settings:`<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>`,
+  plus:`<path d="M5 12h14"/><path d="M12 5v14"/>`,
+  help:`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>`,
+  more:`<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
+  back:`<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>`,
+  message:`<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>`,
+  ban:`<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>`,
+  alert:`<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`,
+  star:`<path fill="currentColor" stroke="none" d="M11.5 2.7a.55.55 0 0 1 .9 0l2.86 5.88 6.48.92a.55.55 0 0 1 .3.95l-4.7 4.55 1.12 6.46a.55.55 0 0 1-.8.58L12 18.9l-5.8 3.05a.55.55 0 0 1-.8-.58l1.12-6.46-4.7-4.55a.55.55 0 0 1 .3-.95l6.48-.92Z"/>`,
+  redpacket:`<rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M4 7.5c4 3 12 3 16 0"/><circle cx="12" cy="13.5" r="1.3"/>`,
+  card:`<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>`,
+  image:`<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>`,
+  smile:`<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>`,
+  mic:`<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>`,
+  camera:`<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>`,
+  play:`<polygon fill="currentColor" stroke="none" points="6 3 20 12 6 21 6 3"/>`,
+  send:`<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>`,
+  members:`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+  megaphone:`<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>`,
+  briefcase:`<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>`,
+  backspace:`<path d="M20 5H8l-6 7 6 7h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z"/><line x1="18" x2="12" y1="9" y2="15"/><line x1="12" x2="18" y1="9" y2="15"/>`
+};
+function ic(name,size=20,extra=''){
+  return `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${ICONS[name]||''}</svg>`;
+}
+
 /* 等级徽章（贴吧式：LvX + 等级名称） */
 function levelBadge(level,levelName){
   if(!level)return '';
@@ -3777,7 +3811,7 @@ function voiceBars(len){
 }
 function voiceInner(m){
   return `<span class="voice-wrap">
-    <span class="voice-play">▶</span>
+    <span class="voice-play">${ic('play',14)}</span>
     <span class="voice-bars">${voiceBars(m.len||1)}</span>
     <span class="voice-len">${m.len||1}″</span></span>
     ${m.text?`<span class="voice-txt">${esc(m.text)}</span>`:''}`;
@@ -3898,15 +3932,15 @@ function chatInputRow(prefix,opts={}){
     <div class="chat-input-panels">
       <div class="emoji-panel hide" id="${prefix}-emoji-panel">
         <div class="ep-grid">${emojiGrid}</div>
-        <button type="button" class="ep-back" data-emoji-backspace title="删除">⌫</button>
+        <button type="button" class="ep-back" data-emoji-backspace title="删除">${ic('backspace',18)}</button>
       </div>
       <div class="plus-panel hide" id="${prefix}-plus-panel">
-        <button type="button" class="plus-item" data-plus-act="redpacket"><span class="pi-ic">🧧</span><small>红包</small></button>
-        <button type="button" class="plus-item" data-plus-act="transfer"><span class="pi-ic">💳</span><small>转账</small></button>
-        <label class="plus-item"><span class="pi-ic">🖼️</span><small>图片</small><input type="file" id="${photoId}" accept="image/*" class="hide"></label>
-        <button type="button" class="plus-item" data-plus-act="emoji"><span class="pi-ic">😀</span><small>表情</small></button>
-        ${withVoice?`<button type="button" class="plus-item" data-plus-act="voice"><span class="pi-ic">🎙️</span><small>语音</small></button>`:`<span class="plus-item is-placeholder"></span>`}
-        <label class="plus-item"><span class="pi-ic">📷</span><small>拍照</small><input type="file" id="${camId}" accept="image/*" capture="environment" class="hide"></label>
+        <button type="button" class="plus-item" data-plus-act="redpacket"><span class="pi-ic">${ic('redpacket',23)}</span><small>红包</small></button>
+        <button type="button" class="plus-item" data-plus-act="transfer"><span class="pi-ic">${ic('card',23)}</span><small>转账</small></button>
+        <label class="plus-item"><span class="pi-ic">${ic('image',23)}</span><small>图片</small><input type="file" id="${photoId}" accept="image/*" class="hide"></label>
+        <button type="button" class="plus-item" data-plus-act="emoji"><span class="pi-ic">${ic('smile',23)}</span><small>表情</small></button>
+        ${withVoice?`<button type="button" class="plus-item" data-plus-act="voice"><span class="pi-ic">${ic('mic',23)}</span><small>语音</small></button>`:`<span class="plus-item is-placeholder"></span>`}
+        <label class="plus-item"><span class="pi-ic">${ic('camera',23)}</span><small>拍照</small><input type="file" id="${camId}" accept="image/*" capture="environment" class="hide"></label>
       </div>
     </div>
     <div class="chat-input-line">
@@ -4000,14 +4034,14 @@ function viewRoom(idx){
   const c=`<div class="room-tabs-bar">${roomTabs}</div>
   <div class="p-panel chat-window">
     <div class="chat-head">
-      <span class="av" style="background:var(--orange)">👥</span>
+      <span class="av" style="background:var(--orange)">${ic('users',20)}</span>
       <div><h3>${esc(room.name)}</h3><div class="ch-hint">${room.members.length} 位成员 · 群内消息均可修改</div></div>
       <div class="ch-actions">
-        <button class="btn btn-sm btn-ghost" id="rm-rename" title="改名">✎</button>
-        <button class="btn btn-sm btn-danger-soft" data-clear-room="${esc(room.id)}" title="只清除此聊天室的消息">⌫ 清除此窗口</button>
-        <span class="pop-wrap"><button class="btn btn-sm btn-orange" id="rm-speak">TA 发言 ▾</button></span>
-        <button class="btn btn-sm btn-ghost" id="rm-members">成员管理</button>
-        <button class="btn btn-sm btn-ghost" id="rm-cfg-open" title="聊天室设置" aria-label="聊天室设置">⚙ 设置</button>
+        <span class="pop-wrap"><button class="btn btn-sm btn-orange" id="rm-speak">${ic('megaphone',15)} TA 发言</button></span>
+        <button class="btn btn-sm btn-icon" id="rm-members" title="成员管理" aria-label="成员管理">${ic('members',17)}</button>
+        <button class="btn btn-sm btn-icon" id="rm-rename" title="改名" aria-label="改名">${ic('edit',17)}</button>
+        <button class="btn btn-sm btn-icon btn-danger-ic" data-clear-room="${esc(room.id)}" title="只清除此聊天室的消息" aria-label="清除此窗口">${ic('trash',17)}</button>
+        <button class="btn btn-sm btn-icon" id="rm-cfg-open" title="聊天室设置" aria-label="聊天室设置">${ic('settings',17)}</button>
       </div>
     </div>
     <div class="chat-scroll" id="ch-scroll">
@@ -4030,11 +4064,11 @@ function viewRoom(idx){
           </span>
         </div>${money?moneyNoticeHtml(m,'room',room.id):''}`;}).join('')||'<div class="empty">聊天室还没有消息。点“TA 发言”让成员说话，或在下方打字。</div>'}
     </div>
-    <div class="chat-pagination" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:10px">
+    ${roomTotalPages>1?`<div class="chat-pagination">
       <button class="btn btn-sm btn-ghost" data-room-page="older" data-room-id="${esc(room.id)}" ${roomPage>=roomTotalPages-1?'disabled':''}>更早消息</button>
       <span>第 ${roomPage+1}/${roomTotalPages} 页 · 共 ${room.messages.length} 条</span>
       <button class="btn btn-sm btn-ghost" data-room-page="newer" data-room-id="${esc(room.id)}" ${roomPage<=0?'disabled':''}>更新消息</button>
-    </div>
+    </div>`:''}
     ${quoteBarHtml()}
     ${chatInputRow('rm',{voice:true})}
   </div>`;
@@ -4091,8 +4125,8 @@ function wxAsideHtml(activeUid){
     <div class="wx-aside-head">
       <h2>私信</h2>
       <span class="wx-spacer">
-        <button class="wx-icon-btn" id="wx-new-toggle" type="button" title="发起新聊天" aria-label="发起新聊天">＋</button>
-        <button class="wx-icon-btn" id="msg-hint" type="button" title="使用说明" aria-label="使用说明" style="font-size:13px">？</button>
+        <button class="wx-icon-btn" id="wx-new-toggle" type="button" title="发起新聊天" aria-label="发起新聊天">${ic('plus',17)}</button>
+        <button class="wx-icon-btn" id="msg-hint" type="button" title="使用说明" aria-label="使用说明">${ic('help',16)}</button>
       </span>
     </div>
     <div class="wx-search"><input id="wx-search" type="search" placeholder="搜索联系人" autocomplete="off"></div>
@@ -4107,19 +4141,19 @@ function wxAsideHtml(activeUid){
       ${entries.length?entries.map(({u,ch,last})=>`<div class="wx-item ${u.id===activeUid?'is-active':''} ${ch.pinned?'is-pinned':''}" data-chat="${u.id}" data-name="${esc(u.name)}">
         <span class="wx-av">${avatarHtml32(u)}${unreadBadge(ch.unread,'chat-unread-badge')}</span>
         <span class="wx-copy"><h4>${esc(u.name)}</h4><p>${esc(wxPreview(last))}</p></span>
-        <span class="wx-meta"><time>${esc(wxListTime(last.at))}</time><button class="wx-pin-btn" type="button" data-chat-pin="${u.id}" title="${ch.pinned?'取消置顶':'置顶联系人'}" aria-label="${ch.pinned?'取消置顶':'置顶联系人'}">${ch.pinned?'★':'☆'}</button></span>
+        <span class="wx-meta"><time>${esc(wxListTime(last.at))}</time><button class="wx-pin-btn ${ch.pinned?'is-on':''}" type="button" data-chat-pin="${u.id}" title="${ch.pinned?'取消置顶':'置顶联系人'}" aria-label="${ch.pinned?'取消置顶':'置顶联系人'}">${ic('star',14)}</button></span>
       </div>`).join('')
-      :'<div class="empty"><div class="es">💬</div>还没有聊天记录<br>点右上角 ＋ 发起一个吧</div>'}
+      :'<div class="empty"><div class="es is-ic">'+ic('message',34)+'</div>还没有聊天记录<br>点右上角 ＋ 发起一个吧</div>'}
     </div>
   </div>`;
 }
 function wxEmptyHtml(icon,txt){
-  return `<div class="wx-main"><div class="wx-empty"><div class="wx-empty-ic">${icon}</div><p>${esc(txt)}</p></div></div>`;
+  return `<div class="wx-main"><div class="wx-empty"><div class="wx-empty-ic">${ic(icon,40)}</div><p>${esc(txt)}</p></div></div>`;
 }
 function viewMessages(){
   const c=`<div class="wx-im wx-on-list">
     ${wxAsideHtml('')}
-    ${wxEmptyHtml('💬','选择一个会话开始聊天')}
+    ${wxEmptyHtml('message','选择一个会话开始聊天')}
   </div>`;
   return portalShell('messages',c);
 }
@@ -4133,14 +4167,14 @@ function viewChat(uid){
     if(DB.data&&DB.data.chats&&DB.data.chats[me.id]){delete DB.data.chats[me.id];DB.save();}
     try{localStorage.removeItem('ndt-last-chat-uid');sessionStorage.removeItem('ndt-last-chat-uid');}catch(e){}
     toast('不能给自己发私信','warn');
-    const c=`<div class="wx-im wx-on-list">${wxAsideHtml('')}${wxEmptyHtml('🚫','不能给自己发私信')}</div>`;
+    const c=`<div class="wx-im wx-on-list">${wxAsideHtml('')}${wxEmptyHtml('ban','不能给自己发私信')}</div>`;
     return portalShell('messages',c);
   }
   // 记住最近打开的私信对象；离开其他模块后再次点“私信”，优先恢复这段对话。
   try{if(uid){localStorage.setItem('ndt-last-chat-uid',String(uid));sessionStorage.setItem('ndt-last-chat-uid',String(uid));}}catch(e){try{sessionStorage.setItem('ndt-last-chat-uid',String(uid));}catch(e2){}}
   const fu=DB.data.users.find(u=>u.id===uid);
   if(!fu){
-    const c=`<div class="wx-im wx-on-list">${wxAsideHtml('')}${wxEmptyHtml('⚠️','用户不存在')}</div>`;
+    const c=`<div class="wx-im wx-on-list">${wxAsideHtml('')}${wxEmptyHtml('alert','用户不存在')}</div>`;
     return portalShell('messages',c);
   }
   const ch=chatOf(uid);
@@ -4155,9 +4189,9 @@ function viewChat(uid){
     ${wxAsideHtml(uid)}
     <div class="wx-main">
       <div class="wx-head">
-        <a class="wx-back" id="wx-back" href="javascript:void(0)" aria-label="返回会话列表">‹</a>
+        <a class="wx-back" id="wx-back" href="javascript:void(0)" aria-label="返回会话列表">${ic('back',18)}</a>
         <h3>${esc(fu.name)}</h3>
-        <button class="wx-more" id="wx-more" type="button" title="聊天设置" aria-label="聊天设置">⋯</button>
+        <button class="wx-more" id="wx-more" type="button" title="聊天设置" aria-label="聊天设置">${ic('more',18)}</button>
       </div>
       <div class="wx-scroll" id="ch-scroll">
         ${pageMessages.map((m,mi)=>{
@@ -4175,11 +4209,11 @@ function viewChat(uid){
             ${av}<span class="msg-content-stack">${content}${messageReceiptHtml(m,mine)}</span>
           </div>${money?moneyNoticeHtml(m,'chat',uid):''}`;}).join('')||'<div class="empty">还没有消息。先发一条，再点右上角“···”让 TA 回复吧。</div>'}
       </div>
-      <div class="wx-page-bar">
-        <button class="btn btn-sm btn-ghost" type="button" data-chat-page="older" data-chat-uid="${esc(uid)}" ${page>=totalPages-1?'disabled':''}>‹ 更早</button>
+      ${totalPages>1?`<div class="wx-page-bar">
+        <button class="btn btn-sm btn-ghost" type="button" data-chat-page="older" data-chat-uid="${esc(uid)}" ${page>=totalPages-1?'disabled':''}>${ic('back',14)} 更早</button>
         <span>第 ${page+1}/${totalPages} 页 · 共 ${ch.messages.length} 条</span>
-        <button class="btn btn-sm btn-ghost" type="button" data-chat-page="newer" data-chat-uid="${esc(uid)}" ${page<=0?'disabled':''}>最新 ›</button>
-      </div>
+        <button class="btn btn-sm btn-ghost" type="button" data-chat-page="newer" data-chat-uid="${esc(uid)}" ${page<=0?'disabled':''}>最新 <span style="display:inline-flex;transform:scaleX(-1)">${ic('back',14)}</span></button>
+      </div>`:''}
       <div class="wx-input-wrap">
         ${quoteBarHtml()}
         ${chatInputRow('ch',{voice:true,uid})}
@@ -4231,8 +4265,8 @@ function openWxCfg(uid){
       </div>
       <div class="wx-cfg-actions">
         <button class="btn btn-sm" id="ch-cards" type="button">字卡管理</button>
-        <button class="btn btn-sm btn-ghost" id="ch-add-them" type="button">＋ TA 回复一条</button>
-        <button class="btn btn-sm btn-danger-soft" type="button" data-clear-chat="${esc(uid)}">⌫ 清除此窗口</button>
+        <button class="btn btn-sm btn-ghost" id="ch-add-them" type="button">${ic('plus',14)} TA 回复一条</button>
+        <button class="btn btn-sm btn-danger-soft" type="button" data-clear-chat="${esc(uid)}">${ic('trash',14)} 清除此窗口</button>
         <button class="btn btn-sm btn-ghost" id="ch-hint" type="button">使用说明</button>
       </div>
     </div>`;
@@ -4589,7 +4623,7 @@ function startRec(btn){
   recState={target:recTarget,roomId:recTarget==='room'?activeRoom()?.id:null,userId:DB.user?.id,start:Date.now(),cancel:false};
   const ov=document.createElement('div');ov.className='rec-overlay';ov.id='rec-overlay';
   ov.innerHTML=`<div class="rec-box">
-    <div class="rec-mic">🎙</div>
+    <div class="rec-mic">${ic('mic',34)}</div>
     <div class="rec-timer" id="rec-timer">0:00</div>
     <div class="rec-tip" id="rec-tip">松开发送，上滑取消</div></div>`;
   document.body.appendChild(ov);
@@ -5720,13 +5754,13 @@ function viewWorkgroup(){
   const getUser=id=>DB.data.users.find(u=>u.id===id)||{id,name:'已离职成员',avatar:''};
   const c=`<div class="p-panel chat-window workgroup-window">
     <div class="chat-head">
-      <span class="av" style="background:var(--blue-2)">🏢</span>
+      <span class="av" style="background:var(--blue-2)">${ic('briefcase',20)}</span>
       <div class="wg-title"><h3>工作组</h3><div class="ch-hint">员工与管理员内部群 · ${wg.members.length} 位成员</div></div>
       <div class="ch-actions">
-        <button class="btn btn-sm btn-orange" id="wg-speak" type="button">TA 发言 ▾</button>
-        <button class="btn btn-sm btn-danger-soft" id="wg-clear-messages" type="button" title="只清除工作组消息">⌫ 清除此窗口</button>
-        <button class="btn btn-sm btn-ghost" id="wg-members" type="button">成员管理</button>
-        <button class="btn btn-sm btn-ghost" id="wg-cfg-open" type="button" title="工作组设置" aria-label="工作组设置">⚙ 设置</button>
+        <button class="btn btn-sm btn-orange" id="wg-speak" type="button">${ic('megaphone',15)} TA 发言</button>
+        <button class="btn btn-sm btn-icon" id="wg-members" type="button" title="成员管理" aria-label="成员管理">${ic('members',17)}</button>
+        <button class="btn btn-sm btn-icon btn-danger-ic" id="wg-clear-messages" type="button" title="只清除工作组消息" aria-label="清除此窗口">${ic('trash',17)}</button>
+        <button class="btn btn-sm btn-icon" id="wg-cfg-open" type="button" title="工作组设置" aria-label="工作组设置">${ic('settings',17)}</button>
       </div>
     </div>
     <div class="chat-scroll" id="ch-scroll">
@@ -5743,13 +5777,13 @@ function viewWorkgroup(){
           <span class="m-av" ${mine?'':`data-wg-av="${esc(m.uid)}" title="点成员头像让 TA 发言"`}>${avatarHtml32(u)}</span>
           <span class="msg-content-stack">${mine?'':`<span class="m-name">${esc(u.name)}</span>`}${content}${messageReceiptHtml(m,mine)}</span>
         </div>${money?moneyNoticeHtml(m,'workgroup',''):''}`;
-      }).join('')||'<div class="empty"><div class="es">💬</div>工作组还没有消息。发一条消息，大家就可以在这里交流。</div>'}
+      }).join('')||'<div class="empty"><div class="es is-ic">'+ic('message',34)+'</div>工作组还没有消息。发一条消息，大家就可以在这里交流。</div>'}
     </div>
-    <div class="chat-pagination">
+    ${totalPages>1?`<div class="chat-pagination">
       <button class="btn btn-sm btn-ghost" type="button" data-wg-page="older" ${page>=totalPages-1?'disabled':''}>更早消息</button>
       <span>第 ${page+1}/${totalPages} 页 · 共 ${wg.messages.length} 条</span>
       <button class="btn btn-sm btn-ghost" type="button" data-wg-page="newer" ${page<=0?'disabled':''}>更新消息</button>
-    </div>
+    </div>`:''}
     ${quoteBarHtml()}
     ${chatInputRow('wg',{voice:false})}
   </div>`;
