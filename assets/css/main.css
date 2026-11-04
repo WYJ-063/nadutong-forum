@@ -1738,12 +1738,12 @@ select, select.field { max-width: 100%; }
 #msg-clear-all span{font-size:17px;line-height:1}
 @media(max-width:600px){#msg-clear-all{margin-left:0!important;white-space:normal;max-width:100%}}
 /* 默认深色主题：易经模块正文、索引按钮、原文均使用浅色 */
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module{color:#F3F6FF;--yj-fg:#F3F6FF;--yj-muted:#B8C7EC;--yj-border:#34477D;--yj-surface:#172653;--yj-surface-2:#1C2E60}
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module :is(h2,h3,h4,label,.yj-index-item,.yj-classic-layer pre){color:var(--yj-fg)!important}
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module :is(p,.yj-classic-source,.yj-classic-status,.yj-index-item small,.yj-inputs label){color:var(--yj-muted)!important}
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module :is(.yj-card,.yj-classic-entry,.yj-result>div){background:var(--yj-surface)!important;border-color:var(--yj-border)!important}
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module :is(.yj-note,.yj-index-item,.yj-inputs input,.yj-library-search input,.yj-throw){background:var(--yj-surface-2)!important;color:var(--yj-fg)!important;border-color:var(--yj-border)!important}
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora) .yj-module input::placeholder{color:#A8B8E8!important;opacity:1}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module{color:#F3F6FF;--yj-fg:#F3F6FF;--yj-muted:#B8C7EC;--yj-border:#34477D;--yj-surface:#172653;--yj-surface-2:#1C2E60}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module :is(h2,h3,h4,label,.yj-index-item,.yj-classic-layer pre){color:var(--yj-fg)!important}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module :is(p,.yj-classic-source,.yj-classic-status,.yj-index-item small,.yj-inputs label){color:var(--yj-muted)!important}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module :is(.yj-card,.yj-classic-entry,.yj-result>div){background:var(--yj-surface)!important;border-color:var(--yj-border)!important}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module :is(.yj-note,.yj-index-item,.yj-inputs input,.yj-library-search input,.yj-throw){background:var(--yj-surface-2)!important;color:var(--yj-fg)!important;border-color:var(--yj-border)!important}
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat) .yj-module input::placeholder{color:#A8B8E8!important;opacity:1}
 /* 赛博霓虹：冰青浅字配深蓝底，霓虹色只用于强调 */
 .portal.theme-cyber .yj-module{color:#EAFBFF;--yj-fg:#EAFBFF;--yj-muted:#B9D8E4;--yj-border:#24536A;--yj-surface:#0D2638;--yj-surface-2:#123449;--yj-accent:#00D9F5}
 .portal.theme-cyber .yj-module :is(h2,h3,h4,label,.yj-index-item,.yj-classic-layer pre){color:var(--yj-fg)!important}
@@ -1757,7 +1757,7 @@ select, select.field { max-width: 100%; }
 /* ===== 原样式块：theme-contrast-polish ===== */
 
 /* 默认深蓝主题：统一使用主题变量，避免全局浅色表单上出现深色标签 */
-.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora){
+.portal:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat){
   --pt-bg:#0D1740;--pt-topbar:#0A1335;--pt-sidebar:#0B1539;
   --pt-panel:#172653;--pt-panel-2:#1C2E60;--pt-input:#101D49;
   --pt-border:#30447E;--pt-border-soft:#26396E;
@@ -1990,6 +1990,91 @@ select, select.field { max-width: 100%; }
 .portal.theme-aurora .msg.them .bubble,.portal.theme-aurora .bubble.them{
   background:rgba(42,32,92,.85);border:1px solid rgba(150,130,255,.18);}
 .portal.theme-aurora .p-crumb a,.portal.theme-aurora .p-main a:not(.btn){color:#7CEBD8;}
+
+/* ---------- 2c. 新主题：微信绿 wechat（仿微信 / WeUI） ---------- */
+.portal.theme-wechat{
+  --pt-bg:#EDEDED;--pt-topbar:#F7F7F7;--pt-sidebar:#F7F7F7;
+  --pt-panel:#FFFFFF;--pt-panel-2:#F5F5F5;--pt-input:#F7F7F7;
+  --pt-border:#E0E0E0;--pt-border-soft:#EBEBEB;--pt-soft:#F2F2F2;
+  --pt-text:#1A1A1A;--pt-text-soft:#3A3A3A;--pt-muted:#888888;
+  --pt-accent:#3CB371;--pt-accent-text:#FFFFFF;
+  --pt-highlight:#3CB371;--pt-highlight-bg:rgba(60,179,113,.12);--pt-highlight-text:#2C7A52;
+  --pt-link:#576B95;--pt-hover:#E8E8E8;--pt-glow:rgba(60,179,113,.15);
+  --pt-ok:#3CB371;--pt-warn:#FA9D3B;--pt-danger:#FA5151;
+  --pt-bubble-them:#FFFFFF;--pt-bubble-them-text:#1A1A1A;
+  --pt-cover-a:#32965E;--pt-cover-b:#3CB371;
+  --pt-shadow:0 8px 26px rgba(0,0,0,.08);
+  --badge:#FA5151;--badge-glow:rgba(250,81,81,.35);
+  --panel:#FFFFFF;--panel2:#F5F5F5;
+  --blue-2:#3CB371;--blue:#32965E;
+  color:var(--pt-text);
+}
+.portal.theme-wechat .p-main{
+  background:
+    radial-gradient(1000px 420px at 50% -10%,rgba(60,179,113,.10),transparent 60%),
+    var(--pt-bg);}
+.portal.theme-wechat .p-panel,.portal.theme-wechat .card-box,.portal.theme-wechat .arc-card,.portal.theme-wechat .post-card,.portal.theme-wechat .space-card,.portal.theme-wechat .lib-item,.portal.theme-wechat .friend-card{
+  background:#FFFFFF;border:1px solid #EBEBEB;border-radius:12px;
+  box-shadow:0 6px 20px -14px rgba(0,0,0,.18);}
+.portal.theme-wechat .btn-orange,.portal.theme-wechat .btn:not(.btn-ghost){
+  background:#3CB371;border:1px solid #3CB371;color:#FFFFFF;}
+.portal.theme-wechat .btn-orange:hover,.portal.theme-wechat .btn:not(.btn-ghost):hover{
+  background:#32965E;border-color:#32965E;color:#fff;}
+.portal.theme-wechat .btn-ghost{background:#FFFFFF;border:1px solid #3CB371;color:#3CB371;}
+.portal.theme-wechat .btn-ghost:hover{background:#F2F2F2;color:#32965E;}
+.portal.theme-wechat .side-item.on,.portal.theme-wechat .room-tab.on{background:#3CB371;color:#FFFFFF;}
+.portal.theme-wechat .forum-tabs .ft.on{background:#3CB371;border-color:#3CB371;color:#fff}
+.portal.theme-wechat .theme-switch button.on{background:#3CB371;border-color:#3CB371;color:#fff}
+.portal.theme-wechat .room-tab{background:#FFFFFF;border:1px solid #E5E5E5;color:#555555;}
+.portal.theme-wechat .q-vote .vt{background:#FFFFFF;border-color:#E5E5E5;color:#555555;}
+.portal.theme-wechat .q-vote .vt.on,.portal.theme-wechat .q-vote .vt[data-voted="1"]{
+  background:#3CB371!important;border-color:#3CB371!important;color:#fff!important;}
+.portal.theme-wechat .msg.me .bubble{background:#A8E0C0;color:#1A1A1A;}
+.portal.theme-wechat .msg.them .bubble,.portal.theme-wechat .bubble.them{
+  background:#FFFFFF;color:#1A1A1A;border:1px solid #EBEBEB;}
+.portal.theme-wechat .p-crumb a,.portal.theme-wechat .p-main a:not(.btn){color:#576B95;}
+/* 易经模块：白底卡片 + 中性灰边框 + 深色文字，保证浅色主题下可读 */
+.portal.theme-wechat .yj-module{
+  --yj-fg:#1A1A1A;--yj-muted:#888888;--yj-border:#E5E5E5;
+  --yj-surface:#FFFFFF;--yj-surface-2:#F5F5F5;--yj-accent:#3CB371;color:#1A1A1A;}
+.portal.theme-wechat .yj-module :is(h2,h3,h4,label,.yj-index-item,.yj-classic-layer pre){color:#1A1A1A}
+.portal.theme-wechat .yj-module :is(p,.yj-classic-source,.yj-classic-status,.yj-index-item small,.yj-inputs label){color:#888888}
+.portal.theme-wechat .yj-module :is(.yj-card,.yj-classic-entry,.yj-result>div){background:#FFFFFF;border-color:#E5E5E5}
+.portal.theme-wechat .yj-module :is(.yj-note,.yj-index-item,.yj-inputs input,.yj-library-search input,.yj-throw){background:#F5F5F5;color:#1A1A1A;border-color:#E5E5E5}
+.portal.theme-wechat .yj-module input::placeholder{color:#AAAAAA;opacity:1}
+.portal.theme-wechat .yj-module .yj-classic-source a,.portal.theme-wechat .yj-module .yj-source a{color:#576B95}
+/* 专属名片：浅色卡片 + 柔和绿 */
+.portal.theme-wechat .staff-card-preview{
+  background:linear-gradient(135deg,#FFFFFF 0%,#F3FAF6 58%,#E7F3EC 100%);
+  border:1px solid #D4E8DD;box-shadow:0 16px 38px rgba(60,179,113,.14);}
+.portal.theme-wechat .staff-card-preview::after{
+  border-color:rgba(60,179,113,.22);box-shadow:0 0 0 24px rgba(60,179,113,.04),0 0 0 48px rgba(60,179,113,.03);}
+.portal.theme-wechat .staff-card-top{color:#1A1A1A;border-bottom:1px solid #E5E5E5;}
+.portal.theme-wechat .staff-card-top .staff-emblem{background:#3CB371;color:#fff;}
+.portal.theme-wechat .staff-card-brand small{color:#8AA898;}
+.portal.theme-wechat .staff-card-avatar{background:linear-gradient(145deg,#4FC088,#32965E);}
+.portal.theme-wechat .staff-card-hero h3{color:#1A1A1A;}
+.portal.theme-wechat .staff-card-hero p{color:#5A7A68;}
+.portal.theme-wechat .staff-card-item{background:#F2F8F4;border:1px solid #E2EFE8;}
+.portal.theme-wechat .staff-card-item span{color:#8AA898;}
+.portal.theme-wechat .staff-card-item b{color:#2A3A33;}
+.portal.theme-wechat .staff-card-note{background:rgba(60,179,113,.08);border-left:3px solid #3CB371;color:#3A5A48;}
+.portal.theme-wechat .staff-card-note strong{color:#3CB371;}
+.portal.theme-wechat .staff-card-edit-grid .field{background:#F5F7F6;border-color:#E0E5E2;color:#1A1A1A;}
+.portal.theme-wechat .staff-card-edit-grid .field::placeholder{color:#A5B5AC;}
+/* 势力关系网横幅：柔和微信绿 + 白字（覆盖被 p-panel 变白的问题） */
+.portal.theme-wechat .network-intro{
+  background:linear-gradient(125deg,#32965E,#3CB371 65%,#4FC088);
+  border:1px solid #32965E;color:#FFFFFF;}
+.portal.theme-wechat .network-eyebrow{color:rgba(255,255,255,.75)}
+.portal.theme-wechat .network-intro h2{color:#FFFFFF!important}
+.portal.theme-wechat .network-intro .ph-sub{color:rgba(255,255,255,.88)!important}
+.portal.theme-wechat .network-legend{color:rgba(255,255,255,.92)}
+.portal.theme-wechat .net-dot.one{background:#FFD66B}
+.portal.theme-wechat .net-dot.both{background:#FFFFFF}
+.portal.theme-wechat .field:focus{box-shadow:0 0 0 3px rgba(60,179,113,.12)}
+.portal.theme-wechat .mention-link{background:rgba(60,179,113,.12)}
+.portal.theme-wechat .share-act:hover{background:#F2F8F4}
 
 /* ---------- 3. 加载动效 ---------- */
 #page-preloader{background:radial-gradient(circle at 50% 36%,#17214F,#0A1028 78%);}

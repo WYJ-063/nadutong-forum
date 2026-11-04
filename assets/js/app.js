@@ -1025,7 +1025,8 @@ const TEMPLATES={
  classic:[{id:'xuan',name:'宣纸',a:'#EDE8D8',b:'#C9C2AE'},{id:'zhu',name:'朱砂',a:'#8E2328',b:'#D0484D'},{id:'jade',name:'青玉',a:'#1F5E52',b:'#3E9C86'},{id:'mo',name:'墨竹',a:'#2A2A28',b:'#5C5A50'}],
  cyber:[{id:'neon',name:'霓虹紫',a:'#0B1E52',b:'#7C2BFF'},{id:'pulse',name:'脉冲青',a:'#071A2C',b:'#00E5FF'},{id:'acid',name:'酸性绿',a:'#0A1F0E',b:'#3BE08F'},{id:'magenta',name:'洋红警报',a:'#2A0018',b:'#FF2E88'}],
  rose:[{id:'rose-gold',name:'玫瑰金',a:'#C98B7E',b:'#EAC3B4'},{id:'cream',name:'奶油白',a:'#FDF6F1',b:'#F0DCD0'},{id:'blush',name:'胭脂粉',a:'#E7A7A0',b:'#F6D6D0'},{id:'champagne',name:'香槟金',a:'#D9B896',b:'#F2E0C4'}],
- aurora:[{id:'aurora-teal',name:'极光青',a:'#0E2A3A',b:'#37D6BE'},{id:'aurora-violet',name:'星河紫',a:'#1D1448',b:'#8B7CFF'},{id:'aurora-green',name:'极光绿',a:'#0C2A26',b:'#4BE3A4'},{id:'aurora-pink',name:'星云粉',a:'#2A1238',b:'#E07CF5'}]
+ aurora:[{id:'aurora-teal',name:'极光青',a:'#0E2A3A',b:'#37D6BE'},{id:'aurora-violet',name:'星河紫',a:'#1D1448',b:'#8B7CFF'},{id:'aurora-green',name:'极光绿',a:'#0C2A26',b:'#4BE3A4'},{id:'aurora-pink',name:'星云粉',a:'#2A1238',b:'#E07CF5'}],
+ wechat:[{id:'wx-green',name:'微信绿',a:'#32965E',b:'#3CB371'},{id:'wx-bubble',name:'气泡绿',a:'#7BD88F',b:'#A8E0C0'},{id:'wx-paper',name:'灰白',a:'#D9D9D9',b:'#F7F7F7'},{id:'wx-link',name:'链接蓝',a:'#576B95',b:'#8A9BC4'}]
 };
 const tplOf=id=>{const all=Object.values(TEMPLATES).flat();const t=all.find(x=>x.id===id)||TEMPLATES[DB.data?.theme||'default']?.[0]||TEMPLATES.default[0];return {...t,cover:`linear-gradient(120deg,${t.a},${t.b})`,main:t.b,zikaBg:t.a,zikaColor:'#FFFFFF'};};
 
@@ -1661,14 +1662,14 @@ function portalShell(active,content){
     return `<div class="side-item ${active===id?'on':''}" data-section="${section}" data-hash="${locked?'':hash}">${svgIco(ico)}<span class="side-item-label">${name}</span>${badge}${locked?'<span class="lock">锁</span>':''}</div>`;
   };
   const th=DB.data.theme||'default';
-  const themeClasses={day:'theme-day',classic:'theme-classic',cyber:'theme-cyber',rose:'theme-rose',aurora:'theme-aurora'};
+  const themeClasses={day:'theme-day',classic:'theme-classic',cyber:'theme-cyber',rose:'theme-rose',aurora:'theme-aurora',wechat:'theme-wechat'};
   const thCls=themeClasses[th]||'';
   const themeBtn=(v,label)=>`<button data-theme-set="${v}" class="${th===v?'on':''}">${label}</button>`;
   return `<div class="portal ${thCls} portal--${active||'none'}">
     <div class="portal-top">
       <div class="p-logo" id="p-home"><span class="mk">${svgIco('shield')}</span>哪都通 · 异人论坛<small>YIREN FORUM</small></div>
       <div class="theme-switch" title="整体主题">
-        ${themeBtn('default','默认')}${themeBtn('day','日间')}${themeBtn('classic','古风卷宗')}${themeBtn('cyber','赛博霓虹')}${themeBtn('rose','玫瑰金')}${themeBtn('aurora','极光星河')}
+        ${themeBtn('default','默认')}${themeBtn('day','日间')}${themeBtn('classic','古风卷宗')}${themeBtn('cyber','赛博霓虹')}${themeBtn('rose','玫瑰金')}${themeBtn('aurora','极光星河')}${themeBtn('wechat','微信绿')}
       </div>
       <div class="user-chip" id="p-space">
         <div class="av">${avHtml(u,'av')}</div>
@@ -6280,7 +6281,8 @@ const SHARE_THEMES={
   classic:{bg1:'#3A2018',bg2:'#1E100C',card:'rgba(255,248,233,.07)',cardBorder:'rgba(232,176,106,.24)',avatarBg:'#D0484D',text:'#FFF8E9',sub:'#D3B98C',stroke:'#D0484D',fill:'rgba(208,72,77,.2)',point:'#E8B06A',accent:'#E8B06A',line:'rgba(220,190,140,.28)',glow:'rgba(208,72,77,1)'},
   cyber:{bg1:'#0B2230',bg2:'#05121A',card:'rgba(0,229,255,.06)',cardBorder:'rgba(0,229,255,.26)',avatarBg:'#00B8CC',text:'#EAFBFF',sub:'#7FB9C8',stroke:'#00E5FF',fill:'rgba(0,229,255,.16)',point:'#00E5FF',accent:'#3BE08F',line:'rgba(0,229,255,.25)',glow:'rgba(0,229,255,1)'},
   rose:{bg1:'#C98B7E',bg2:'#A05E52',card:'rgba(255,248,244,.14)',cardBorder:'rgba(255,240,232,.4)',avatarBg:'#A96559',text:'#FFF8F4',sub:'#FBE3D6',stroke:'#F0C9B8',fill:'rgba(255,248,244,.22)',point:'#FFF0E8',accent:'#FFF0E8',line:'rgba(255,240,232,.3)',glow:'rgba(240,201,184,1)'},
-  aurora:{bg1:'#261D57',bg2:'#100B2C',card:'rgba(150,130,255,.09)',cardBorder:'rgba(150,130,255,.28)',avatarBg:'#3FC9B0',text:'#EFEBFF',sub:'#B7AEE8',stroke:'#5BE3C8',fill:'rgba(91,227,200,.18)',point:'#7CEBD8',accent:'#B07CFF',line:'rgba(150,130,255,.28)',glow:'rgba(91,227,200,1)'}
+  aurora:{bg1:'#261D57',bg2:'#100B2C',card:'rgba(150,130,255,.09)',cardBorder:'rgba(150,130,255,.28)',avatarBg:'#3FC9B0',text:'#EFEBFF',sub:'#B7AEE8',stroke:'#5BE3C8',fill:'rgba(91,227,200,.18)',point:'#7CEBD8',accent:'#B07CFF',line:'rgba(150,130,255,.28)',glow:'rgba(91,227,200,1)'},
+  wechat:{bg1:'#F7F7F7',bg2:'#E5E5E5',card:'#FFFFFF',cardBorder:'rgba(0,0,0,.08)',avatarBg:'#3CB371',text:'#1A1A1A',sub:'#888888',stroke:'#3CB371',fill:'rgba(60,179,113,.16)',point:'#3CB371',accent:'#3CB371',line:'#E0E0E0',glow:'rgba(60,179,113,1)'}
 };
 /* 分享图网页地址：部署后自动取当前域名；本地/文件预览时回退到下面可编辑的地址 */
 const SITE_URL_FALLBACK='https://nadutong.netlify.app';
