@@ -889,11 +889,11 @@ async function userInfoMap(env,ids){
   });
   /* 批量取这些用户的佩戴徽章 */
   const br=await env.DB.prepare(
-    `SELECT ub.user_id,b.id,b.name,b.icon,b.desc
+    `SELECT ub.user_id,b.id,b.name,b.icon,b.desc,b.effect
      FROM user_badges ub JOIN badges b ON b.id=ub.badge_id
      WHERE ub.equipped=1 AND ub.user_id IN (${ph})`).bind(...uniq).all();
   (br.results||[]).forEach(x=>{
-    if(out[x.user_id])out[x.user_id].badge={id:x.id,name:x.name,icon:x.icon,desc:x.desc};
+    if(out[x.user_id])out[x.user_id].badge={id:x.id,name:x.name,icon:x.icon,desc:x.desc,effect:normEffect(x.effect)};
   });
   return out;
 }

@@ -5588,7 +5588,7 @@ const YJ_PAIR_BY_NAME={
 '否':['乾','坤'],'萃':['兑','坤'],'晋':['离','坤'],'豫':['震','坤'],'观':['巽','坤'],'比':['坎','坤'],'剥':['艮','坤'],'坤':['坤','坤']
 };
 const YJ_TRIGRAM_BY_NAME=Object.fromEntries(YJ_TRIGRAMS.map(t=>[t.name,t]));
-const YJ_GUA=YJ_NAMES.map(name=>{const pair=YJ_PAIR_BY_NAME[name];if(!pair)throw new Error('缺少卦象映射：'+name);return [...YJ_TRIGRAM_BY_NAME[pair[0]].bits,...YJ_TRIGRAM_BY_NAME[pair[1]].bits];});
+const YJ_GUA=YJ_NAMES.map(name=>{const pair=YJ_PAIR_BY_NAME[name];if(!pair)throw new Error('缺少卦象映射：'+name);return [...YJ_TRIGRAM_BY_NAME[pair[1]].bits,...YJ_TRIGRAM_BY_NAME[pair[0]].bits];});
 function yjFind(bits){let i=YJ_GUA.findIndex(a=>a.join('')===bits.join(''));return i<0?null:{no:i+1,name:YJ_NAMES[i],bits:YJ_GUA[i]};}
 function yjLineMarkup(bits, moving=[]){return bits.map((v,i)=>`<div class="yj-line-row"><span>${['初','二','三','四','五','上'][i]}爻</span><b class="${v?'yang':'yin'} ${moving.includes(i)?'moving':''}">${v?'━━━━━━':'━━　━━'}</b><small>${moving.includes(i)?'动爻':''}</small></div>`).reverse().join('');}
 function viewDivination(){
@@ -5621,9 +5621,9 @@ function viewYijing(){
  const rec=DB.data.yijing||{};
  const c=`<div class="p-panel yj-module"><div class="yj-head"><div class="yj-kicker">周易 · 原典工具</div><h2>伏羲六十四卦</h2><p>六爻法 · 梅花易数</p><p class="yj-note">卦名与卦序采用通行《周易》文王卦序；卦象组合参考《周易》六十四卦速查表。原文保持繁体字形，并按经文、传文分层呈现。</p></div>
  <div class="yj-tabs"><button class="btn ${rec.method!=='meihua'?'btn-orange':'btn-ghost'}" data-yj-method="liuyao">六爻法（三钱起卦）</button><button class="btn ${rec.method==='meihua'?'btn-orange':'btn-ghost'}" data-yj-method="meihua">梅花易数（数字起卦）</button></div>
- ${rec.method==='meihua'?`<section class="yj-card"><h3>梅花易数 · 数字起卦</h3><p>输入两个数字，按先天八卦数取上下卦；第三数取动爻。此处采用一种常见的先天八卦数约定：“乾1、兑2、离3、震4、巽5、坎6、艮7、坤8”。梅花易数存在不同取数与起卦法，本工具只实现页面明示的数字法，不把它说成唯一标准。</p><div class="yj-inputs"><label>上卦数<input id="yj-a" type="number" min="1" value="${esc(rec.a||1)}"></label><label>下卦数<input id="yj-b" type="number" min="1" value="${esc(rec.b||2)}"></label><label>动爻数<input id="yj-c" type="number" min="1" value="${esc(rec.c||3)}"></label></div><button class="btn btn-orange" id="yj-calc-meihua">起卦</button></section>`:
+ ${rec.method==='meihua'?`<section class="yj-card"><h3>梅花易数 · 报数起卦</h3><p>报两个正整数：上卦＝数字 A ÷ 8 取余（余 0 作 8，即坤），下卦＝数字 B ÷ 8 取余（余 0 作 8）；动爻＝(A＋B) ÷ 6 取余（余 0 为第六爻）。先天八卦数约定：“乾1、兑2、离3、震4、巽5、坎6、艮7、坤8”。梅花易数另有加时辰等取法，本工具只实现页面明示的报数法，不把它说成唯一标准。</p><div class="yj-inputs"><label>数字 A（上卦）<input id="yj-a" type="number" min="1" value="${esc(rec.a||1)}"></label><label>数字 B（下卦）<input id="yj-b" type="number" min="1" value="${esc(rec.b||2)}"></label></div><button class="btn btn-orange" id="yj-calc-meihua">起卦</button></section>`:
  `<section class="yj-card"><h3>六爻法 · 三枚铜钱，六次投掷</h3><p>依次生成初爻至上爻。数字标记：6老阴（动）、7少阳、8少阴、9老阳（动）。每次投掷结果可重摇，六爻齐全后显示本卦与变卦。</p><div id="yj-throws">${(rec.throws||[]).map((v,i)=>`<span class="yj-throw">${['初','二','三','四','五','上'][i]}爻：${v}</span>`).join(' ')}</div><div class="yj-actions"><button class="btn btn-ghost" id="yj-reset">重新起卦</button><button class="btn btn-orange" id="yj-throw">${(rec.throws||[]).length>=6?'重新起卦':'投掷一爻'}</button></div></section>`}
- ${rec.hex?`<section class="yj-card"><div class="yj-result"><div><small>本卦</small><h3>第${rec.hex.no}卦 · ${esc(rec.hex.name)}</h3>${yjLineMarkup(rec.hex.bits,rec.moving||[])}</div>${rec.changed?`<div><small>变卦</small><h3>第${rec.changed.no}卦 · ${esc(rec.changed.name)}</h3>${yjLineMarkup(rec.changed.bits)}</div>`:''}</div><p class="yj-note">卦象按六爻自下而上计算。当前版本不生成未经校勘的卦辞、爻辞或断语；请打开底本核对原文。六爻排盘结果不等同于纳甲六亲、世应、月建日辰等完整六爻断法。</p><p class="yj-source">本卦原文：<a href="https://zh.wikisource.org/wiki/周易/${encodeURIComponent(rec.hex.name)}" target="_blank" rel="noopener">打开维基文库《周易/${esc(rec.hex.name)}》</a> · <a href="https://ctext.org/book-of-changes/yi-jing" target="_blank" rel="noopener">中国哲学书电子化计划《周易》总目</a></p><p class="yj-note">原典分层：可打开底本核对卦辞、爻辞及传文。不同版本可能有异体字、断句或文字差异；本工具不擅自统一异文。</p></section>`:''}
+ ${rec.hex?`<section class="yj-card"><div class="yj-result"><div><small>本卦</small><h3>第${rec.hex.no}卦 · ${esc(rec.hex.name)}</h3>${yjLineMarkup(rec.hex.bits,rec.moving||[])}</div>${rec.changed?`<div><small>变卦</small><h3>第${rec.changed.no}卦 · ${esc(rec.changed.name)}</h3>${yjLineMarkup(rec.changed.bits)}</div>`:''}${rec.hugua?`<div><small>互卦</small><h3>第${rec.hugua.no}卦 · ${esc(rec.hugua.name)}</h3>${yjLineMarkup(rec.hugua.bits)}</div>`:''}</div><p class="yj-note">卦象按六爻自下而上计算。当前版本不生成未经校勘的卦辞、爻辞或断语；请打开底本核对原文。六爻排盘结果不等同于纳甲六亲、世应、月建日辰等完整六爻断法。</p><p class="yj-source">本卦原文：<a href="https://zh.wikisource.org/wiki/周易/${encodeURIComponent(rec.hex.name)}" target="_blank" rel="noopener">打开维基文库《周易/${esc(rec.hex.name)}》</a> · <a href="https://ctext.org/book-of-changes/yi-jing" target="_blank" rel="noopener">中国哲学书电子化计划《周易》总目</a></p><p class="yj-note">原典分层：可打开底本核对卦辞、爻辞及传文。不同版本可能有异体字、断句或文字差异；本工具不擅自统一异文。</p></section>`:''}
  <section class="yj-card yj-library"><h3>经典原文库 · 离线查询</h3><p>可按卦名、卦序或原文关键词检索，原文采用繁体字形。</p><div class="yj-library-search"><input id="yj-classic-query" type="search" placeholder="搜索卦名、卦序或原文关键词（如：潜龙、元亨、11）" autocomplete="off"><button class="btn btn-orange" id="yj-classic-search">查询</button></div><div id="yj-classic-results" class="yj-classic-results">${yjClassicMarkup('乾')}</div></section>
  <section class="yj-card"><h3>六十四卦索引</h3><p>按通行文王卦序列出卦名。点选卦名可查看其卦象结构；本索引不将现代释义冒充经文。</p><div class="yj-index">${YJ_NAMES.map((n,i)=>`<button class="yj-index-item" data-yj-index="${i}"><small>${String(i+1).padStart(2,'0')}</small><span>${esc(n)}</span></button>`).join('')}</div></section>
  </div>`;
@@ -7621,16 +7621,25 @@ document.addEventListener('click',e=>{
   if(t.closest('#yj-throw')){
     const rec=DB.data.yijing||{method:'liuyao',throws:[]};let throws=Array.isArray(rec.throws)?rec.throws.slice():[];
     if(throws.length>=6)throws=[];
-    const v=[6,7,8,9][Math.floor(Math.random()*4)];throws.push(v);
+    let v=0;for(let k=0;k<3;k++)v+=Math.random()<0.5?3:2;
+    throws.push(v);
     const next={method:'liuyao',throws};
     if(throws.length===6){const bits=throws.map(x=>x===7||x===9?1:0),moving=throws.map((x,i)=>(x===6||x===9)?i:-1).filter(i=>i>=0),changedBits=bits.map((b,i)=>moving.includes(i)?1-b:b);next.hex=yjFind(bits);next.changed=yjFind(changedBits);next.moving=moving;}
     DB.data.yijing=next;DB.save();router();return;
   }
   if(t.closest('#yj-calc-meihua')){
-    const a=Math.abs(parseInt($('#yj-a')?.value,10)||1),b=Math.abs(parseInt($('#yj-b')?.value,10)||1),c=Math.abs(parseInt($('#yj-c')?.value,10)||1);
-    const tri=n=>YJ_TRIGRAMS[(n-1)%8].bits;
-    const upper=tri(a),lower=tri(b),bits=[...lower,...upper],moving=[(c-1)%6],changedBits=bits.map((v,i)=>i===moving[0]?1-v:v);
-    DB.data.yijing={method:'meihua',a,b,c,hex:yjFind(bits),changed:yjFind(changedBits),moving};DB.save();router();return;
+    const a=Math.max(1,Math.abs(parseInt($('#yj-a')?.value,10)||1)),b=Math.max(1,Math.abs(parseInt($('#yj-b')?.value,10)||1));
+    /* 报数法：除以 8 取余，余 0 作 8（坤），按先天八卦数取三爻 */
+    const tri=n=>{let r=n%8;if(r===0)r=8;return YJ_TRIGRAMS[r-1].bits;};
+    const upper=tri(a),lower=tri(b);
+    const bits=[...lower,...upper];
+    /* 动爻：(A+B)÷6 取余，余 0 为第六爻；数组索引 0-5 */
+    let mr=(a+b)%6;if(mr===0)mr=6;const moving=[mr-1];
+    /* 变卦：仅该动爻阴阳反转，其余五爻保持不变 */
+    const changedBits=bits.map((v,i)=>i===moving[0]?1-v:v);
+    /* 互卦：本卦第 2/3/4 爻（索引 1/2/3）为下互，第 3/4/5 爻（索引 2/3/4）为上互 */
+    const huBits=[bits[1],bits[2],bits[3],bits[2],bits[3],bits[4]];
+    DB.data.yijing={method:'meihua',a,b,hex:yjFind(bits),changed:yjFind(changedBits),hugua:yjFind(huBits),moving};DB.save();router();return;
   }
   /* 抽签 */
   if(t.closest('#div-draw')){
