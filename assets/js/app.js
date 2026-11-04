@@ -2419,8 +2419,24 @@ function userProfileHtml(d){
 }
 /* ---------- 徽章与档案（弹窗） ---------- */
 /* 编辑异人档案（本人）：流派/性别/城市/生日/签名 */
-function openProfileEditModal(){
+async function openProfileEditModal(){
   const p=(Cloud.user&&Cloud.user.profile)||{};
+  let myBadges=[];
+  try{myBadges=await Cloud.getMyBadges();}catch(e){}
+  /* 徽章佩戴选择（单选；含"不佩戴"），复用主页徽章炫彩样式 */
+  const peItems=()=>{
+    if(!myBadges.length)return '<div class="empty" style="padding:10px">还没有徽章——活动期发帖或回复可自动获得</div>';
+    const noneOn=myBadges.every(b=>!b.equipped);
+    return `<button type="button" class="pe-none ${noneOn?'on':''}" data-peq="">不佩戴</button>`+
+      myBadges.map(b=>{
+        const eff=b.effect!=null?String(b.effect):'0';
+        return `<button type="button" class="up-badge bd-eff-${esc(eff)} ${b.equipped?'on':''}" data-peq="${esc(b.id)}" title="${esc(b.desc||b.name)}">
+          ${b.icon?`<span class="ub-icon">${esc(b.icon)}</span>`:''}
+          <span class="ub-name">${esc(b.name)}</span>
+          ${b.equipped?'<span class="ub-wear">佩戴中</span>':''}
+        </button>`;
+      }).join('');
+  };
   const mask=openMask(`
     <h3>编辑异人档案</h3>
     <div class="m-body">
@@ -2438,11 +2454,30 @@ function openProfileEditModal(){
       <input class="field" id="pf-birthday" value="${esc(p.birthday||'')}" placeholder="如 1998-08-08（可选）">
       <label class="fl" style="margin-top:10px">签名</label>
       <textarea class="field" id="pf-bio" style="min-height:80px" placeholder="介绍一下自己…">${esc(p.bio||'')}</textarea>
+      <label class="fl" style="margin-top:10px">佩戴徽章（同时仅可佩戴一个）</label>
+      <div class="pe-list" id="pe-wrap">${peItems()}</div>
       <div class="m-actions">
         <button class="btn btn-orange" id="pf-save">保存</button>
         <button class="btn btn-ghost" id="pf-cancel">取消</button>
       </div>
     </div>`);
+  /* 徽章：弹窗内即时佩戴/卸下并重渲染，不关闭弹窗 */
+  const bindPe=()=>{
+    mask.querySelectorAll('[data-peq]').forEach(el=>{
+      el.onclick=async()=>{
+        const bid=el.dataset.peq||null;
+        try{
+          await Cloud.equipBadge(bid);
+          await Cloud.refresh().catch(()=>{});
+          try{myBadges=await Cloud.getMyBadges();}catch(e){}
+          mask.querySelector('#pe-wrap').innerHTML=peItems();
+          bindPe();
+          toast(bid?'已佩戴徽章':'已卸下徽章','ok');
+        }catch(e){toast(e.message,'err');}
+      };
+    });
+  };
+  bindPe();
   mask.querySelector('#pf-cancel').onclick=()=>mask.remove();
   mask.querySelector('#pf-save').onclick=async()=>{
     const btn=mask.querySelector('#pf-save');btn.disabled=true;

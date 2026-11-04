@@ -2671,6 +2671,19 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
 .up-badge .ub-icon{font-size:24px;line-height:1;}
 .up-badge .ub-name{font-size:12px;font-weight:700;color:var(--pt-text);}
 .up-badge .ub-wear{font-size:10px;color:var(--pt-highlight);font-weight:700;}
+/* 编辑档案弹窗：徽章佩戴选择（含"不佩戴"） */
+.pe-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;align-items:center;}
+.pe-none{
+  padding:10px 14px;border-radius:12px;cursor:pointer;
+  border:1px solid var(--pt-border);background:var(--pt-panel);
+  font-size:12px;font-weight:700;color:var(--pt-text);
+  transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+.pe-none:hover{transform:translateY(-2px);}
+.pe-none.on{
+  border-color:var(--pt-highlight);background:var(--pt-highlight-bg);
+  box-shadow:0 0 0 1px var(--pt-highlight);
+}
 /* ---------- 徽章管理 / 发放 ---------- */
 .bd-manage-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;}
 .bd-manage-row{
