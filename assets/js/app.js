@@ -53,6 +53,7 @@ const ICONS={
   help:`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>`,
   more:`<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
   back:`<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>`,
+  search:`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`,
   message:`<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>`,
   ban:`<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>`,
   alert:`<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`,
