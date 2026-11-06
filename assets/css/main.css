@@ -2238,6 +2238,7 @@ body[data-portal-theme="classic"] .modal{background:#FFF8E9;color:#332719;border
 body[data-portal-theme="cyber"] .modal{background:linear-gradient(165deg,#0F2A3D,#0A1C2C);color:#EAFBFF;border:1px solid #24536A;}
 body[data-portal-theme="rose"] .modal{background:linear-gradient(180deg,#FDFBF8,#FBF4EE);color:#4A3530;border:1px solid #EBD9CC;}
 body[data-portal-theme="aurora"] .modal{background:linear-gradient(165deg,#261D57,#18123A);color:#EFEBFF;border:1px solid rgba(150,130,255,.25);}
+body[data-portal-theme="wechat"] .modal{background:#FFFFFF;color:#1A1A1A;border:1px solid #E5E5E5;}
 body[data-portal-theme] .modal h3{color:inherit;}
 body[data-portal-theme] .modal .m-body{color:inherit;}
 body[data-portal-theme] .modal label{color:inherit;}
@@ -2246,8 +2247,11 @@ body[data-portal-theme="cyber"] .modal input,body[data-portal-theme="cyber"] .mo
 body[data-portal-theme="aurora"] .modal input,body[data-portal-theme="aurora"] .modal textarea,body[data-portal-theme="aurora"] .modal select{background:#1A1340;color:#EFEBFF;border-color:#3A2D72;}
 body[data-portal-theme="classic"] .modal input,body[data-portal-theme="classic"] .modal textarea,body[data-portal-theme="classic"] .modal select{background:#F8EED9;color:#332719;border-color:#C9B58C;}
 body[data-portal-theme="rose"] .modal input,body[data-portal-theme="rose"] .modal textarea,body[data-portal-theme="rose"] .modal select{background:#F7EEE7;color:#4A3530;border-color:#E2D0C4;}
+body[data-portal-theme="wechat"] .modal input,body[data-portal-theme="wechat"] .modal textarea,body[data-portal-theme="wechat"] .modal select{background:#F7F7F7;color:#1A1A1A;border-color:#E0E0E0;}
 body[data-portal-theme] .modal input::placeholder,body[data-portal-theme] .modal textarea::placeholder{color:currentColor;opacity:.55;}
-body[data-portal-theme]:not([data-portal-theme="day"]) .modal .btn-ghost{background:rgba(255,255,255,.08);color:inherit;border:1px solid rgba(255,255,255,.2);}
+body[data-portal-theme]:not([data-portal-theme="day"]):not([data-portal-theme="wechat"]) .modal .btn-ghost{background:rgba(255,255,255,.08);color:inherit;border:1px solid rgba(255,255,255,.2);}
+body[data-portal-theme="wechat"] .modal .btn-ghost{background:#FFFFFF;border:1px solid #3CB371;color:#3CB371;}
+body[data-portal-theme="wechat"] .modal .btn-ghost:hover{background:#F2F2F2;color:#32965E;}
 /* 弹层入场动效 */
 @keyframes modalIn{from{opacity:0;transform:translateY(18px) scale(.97);}to{opacity:1;transform:none;}}
 body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1) both;}

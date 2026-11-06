@@ -1163,7 +1163,7 @@ function seedDB(){
     {id:'r-1',code:'ND-YR-001',name:'张楚岚',gender:'男',faction:'天师府传人 / 哪都通华北区编外',skill:'金光咒·阳五雷；疑似持有八奇技「炁体源流」',danger:'A',status:'在控（编外员工）',sec:2,aliases:'不摇碧莲、张处男',note:'张怀义之孙，甲申之乱关键线索人物。表面吊儿郎当，实际心思极深。罗天大醮冠军。其炁体源流来源与继承方式需持续跟进。'},
     {id:'r-2',code:'ND-YR-002',name:'冯宝宝',gender:'女',faction:'哪都通华北区临时工',skill:'无明确功法；本能格斗术，自愈能力极强，疑似不老不死',danger:'未知',status:'在控（临时工）',sec:3,aliases:'宝宝',note:'身世不明，被发现于四川，记忆缺失。身体机能与常人迥异，数十年容貌未变。与甲申之乱、无根生存在未知关联，为最高优先级观察对象。'},
     {id:'r-3',code:'ND-YR-003',name:'张灵玉',gender:'男',faction:'龙虎山天师府',skill:'阴五雷；后获「通天箓」',danger:'B',status:'观察',sec:2,aliases:'灵玉真人',note:'老天师弟子，因心结改练阴五雷。罗天大醮负于张楚岚。性格方正，与全性夏禾有旧，注意情感弱点。'},
-    {id:'r-4',code:'ND-YR-004',name:'王也',gender:'男',faction:'武当山（已离山）',skill:'八奇技「风后奇门」',danger:'A',status:'观察',sec:2,aliases:'王道长',note:'清华肄业后入武当，意外习得风后奇门。可自定中宫、拨弄格局。多次表示不愿卷入纷争，但其能力使其无法置身事外。'},
+    {id:'r-4',code:'ND-YR-004',name:'王也',gender:'男',faction:'武当山（已离山）',skill:'八奇技「风后奇门」',danger:'A',status:'观察',sec:2,aliases:'王道长',note:'清华毕业后入武当，意外习得风后奇门。可自定中宫、拨弄格局。多次表示不愿卷入纷争，但其能力使其无法置身事外。'},
     {id:'r-5',code:'ND-YR-005',name:'诸葛青',gender:'男',faction:'诸葛世家',skill:'武侯奇门；后悟三昧真火',danger:'B',status:'观察',sec:1,aliases:'',note:'诸葛世家传人，术字门天才。罗天大醮后一度执着于风后奇门，最终破除心障、三昧真火觉醒。现与王也交好。'},
     {id:'r-6',code:'ND-YR-006',name:'夏禾',gender:'女',faction:'全性「四张狂」',skill:'刮骨刀——操控情欲，可使人群失控相残',danger:'A',status:'在逃',sec:2,aliases:'',note:'全性四张狂之一，天生异质，非其本意。与张灵玉有旧。接触建议：女性员工或心性坚定者出面，禁止单人接触。'},
     {id:'r-7',code:'ND-YR-007',name:'张之维',gender:'男',faction:'龙虎山天师府 · 第六十五代天师',skill:'阳五雷，当世绝顶',danger:'S',status:'正道泰斗',sec:2,aliases:'老天师',note:'异人界公认战力天花板。罗天大醮主持者。为清理门户曾单人追杀全性，十佬亦难制衡。其立场即天师府立场。'},
