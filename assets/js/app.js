@@ -4063,6 +4063,7 @@ function viewRoom(idx){
       <div><h3>${esc(room.name)}</h3><div class="ch-hint">${room.members.length} 位成员 · 群内消息均可修改</div></div>
       <div class="ch-actions">
         <span class="pop-wrap"><button class="btn btn-sm btn-orange" id="rm-speak">${ic('megaphone',15)} TA 发言</button></span>
+        <button class="btn btn-sm btn-icon" id="chat-search-toggle" data-kind="room" data-target="${esc(room.id)}" title="查找聊天记录" aria-label="查找聊天记录">${ic('search',16)}</button>
         <button class="btn btn-sm btn-icon" id="rm-members" title="成员管理" aria-label="成员管理">${ic('members',17)}</button>
         <button class="btn btn-sm btn-icon" id="rm-rename" title="改名" aria-label="改名">${ic('edit',17)}</button>
         <button class="btn btn-sm btn-icon btn-danger-ic" data-clear-room="${esc(room.id)}" title="只清除此聊天室的消息" aria-label="清除此窗口">${ic('trash',17)}</button>
@@ -4216,7 +4217,10 @@ function viewChat(uid){
       <div class="wx-head">
         <a class="wx-back" id="wx-back" href="javascript:void(0)" aria-label="返回会话列表">${ic('back',18)}</a>
         <h3>${esc(fu.name)}</h3>
-        <button class="wx-more" id="wx-more" type="button" title="聊天设置" aria-label="聊天设置">${ic('more',18)}</button>
+        <span style="margin-left:auto;display:flex;gap:2px">
+          <button class="wx-more" id="chat-search-toggle" data-kind="chat" data-target="${esc(uid)}" type="button" title="查找聊天记录" aria-label="查找聊天记录">${ic('search',17)}</button>
+          <button class="wx-more" id="wx-more" type="button" title="聊天设置" aria-label="聊天设置">${ic('more',18)}</button>
+        </span>
       </div>
       <div class="wx-scroll" id="ch-scroll">
         ${pageMessages.map((m,mi)=>{
@@ -4253,6 +4257,76 @@ function viewChat(uid){
 function closeWxCfg(){
   const o=document.getElementById('wx-cfg-overlay');if(o)o.remove();
   const p=document.getElementById('ch-cfg');if(p)p.remove();
+}
+/* ---------- 会话内聊天记录搜索 ---------- */
+function closeChatSearch(){const o=document.getElementById('chat-search-overlay');if(o)o.remove();}
+function chatSearchSource(kind,target){
+  if(kind==='chat'){
+    const ch=chatOf(target);
+    const u=DB.data.users.find(x=>x.id===target);
+    return {messages:ch.messages||[],pageKey:String(target),selfName:DB.user?.name||'我',otherName:u?.name||'对方'};
+  }
+  if(kind==='room'){
+    const rooms=roomsOf();
+    const room=rooms.find(r=>String(r.id)===String(target))||rooms[0];
+    return {messages:room.messages||[],pageKey:'room:'+room.id,selfName:DB.user?.name||'我',otherName:room.name||'聊天室'};
+  }
+  if(kind==='workgroup'){
+    const wg=workgroupOf();
+    return {messages:wg.messages||[],pageKey:'wg',selfName:DB.user?.name||'我',otherName:'工作组'};
+  }
+  return {messages:[],pageKey:'',selfName:'我',otherName:''};
+}
+function openChatSearch(kind,target){
+  closeChatSearch();
+  const src=chatSearchSource(kind,target);
+  const host=document.querySelector('.chat-window')||document.querySelector('.wx-main');
+  if(!host)return;
+  const cs=getComputedStyle(host);
+  if(cs.position==='static')host.style.position='relative';
+  const bar=document.createElement('div');
+  bar.id='chat-search-overlay';
+  bar.innerHTML=`<div class="cs-bar">
+      <input id="cs-input" type="search" placeholder="查找聊天记录..." autocomplete="off">
+      <button class="btn btn-sm btn-ghost" id="cs-close" type="button">关闭</button>
+    </div>
+    <div id="cs-results" class="cs-results"></div>`;
+  host.appendChild(bar);
+  const input=bar.querySelector('#cs-input');
+  const results=bar.querySelector('#cs-results');
+  input.focus();
+  const getName=uid=>DB.data.users.find(u=>u.id===uid)?.name||'?';
+  const render=()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q){results.innerHTML='<div class="cs-empty">输入关键词搜索当前会话全部消息</div>';return;}
+    const hits=src.messages.filter(m=>!m.recalled&&m.text&&String(m.text).toLowerCase().includes(q)).slice(-80).reverse();
+    if(!hits.length){results.innerHTML='<div class="cs-empty">没有匹配的消息</div>';return;}
+    results.innerHTML=`<div class="cs-head">找到 ${hits.length} 条</div>`+hits.map(m=>{
+      const sender=m.uid?getName(m.uid):(m.side==='me'?src.selfName:src.otherName);
+      return `<div class="cs-hit" data-msgid="${esc(m.id)}">
+        <div class="cs-from">${esc(sender)}<time>${esc(relTime(m.at))}</time></div>
+        <div class="cs-text">${esc(String(m.text).slice(0,140))}</div>
+      </div>`;
+    }).join('');
+  };
+  render();
+  input.addEventListener('input',render);
+  bar.querySelector('#cs-close').addEventListener('click',closeChatSearch);
+  results.addEventListener('click',e=>{
+    const hit=e.target.closest('.cs-hit');if(!hit)return;
+    const mid=hit.dataset.msgid;
+    const idx=src.messages.findIndex(m=>m.id===mid);
+    if(idx>=0){
+      const fromEnd=src.messages.length-1-idx;
+      CHAT_PAGE_STATE[src.pageKey]=Math.floor(fromEnd/CHAT_PAGE_SIZE);
+    }
+    closeChatSearch();
+    renderBody();
+    setTimeout(()=>{
+      const el=document.querySelector(`[data-msgctx*="${mid}"]`);
+      if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('cs-flash');setTimeout(()=>el.classList.remove('cs-flash'),1800);}
+    },80);
+  });
 }
 function openWxCfg(uid){
   closeWxCfg();
@@ -4408,6 +4482,14 @@ document.addEventListener('input',e=>{
     it.style.display=(!q||name.indexOf(q)>=0)?'':'none';
   });
 });
+/* 会话内搜索按钮 */
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('#chat-search-toggle');
+  if(!btn)return;
+  openChatSearch(btn.dataset.kind,btn.dataset.target);
+});
+/* 路由切换时关闭搜索浮层 */
+window.addEventListener('hashchange',closeChatSearch);
 /* 路由切换时关闭设置抽屉 */
 window.addEventListener('hashchange',closeWxCfg);
 
@@ -4462,6 +4544,7 @@ function sendRoom(room){
   if(!room)room=activeRoom();
   if(!room||!roomsOf().some(r=>r.id===room.id)){toast('当前聊天室不存在，消息未发送。','warn');return;}
   commitOutgoingMessage({kind:'room',roomId:room.id},{id:genId('m'),uid:DB.user.id,type:'text',text,at:nowStr()});
+  ta.value='';
 }
 function sendChat(uid){
   const ta=$('#ch-text');const text=ta.value.trim();
@@ -4469,6 +4552,7 @@ function sendChat(uid){
   if(DB.user&&String(uid)===String(DB.user.id)){toast('不能给自己发私信','warn');return;}
   if(!uid||!DB.data.users.some(u=>u.id===uid)){toast('当前私聊对象不存在，消息未发送。','warn');return;}
   commitOutgoingMessage({kind:'chat',key:uid,side:'them'},{id:genId('m'),side:'me',type:'text',text,at:nowStr()});
+  ta.value='';
 }
 /* 消息发送人名字（用于编辑/引用） */
 function msgSenderName(kind,key,m){
@@ -5811,6 +5895,7 @@ function viewWorkgroup(){
       <div class="wg-title"><h3>工作组</h3><div class="ch-hint">员工与管理员内部群 · ${wg.members.length} 位成员</div></div>
       <div class="ch-actions">
         <button class="btn btn-sm btn-orange" id="wg-speak" type="button">${ic('megaphone',15)} TA 发言</button>
+        <button class="btn btn-sm btn-icon" id="chat-search-toggle" data-kind="workgroup" data-target="" title="查找聊天记录" aria-label="查找聊天记录">${ic('search',16)}</button>
         <button class="btn btn-sm btn-icon" id="wg-members" type="button" title="成员管理" aria-label="成员管理">${ic('members',17)}</button>
         <button class="btn btn-sm btn-icon btn-danger-ic" id="wg-clear-messages" type="button" title="只清除工作组消息" aria-label="清除此窗口">${ic('trash',17)}</button>
         <button class="btn btn-sm btn-icon" id="wg-cfg-open" type="button" title="工作组设置" aria-label="工作组设置">${ic('settings',17)}</button>
@@ -7735,6 +7820,7 @@ document.addEventListener('click',e=>{
     if(!DB.user||DB.user.level<2){toast('工作组仅对员工和管理员开放','warn');return;}
     if(!workgroupOf().members.includes(DB.user.id))workgroupOf().members.push(DB.user.id);
     commitOutgoingMessage({kind:'workgroup'},{id:genId('m'),uid:DB.user.id,type:'text',text,at:nowStr()});
+    ta.value='';
     return;
   }
   /* 员工关系网缩放：只改变显示比例，不修改节点坐标和关系数据 */

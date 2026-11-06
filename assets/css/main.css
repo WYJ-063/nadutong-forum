@@ -286,6 +286,20 @@ label.fl{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px;font-
 .wx-search input{width:100%;box-sizing:border-box;background:var(--pt-input);border:1px solid var(--pt-border);border-radius:8px;padding:8px 12px;color:var(--pt-text);font-size:13px;outline:none}
 .wx-search input::placeholder{color:var(--pt-muted)}
 .wx-search input:focus{border-color:var(--pt-accent)}
+/* 会话内搜索浮层 */
+#chat-search-overlay{position:absolute;left:0;right:0;top:0;bottom:0;background:var(--pt-panel);z-index:30;display:flex;flex-direction:column;box-shadow:-4px 0 16px rgba(0,0,0,.18)}
+#chat-search-overlay .cs-bar{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--pt-border);align-items:center}
+#chat-search-overlay .cs-bar input{flex:1;background:var(--pt-input);border:1px solid var(--pt-border);border-radius:8px;padding:8px 12px;color:var(--pt-text);outline:none;font-size:14px}
+#chat-search-overlay .cs-results{flex:1;overflow-y:auto;min-height:0;padding:4px 0}
+#chat-search-overlay .cs-empty{padding:28px 16px;text-align:center;color:var(--pt-muted);font-size:13px}
+#chat-search-overlay .cs-head{padding:6px 14px;font-size:11px;color:var(--pt-muted)}
+#chat-search-overlay .cs-hit{padding:10px 14px;border-bottom:1px solid var(--pt-border);cursor:pointer}
+#chat-search-overlay .cs-hit:hover{background:var(--pt-input)}
+#chat-search-overlay .cs-from{font-size:12px;font-weight:600;color:var(--pt-text)}
+#chat-search-overlay .cs-from time{font-weight:400;color:var(--pt-muted);font-size:11px;margin-left:8px}
+#chat-search-overlay .cs-text{font-size:13px;color:var(--pt-text-soft);margin-top:3px;white-space:pre-wrap;word-break:break-word}
+@keyframes csFlash{0%,100%{background:transparent}30%,70%{background:var(--pt-accent-soft,rgba(255,145,77,.25));border-radius:8px}}
+.cs-flash{animation:csFlash 1.6s ease}
 .wx-new-row{display:flex;gap:6px;padding:0 12px 10px;flex:0 0 auto}
 .wx-new-row select{flex:1;min-width:0;background:var(--pt-input);border:1px solid var(--pt-border);border-radius:8px;padding:7px 8px;color:var(--pt-text);font-size:12.5px}
 .wx-new-row .btn{padding:7px 10px}
@@ -2216,10 +2230,10 @@ select, select.field { max-width: 100%; }
   .portal.is-top-hidden .nav-wrap{
     transform:translateY(calc(-100% - var(--topbar-h,92px)));}
   .portal .chat-window,.portal .wx-im{
-    height:calc(100dvh - var(--mobile-chrome-h) - 28px);min-height:0;max-height:none;
-    transition:height .3s ease;}
+    height:calc(100dvh - var(--mobile-chrome-h));min-height:0;max-height:none;
+    transition:height .32s cubic-bezier(.22,.61,.36,1);}
   .portal .room-tabs-bar + .chat-window{
-    height:calc(100dvh - var(--mobile-chrome-h) - 57px - 28px);}
+    height:calc(100dvh - var(--mobile-chrome-h) - 57px);}
   .chat-input-line{padding:7px 8px;gap:6px;}
   .ci-ib{width:36px;height:36px;flex-basis:36px;}
   .ci-text-wrap textarea{min-height:36px;font-size:16px;}
