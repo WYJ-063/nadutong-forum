@@ -4871,6 +4871,26 @@ function targetBox(target){
   return workgroupOf();
 }
 function targetArr(target){return targetBox(target).messages;}
+/* 正在输入状态：所有字卡会话共用，气泡末尾追加三点动画 */
+const _typingTargets=new Set();
+function typingKey(target){
+  if(!target)return '';
+  if(target.kind==='chat')return 'chat:'+target.key;
+  if(target.kind==='room')return 'room:'+target.roomId;
+  return 'wg:main';
+}
+function setTyping(target,on){
+  if(!target)return;
+  const k=typingKey(target),had=_typingTargets.has(k);
+  if(on)_typingTargets.add(k);else _typingTargets.delete(k);
+  if(had!==on)refreshIfActive(target);
+}
+function typingBubbleHtml(target,other){
+  const av=target&&target.kind==='chat'
+    ?`<span class="m-av">${avatarHtml32(other||{name:'对方'})}</span>`
+    :`<span class="m-av typing-av"></span>`;
+  return `<div class="msg them">${av}<span class="msg-content-stack"><span class="bubble typing-bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span></span></div>`;
+}
 function emitCard(target,part){
   const arr=targetArr(target);
   const m={id:genId('m'),at:nowStr()};
@@ -4931,7 +4951,7 @@ function renderConversationMessages(target){
       :'<div class="empty">工作组还没有消息。</div>';
   const me=DB.user;
   const other=kind==='chat'?DB.data.users.find(u=>u.id===key):null;
-  return arr.map((m,mi)=>{
+  const out=arr.map((m,mi)=>{
     const timeNode=chatTimestampHtml(m,kind,key,arr[mi-1]);
     if(kind==='chat'){
       const mine=m.side==='me';
@@ -4950,6 +4970,8 @@ function renderConversationMessages(target){
     const content=money?`<span class="msg-attachment" data-msgctx="${ctxData(ctxKind,key,m.id)}">${bubbleContent(m)}</span>`:`<span class="bubble ${m.photo?'has-photo':''}" data-msgctx="${ctxData(ctxKind,key,m.id)}">${bubbleContent(m)}</span>`;
     return `${timeNode}<div class="msg ${mine?'me':'them'} ${money?'money-msg':''}"><span class="m-av" ${avAttr}>${avatarHtml32(u)}</span><span class="msg-content-stack">${mine?'':`<span class="m-name">${esc(u.name)}</span>`}${content}${messageReceiptHtml(m,mine)}</span></div>${money?moneyNoticeHtml(m,ctxKind,key):''}`;
   }).join('');
+  if(_typingTargets.has(typingKey(target)))out+=typingBubbleHtml(target,other);
+  return out;
 }
 function refreshConversationDom(target){
   const sc=$('#ch-scroll');
@@ -4994,6 +5016,7 @@ function replyPeople(target,box){
 let _replyGeneration=0;
 function finishAutoReply(target,box,generation=_replyGeneration){
   if(generation!==_replyGeneration||!DB.user||targetBox(target)!==box)return;
+  setTyping(target,false);
   box.replyPending=false;
   if(box.queuedReply){
     box.queuedReply=false;box.proactiveWaiting=false;box.replyPending=true;DB.save();
@@ -5011,22 +5034,25 @@ function autoReply(target){
   if(box.replyPending){box.queuedReply=true;box.proactiveWaiting=false;DB.save();return;}
   const generation=_replyGeneration,sessionUser=DB.user.id;
   box.replyPending=true;box.proactiveWaiting=false;DB.save();
+  setTyping(target,true);
   setTimeout(()=>{
     if(generation!==_replyGeneration||!DB.user||DB.user.id!==sessionUser||targetBox(target)!==box||modeCfg(box).mode!=='card'){
       if(targetBox(target)===box){box.replyPending=false;box.queuedReply=false;DB.save();}
+      setTyping(target,false);
       return;
     }
     const people=replyPeople(target,box);
-    // 启用“已读不回”时，有 20% 概率不触发回复；界面不显示逐条已读状态。
-    if(box.readNoReply&&Math.random()<0.20){finishAutoReply(target,box,generation);refreshIfActive(target);return;}
+    // 启用"已读不回"时，有 20% 概率不触发回复；界面不显示逐条已读状态。
+    if(box.readNoReply&&Math.random()<0.20){setTyping(target,false);finishAutoReply(target,box,generation);refreshIfActive(target);return;}
     // 对面偶尔会发来红包或转账；群聊随机由一位成员发出。
     if(people.length&&Math.random()<0.22){
       const sender=pick(people),t2=target.kind==='chat'?{...target,side:'them'}:{...target,uid:sender.id};
       emitMoney(t2,Math.random()<0.5?'redpacket':'transfer',randMoney(),Math.random()<0.5?'收下，别客气。':'一点心意。');
+      setTyping(target,false);
       finishAutoReply(target,box,generation);return;
     }
     const withCards=people.filter(p=>Array.isArray(p.cards)&&p.cards.length);
-    if(!withCards.length){finishAutoReply(target,box,generation);return;}
+    if(!withCards.length){setTyping(target,false);finishAutoReply(target,box,generation);return;}
     emitCardBurst(target.kind==='chat'?{...target,side:'them'}:target,withCards,()=>finishAutoReply(target,box,generation));
   },speedDelay(cfg.speed));
 }
@@ -5069,6 +5095,7 @@ function sendProactiveRound(target,box,people){
  if(!DB.user||!box||box.proactive===false||box.mode!=='card'||box.replyPending)return;
  people=people||replyPeople(target,box).filter(p=>Array.isArray(p.cards)&&p.cards.length);if(!people.length)return;
  const generation=_replyGeneration;box.replyPending=true;DB.save();
+ setTyping(target,true);
  const sender=pick(people),t2=target.kind==='chat'?{...target,side:'them'}:{...target,uid:sender.id};
  if(Math.random()<.08){emitMoney(t2,Math.random()<.5?'redpacket':'transfer',randMoney(),'一点心意。');finishAutoReply(target,box,generation);}
  else emitCardBurst(target.kind==='chat'?{...target,side:'them'}:target,people,()=>finishAutoReply(target,box,generation));
