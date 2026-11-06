@@ -13,6 +13,27 @@ const $$=(s,p=document)=>[...p.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const genId=(p='id')=>p+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function nowStr(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+/* 轻量音效：Web Audio 合成，无外部文件 */
+let _audioCtx=null,_lastRecvSoundAt=0;
+function playTone(freq,duration,type,volume,delay){
+  if(DB.data&&DB.data.settings&&DB.data.settings.soundOn===false)return;
+  try{
+    if(!_audioCtx)_audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(_audioCtx.state==='suspended')_audioCtx.resume();
+    const t=_audioCtx.currentTime+(delay||0);
+    const osc=_audioCtx.createOscillator(),g=_audioCtx.createGain();
+    osc.type=type||'sine';osc.frequency.value=freq;
+    g.gain.setValueAtTime(volume||0.12,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+duration);
+    osc.connect(g);g.connect(_audioCtx.destination);
+    osc.start(t);osc.stop(t+duration+0.02);
+  }catch(e){}
+}
+function playSendSound(){playTone(520,0.08,'triangle',0.10);playTone(760,0.10,'triangle',0.07,0.05);}
+function playRecvSound(){
+  const now=Date.now();if(now-_lastRecvSoundAt<1200)return;_lastRecvSoundAt=now;
+  playTone(880,0.12,'sine',0.10);playTone(1320,0.16,'sine',0.06,0.08);
+}
 function relTime(t){if(!t)return'';const d=new Date(String(t).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(t);const diff=(Date.now()-d.getTime())/1000;if(diff<60)return'刚刚';if(diff<3600)return Math.floor(diff/60)+'分钟前';if(diff<86400)return Math.floor(diff/3600)+'小时前';if(diff<2592000)return Math.floor(diff/86400)+'天前';if(diff<31536000)return Math.floor(diff/2592000)+'个月前';return Math.floor(diff/31536000)+'年前';}
 function toast(msg,type=''){const w=$('#toast');const el=document.createElement('div');el.className='toast '+(type?'t-'+type:'');el.textContent=msg;w.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='.3s';setTimeout(()=>el.remove(),300)},2400);}
 function modal(html){return new Promise(resolve=>{const mask=document.createElement('div');mask.className='modal-mask';mask.innerHTML=`<div class="modal">${html}</div>`;document.body.appendChild(mask);mask._close=v=>{if(mask.dataset.closing==='1')return;mask.dataset.closing='1';resolve(v);setTimeout(()=>mask.remove(),0)};mask.addEventListener('click',e=>{if(e.target===mask)mask._close(null);});});}
@@ -3750,6 +3771,8 @@ function viewSettings(){
     <div class="search-row"><input class="field" id="set-code" style="flex:1" placeholder="输入身份激活码">
       <button class="btn btn-sm" id="set-act">激活</button></div>
     <p class="ph-sub" style="font-size:12.5px;margin-top:6px">员工 NDT-EMP · 管理员 NDT-MGR · 恢复普通异人 NDT-USER</p>
+    <h3 style="font-size:15px;margin:22px 0 8px">声音</h3>
+    <label class="wx-cfg-check" style="font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="set-sound" ${DB.data.settings&&DB.data.settings.soundOn===false?'':'checked'}> 收发消息音效（Web Audio 合成，无外部文件）</label>
     <h3 style="font-size:15px;margin:22px 0 8px">数据备份 / 迁移</h3>
     <p class="ph-sub" style="font-size:12.5px">当前本地数据约 ${size} KB。导出 JSON 可分享给好友，或在其他浏览器导入。</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -3993,6 +4016,7 @@ function markIncomingMessage(target,m){
   const box=targetBox(target);
   if(targetIsOpen(target))box.unread=0;
   else box.unread=Math.max(0,Number(box.unread)||0)+1;
+  playRecvSound();
   DB.save();
   if(document.hidden&&'Notification' in window&&Notification.permission==='granted'){
     const title=target.kind==='chat'?(userOfId(target.key)?.name||'新私信'):'新的群组消息';
@@ -4425,6 +4449,7 @@ function commitOutgoingMessage(target,msg,options={}){
   box.messages.push(msg);if(target.kind==='chat')CHAT_PAGE_STATE[target.key]=0;else if(target.kind==='room')CHAT_PAGE_STATE['room:'+target.roomId]=0;else if(target.kind==='workgroup')CHAT_PAGE_STATE['workgroup:main']=0;
   // 用户主动发送后暂停主动触发，由本条消息对应的 autoReply 统一调度。
   box.proactiveWaiting=true;
+  playSendSound();
   DB.save();
   refreshIfActive(target);
   if(targetIsOpen(target))scrollRoom();
@@ -7886,6 +7911,7 @@ document.addEventListener('change',e=>{
   if(t.id==='rm-read-no-reply'){activeRoom().readNoReply=t.checked;DB.save();return;}
   if(t.id==='ch-read-no-reply'){chatOf(parseHash().seg[1]).readNoReply=t.checked;DB.save();return;}
   if(t.id==='wg-read-no-reply'){workgroupOf().readNoReply=t.checked;DB.save();return;}
+  if(t.id==='set-sound'){DB.data.settings=DB.data.settings||{};DB.data.settings.soundOn=t.checked;DB.save();if(t.checked)playSendSound();return;}
   if(t.id==='wg-speed'){workgroupOf().speed=t.value;DB.save();return;}
   /* 工作组发照片 */
   if(t.id==='wg-photo-file'&&t.files[0]){
