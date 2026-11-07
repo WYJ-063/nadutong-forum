@@ -933,26 +933,28 @@ async function loadInviteBox(){
   if(!box)return;
   try{
     const d=await Cloud.request('/invite');
+    if(!document.body.contains(box))return;
     const list=(d.invited||[]).slice(0,10).map(u=>
-      `<div style=”width:100%;font-size:13px;color:var(--muted,#888);padding:4px 0;border-top:1px dashed var(--pt-line,#eee)”>
-        ${esc(u.name)} <span class=”ph-sub”>${esc(u.login)}</span>
-      </div>`).join('');
-    box.innerHTML=`
-      <code style=”font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:8px;border:1px solid #ffd97a”>${esc(d.code)}</code>
-      <button class=”btn btn-sm btn-orange” id=”invite-copy”>复制邀请码</button>
-      <button class=”btn btn-sm btn-ghost” id=”invite-copy-link”>复制邀请链接</button>
-      <span class=”ph-sub” style=”margin-left:auto”>已邀请 <b style=”color:#c8860a”>${d.count}</b> 人</span>
-      ${list?'<div style=”width:100%;margin-top:6px”>'+list+'</div>':''}
-    `;
-    $('#invite-copy').onclick=()=>{
+      '<div style=”width:100%;font-size:13px;color:#888;padding:4px 0;border-top:1px dashed #eee”>'+
+        esc(u.name)+' <span class=”ph-sub”>'+esc(u.login)+'</span>'+
+      '</div>').join('');
+    box.innerHTML=
+      '<code style=”font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:8px;border:1px solid #ffd97a”>'+esc(d.code)+'</code>'+
+      '<button class=”btn btn-sm btn-orange” id=”invite-copy”>复制邀请码</button>'+
+      '<button class=”btn btn-sm btn-ghost” id=”invite-copy-link”>复制邀请链接</button>'+
+      '<span class=”ph-sub” style=”margin-left:auto”>已邀请 <b style=”color:#c8860a”>'+d.count+'</b> 人</span>'+
+      (list?'<div style=”width:100%;margin-top:6px”>'+list+'</div>':'');
+    const btnCopy=$('#invite-copy',box);
+    const btnLink=$('#invite-copy-link',box);
+    if(btnCopy)btnCopy.onclick=()=>{
       navigator.clipboard.writeText(d.code).then(()=>toast('邀请码已复制','ok')).catch(()=>toast('复制失败','err'));
     };
-    $('#invite-copy-link').onclick=()=>{
+    if(btnLink)btnLink.onclick=()=>{
       const link=location.origin+location.pathname+'#/register?ref='+d.code;
       navigator.clipboard.writeText(link).then(()=>toast('邀请链接已复制','ok')).catch(()=>toast('复制失败','err'));
     };
   }catch(e){
-    box.innerHTML=`<span class=”ph-sub”>邀请码加载失败：${esc(e.message)}</span>`;
+    box.innerHTML='<span class=”ph-sub”>邀请码加载失败：'+esc(e.message)+'</span>';
   }
 }
 async function enableWebPush(){
