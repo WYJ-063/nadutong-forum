@@ -1001,6 +1001,7 @@ function viewCloud(){
   const html=portalShell('cloud',c);
   if(Cloud.connected)setTimeout(bindCloudAvatar,0);
   if(Cloud.connected)setTimeout(bindCloudPush,0);
+  if(Cloud.connected)setTimeout(loadInviteBox,0);
   if(Cloud.connected&&Cloud.user.role>=3)setTimeout(loadCloudMod,0);
   return html;
 }
