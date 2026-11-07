@@ -1,0 +1,160 @@
+/* ============================================================
+   徽章炫彩效果 · 扩展包（第 7、8 种）
+   与 main.css 里 .bd-eff-0 ~ .bd-eff-5 互不影响：
+   - 6 墨曜：深色底 + 星砂闪烁（现有 6 种全是亮色系，深色系是空白）
+   - 7 烟粉：浅粉底 + 呼吸光晕（不走全站通用的白色扫光，避免和彩虹/银辉雷同）
+   仅在 main.css 之后引入即可，不覆盖任何既有样式。
+   ============================================================ */
+
+/* ---------- 6 · 墨曜：深墨底 + 银蓝星砂 ---------- */
+.bd-eff-6{--be-ink:#EAF0FF;--be-edge:#8FA3C4;--be-glow:rgba(110,150,230,.5);
+  --be-bg:
+    radial-gradient(circle at 78% 18%,rgba(110,150,255,.38),transparent 58%),
+    radial-gradient(circle at 12% 88%,rgba(150,110,255,.28),transparent 55%),
+    linear-gradient(135deg,#101826,#1B2740 45%,#070B14 100%);}
+/* 星砂：铺一层稀疏光点，缓慢明暗呼吸 */
+.bd-badge.bd-eff-6::before,
+.up-badge.bd-eff-6::before,
+.bd-grant.bd-eff-6::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background-image:
+    radial-gradient(2.6px 2.6px at 16% 34%,#fff,transparent 65%),
+    radial-gradient(2.2px 2.2px at 62% 18%,rgba(186,214,255,.95),transparent 65%),
+    radial-gradient(2.8px 2.8px at 84% 74%,#fff,transparent 65%),
+    radial-gradient(2.1px 2.1px at 30% 80%,rgba(206,226,255,.9),transparent 65%),
+    radial-gradient(1.8px 1.8px at 48% 52%,rgba(255,255,255,.85),transparent 65%),
+    radial-gradient(1.8px 1.8px at 92% 34%,rgba(200,220,255,.9),transparent 65%);
+  animation:beTwinkle 3.8s ease-in-out infinite;
+}
+/* 深色底上，通用的白色扫光会更明显，这里调淡一点以免喧宾夺主 */
+.bd-badge.bd-eff-6::after,
+.up-badge.bd-eff-6::after,
+.bd-grant.bd-eff-6::after{opacity:.55}
+@keyframes beTwinkle{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* ---------- 7 · 烟粉：浅粉渐变 + 呼吸光晕（关闭白色扫光） ---------- */
+.bd-eff-7{--be-ink:#7A2340;--be-edge:#EE8FB4;--be-glow:rgba(238,143,180,.6);
+  --be-bg:linear-gradient(120deg,#FFC9DE,#FFF3F8 40%,#FFA9C9 74%,#FFDCEA 100%);}
+.bd-badge.bd-eff-7,
+.up-badge.bd-eff-7,
+.bd-grant.bd-eff-7,
+.bd-manage-row.bd-eff-7{
+  background-size:180% 180%;
+  animation:beBreath 4.6s ease-in-out infinite;
+}
+.bd-badge.bd-eff-7::after,
+.up-badge.bd-eff-7::after,
+.bd-grant.bd-eff-7::after{display:none}
+@keyframes beBreath{
+  0%,100%{background-position:0% 50%;box-shadow:0 4px 14px rgba(242,169,196,.38)}
+  50%{background-position:100% 50%;box-shadow:0 6px 24px rgba(242,169,196,.78)}
+}
+
+/* ---------- 选择器色卡（徽章管理弹窗里的两个新按钮） ---------- */
+.bd-eff-opt.p6{
+  background:linear-gradient(135deg,#0E1116,#22303F 55%,#070A0D);
+  box-shadow:inset 0 0 0 1px rgba(143,163,196,.55);
+}
+.bd-eff-opt.p7{background:linear-gradient(135deg,#FFE3EE,#FFF9FC 50%,#FFC9DC)}
+
+/* ============================================================
+   第二批：8 ~ 15
+   每种换一个色相 + 换一种动效，避免和前面 8 种撞脸：
+   8 竹青·斜纹流动  9 青柠·极速扫光  10 靛蓝·中心脉动  11 品红·横向流动
+   12 酒红·纵向滑动  13 藕荷·柔光扩散  14 双色·分割推移  15 黑金·金线慢扫
+   ============================================================ */
+
+/* ---------- 8 · 竹青：斜向条纹缓慢滚动 ---------- */
+.bd-eff-8{--be-ink:#FFFFFF;--be-edge:#7CD07A;--be-glow:rgba(96,190,112,.45);
+  --be-bg:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0 8px,rgba(255,255,255,0) 8px 18px),
+    linear-gradient(135deg,#1B6B33,#6FBF63 45%,#2C7A3A 100%);}
+.bd-badge.bd-eff-8,.up-badge.bd-eff-8,.bd-grant.bd-eff-8,.bd-manage-row.bd-eff-8{
+  animation:beStripes 5.5s linear infinite;
+}
+@keyframes beStripes{0%{background-position:0 0,0% 50%}100%{background-position:36px 36px,100% 50%}}
+
+/* ---------- 9 · 青柠：更窄更快的扫光 ---------- */
+.bd-eff-9{--be-ink:#3A4200;--be-edge:#D6F24A;--be-glow:rgba(200,230,60,.55);
+  --be-bg:linear-gradient(120deg,#C8E600,#F7FA9A 45%,#A8CF00 100%);}
+.bd-badge.bd-eff-9::after,.up-badge.bd-eff-9::after,.bd-grant.bd-eff-9::after{
+  width:28%;animation-duration:1.6s;
+}
+
+/* ---------- 10 · 靛蓝：中心光晕脉动（用阴影动画，不遮字） ---------- */
+.bd-eff-10{--be-ink:#EAF0FF;--be-edge:#6F8CFF;--be-glow:rgba(70,100,255,.55);
+  --be-bg:linear-gradient(135deg,#1B2BC4,#4F6BFF 50%,#0F1B99 100%);}
+.bd-badge.bd-eff-10,.up-badge.bd-eff-10,.bd-grant.bd-eff-10,.bd-manage-row.bd-eff-10{
+  animation:bePulse 2.4s ease-in-out infinite;
+}
+@keyframes bePulse{
+  0%,100%{box-shadow:0 4px 14px rgba(70,100,255,.35),inset 0 0 10px rgba(150,180,255,.18)}
+  50%{box-shadow:0 4px 22px rgba(70,100,255,.62),inset 0 0 22px rgba(190,212,255,.5)}
+}
+
+/* ---------- 11 · 品红：横向色带流动 ---------- */
+.bd-eff-11{--be-ink:#FFFFFF;--be-edge:#FF7AB8;--be-glow:rgba(255,90,160,.5);
+  --be-bg:linear-gradient(120deg,#A0115E,#FF3D8B 42%,#FF9AD0 68%,#B01468 100%);}
+.bd-badge.bd-eff-11,.up-badge.bd-eff-11,.bd-grant.bd-eff-11,.bd-manage-row.bd-eff-11{
+  background-size:220% 100%;animation:beSlideX 5s ease-in-out infinite;
+  text-shadow:0 1px 3px rgba(90,0,40,.35);
+}
+@keyframes beSlideX{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* ---------- 12 · 酒红：纵向渐层滑动 ---------- */
+.bd-eff-12{--be-ink:#FFE3E8;--be-edge:#A8324A;--be-glow:rgba(160,40,70,.5);
+  --be-bg:linear-gradient(180deg,#3A0A12,#8E1B2E 42%,#5E0F1C 74%,#2A0710 100%);}
+.bd-badge.bd-eff-12,.up-badge.bd-eff-12,.bd-grant.bd-eff-12,.bd-manage-row.bd-eff-12{
+  background-size:100% 220%;animation:beSlideY 6s ease-in-out infinite;
+}
+@keyframes beSlideY{0%,100%{background-position:50% 0%}50%{background-position:50% 100%}}
+
+/* ---------- 13 · 藕荷：大面积柔光扩散（阴影扩散，不遮字） ---------- */
+.bd-eff-13{--be-ink:#452C66;--be-edge:#BE9FE4;--be-glow:rgba(190,165,235,.6);
+  --be-bg:linear-gradient(135deg,#B69BE6,#F5EFFF 42%,#C9B2EC 100%);}
+.bd-badge.bd-eff-13,.up-badge.bd-eff-13,.bd-grant.bd-eff-13,.bd-manage-row.bd-eff-13{
+  animation:beBloom 5.5s ease-in-out infinite;
+}
+@keyframes beBloom{
+  0%,100%{box-shadow:0 4px 12px rgba(190,165,235,.4),inset 0 0 10px rgba(255,255,255,.28)}
+  50%{box-shadow:0 6px 26px rgba(190,165,235,.62),inset 0 0 26px rgba(255,255,255,.75)}
+}
+
+/* ---------- 14 · 双色对撞：青紫分割线平移 ---------- */
+.bd-eff-14{--be-ink:#FFFFFF;--be-edge:#7A5CF0;--be-glow:rgba(110,80,220,.5);
+  --be-bg:linear-gradient(110deg,#0F8F84 0 46%,#6B45D8 46% 100%);}
+.bd-badge.bd-eff-14,.up-badge.bd-eff-14,.bd-grant.bd-eff-14,.bd-manage-row.bd-eff-14{
+  background-size:200% 100%;animation:beSplit 7s ease-in-out infinite;
+  text-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+@keyframes beSplit{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* ---------- 15 · 黑金：金边 + 极慢金线扫过 ---------- */
+.bd-eff-15{--be-ink:#F2DE9C;--be-edge:#D4AF37;--be-glow:rgba(212,175,55,.55);
+  --be-bg:linear-gradient(135deg,#0B0B0C,#1A1712 50%,#070707 100%);}
+.bd-badge.bd-eff-15,.up-badge.bd-eff-15,.bd-grant.bd-eff-15{
+  border-width:1.5px;border-style:solid;border-color:rgba(212,175,55,.95);
+}
+/* 金箔质感：金色内辉光缓慢明暗（阴影实现，不压字） */
+.bd-badge.bd-eff-15,.up-badge.bd-eff-15,.bd-grant.bd-eff-15,.bd-manage-row.bd-eff-15{
+  animation:beGold 5.2s ease-in-out infinite;
+}
+@keyframes beGold{
+  0%,100%{box-shadow:0 4px 14px rgba(212,175,55,.35),inset 0 0 12px rgba(212,175,55,.14)}
+  50%{box-shadow:0 6px 20px rgba(212,175,55,.6),inset 0 0 20px rgba(212,175,55,.4)}
+}
+.bd-badge.bd-eff-15::after,.up-badge.bd-eff-15::after,.bd-grant.bd-eff-15::after{
+  background:linear-gradient(100deg,transparent,rgba(240,215,130,.6),transparent);
+  animation-duration:6.5s;
+}
+
+/* ---------- 8~15 选择器色卡 ---------- */
+.bd-eff-opt.p8{background:linear-gradient(135deg,#1B6B33,#6FBF63 60%,#2C7A3A)}
+.bd-eff-opt.p9{background:linear-gradient(135deg,#C8E600,#F7FA9A 55%,#A8CF00)}
+.bd-eff-opt.p10{background:linear-gradient(135deg,#1B2BC4,#4F6BFF 55%,#0F1B99)}
+.bd-eff-opt.p11{background:linear-gradient(120deg,#A0115E,#FF3D8B 45%,#FFC0DE)}
+.bd-eff-opt.p12{background:linear-gradient(180deg,#3A0A12,#8E1B2E 55%,#2A0710)}
+.bd-eff-opt.p13{background:linear-gradient(135deg,#C9B6E8,#F7F2FF 55%,#D8C8F0)}
+.bd-eff-opt.p14{background:linear-gradient(110deg,#0F8F84 0 46%,#6B45D8 46% 100%)}
+.bd-eff-opt.p15{background:linear-gradient(135deg,#141414,#2A241A 55%,#0A0A0A);
+  box-shadow:inset 0 0 0 1px rgba(212,175,55,.75);}

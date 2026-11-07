@@ -326,7 +326,7 @@ async function getEquippedBadge(env,userId){
   return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc,effect:normEffect(row.effect)}:null;
 }
 /* 炫彩效果取值范围：0~5，非法值统一回退为 0 */
-const BADGE_EFFECTS=['0','1','2','3','4','5'];
+const BADGE_EFFECTS=['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
 function normEffect(v){
   const s=String(v==null?'0':v);
   return BADGE_EFFECTS.includes(s)?s:'0';

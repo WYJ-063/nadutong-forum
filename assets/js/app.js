@@ -1090,7 +1090,7 @@ async function cloudRerender(){
       id:r.id,postId:r.postId,parentId:r.parentId||null,
       authorId:r.authorId,authorName:r.authorName,
       authorLevel:r.authorLevel||0,authorLevelName:r.authorLevelName||'',
-      authorAvatar:r.authorAvatar||'',
+      authorAvatar:r.authorAvatar||'',authorBadge:r.authorBadge||null,
       content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
     $('#app').innerHTML=portalShell('forum',
       postDetailHtml(post,replies,Cloud.user.id,Cloud.user.role>=3,true,d.poll||null));
@@ -2675,10 +2675,15 @@ async function checkNewBadges(){
     _knownBadgeIds=cur;
   }catch(e){}
 }
-/* 炫彩效果元数据（与 CSS .bd-eff-* 对应） */
+/* 炫彩效果元数据（与 CSS .bd-eff-* 对应，共 16 种） */
 const BADGE_EFFECT_OPTIONS=[
   {v:'0',label:'金辉'},{v:'1',label:'紫电'},{v:'2',label:'烈焰'},
-  {v:'3',label:'青碧'},{v:'4',label:'彩虹'},{v:'5',label:'银辉'}
+  {v:'3',label:'青碧'},{v:'4',label:'彩虹'},{v:'5',label:'银辉'},
+  {v:'6',label:'墨曜（深色星砂）'},{v:'7',label:'烟粉（呼吸光晕）'},
+  {v:'8',label:'竹青（斜纹流动）'},{v:'9',label:'青柠（极速扫光）'},
+  {v:'10',label:'靛蓝（中心脉动）'},{v:'11',label:'品红（横向流动）'},
+  {v:'12',label:'酒红（纵向滑动）'},{v:'13',label:'藕荷（柔光扩散）'},
+  {v:'14',label:'双色（分割推移）'},{v:'15',label:'黑金（金线慢扫）'}
 ];
 async function openBadgeManageModal(){
   let editingId=null; /* null=新建，否则为编辑中的徽章 id */
@@ -3112,7 +3117,7 @@ function viewPost(id){
           id:r.id,postId:r.postId,parentId:r.parentId||null,
           authorId:r.authorId,authorName:r.authorName,
           authorLevel:r.authorLevel||0,authorLevelName:r.authorLevelName||'',
-          authorAvatar:r.authorAvatar||'',
+          authorAvatar:r.authorAvatar||'',authorBadge:r.authorBadge||null,
           content:r.content,createdAt:r.createdAt,votes:r.votes||[]}));
         $('#app').innerHTML=portalShell('forum',postDetailHtml(post,replies,curId,isAdmin,true,d.poll||null));
         /* 推送/通知带楼层时，渲染完成后滚动定位并高亮 */
