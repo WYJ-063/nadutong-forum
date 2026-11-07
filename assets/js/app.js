@@ -948,10 +948,8 @@ async function loadInviteBox(){
     box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }
 }
-/* 生成邀请分享卡片（与能力档案同款风格） */
+/* 生成邀请分享卡片（弹窗形式，与能力档案同款风格） */
 function generateInviteCard(d){
-  const preview=document.getElementById('invite-card-preview');
-  if(!preview)return;
   const T=SHARE_THEMES[DB.data.theme]||SHARE_THEMES.default;
   const W=750,M=40,cardW=W-M*2;
   const headH=120,codeH=180,footH=80,gap=20;
@@ -960,21 +958,18 @@ function generateInviteCard(d){
   const ctx=canvas.getContext('2d');
   drawShareBackground(ctx,W,H,T);
   let y=M;
-  /* 头部卡 */
   glassCard(ctx,M,y,cardW,headH,T);
   ctx.textAlign='left';ctx.textBaseline='middle';
   ctx.fillStyle=T.text;ctx.font='900 30px "Microsoft YaHei",sans-serif';
   ctx.fillText('🎯 好友邀请',M+26,y+40);
   ctx.fillStyle=T.sub;ctx.font='15px "Microsoft YaHei",sans-serif';
   ctx.fillText('注册时填写邀请码，双方各得 100 积分',M+26,y+78);
-  /* 右侧已邀请数 */
   const cntTxt='已邀请 '+d.count+' 人';
   ctx.font='700 18px "Microsoft YaHei",sans-serif';
   const bw=ctx.measureText(cntTxt).width+32;
   ctx.fillStyle=T.avatarBg;roundRect(ctx,W-M-26-bw,y+headH/2-20,bw,40,20);ctx.fill();
   ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(cntTxt,W-M-26-bw/2,y+headH/2+1);
   y+=headH+gap;
-  /* 邀请码大卡 */
   glassCard(ctx,M,y,cardW,codeH,T);
   sectionTitle(ctx,M+26,y+12,'我的专属邀请码',T);
   ctx.textAlign='center';
@@ -983,15 +978,18 @@ function generateInviteCard(d){
   ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
   ctx.fillText('复制以上邀请码，注册时填入即可',W/2,y+155);
   y+=codeH+gap;
-  /* 页脚 */
   ctx.textAlign='center';
   ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
   ctx.fillText('哪都通 · 异人论坛',W/2,y+20);
   ctx.fillStyle=T.text;ctx.font='700 18px "Microsoft YaHei",sans-serif';
   ctx.fillText(siteUrl(),W/2,y+52);
-  preview.innerHTML='<img src="'+canvas.toDataURL('image/jpeg',.92)+'" style="width:100%;border-radius:16px" alt="邀请卡片">';
-  preview.style.display='block';
-  toast('分享卡片已生成，长按保存图片','ok');
+  const dataUrl=canvas.toDataURL('image/jpeg',.92);
+  modal(`<h3>邀请分享卡片</h3><div class="m-body" style="text-align:center">
+    <img src="${dataUrl}" style="max-width:100%;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
+  </div>
+  <div class="m-foot"><a class="btn btn-orange" id="invite-card-dl" download="邀请卡片.jpg">保存图片</a>
+  <button class="btn btn-ghost btn-sm" data-m="no">关闭</button></div>`);
+  const dl=document.getElementById('invite-card-dl');if(dl)dl.href=dataUrl;
 }
 async function enableWebPush(){
   if(!Cloud.connected)throw new Error('请先登录云端账号');
