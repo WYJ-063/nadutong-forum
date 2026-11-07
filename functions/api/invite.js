@@ -1,4 +1,4 @@
-import {json,preflight,ensureSchema,getAuthUser,genId,nowStr} from '../_lib.js';
+import {json,preflight,ensureSchema,getAuthUser,genId,nowStr} from './_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
 
