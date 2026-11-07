@@ -267,6 +267,10 @@ async function grantBadge(env,userId,badgeId,grantorId){
   const owned=await env.DB.prepare(
     'SELECT 1 FROM user_badges WHERE user_id=? AND badge_id=?').bind(userId,badgeId).first();
   if(owned)return {granted:false,badge:null};
+  /* 佩戴位是单值语义：新徽章自动戴上之前，先清掉该用户其它徽章的佩戴标记，
+     否则会出现多个 equipped=1、个人主页同时显示多个「佩戴中」。 */
+  await env.DB.prepare('UPDATE user_badges SET equipped=0 WHERE user_id=?')
+    .bind(userId).run();
   await env.DB.prepare(
     `INSERT INTO user_badges (user_id,badge_id,granted_by,granted_at,equipped)
      VALUES (?,?,?,?,1)`)
@@ -444,8 +448,11 @@ async function getSecret(env){
   const row=await env.DB.prepare('SELECT value FROM meta WHERE key=?').bind('secret').first();
   if(row&&row.value)return row.value;
   const secret=crypto.randomUUID().replace(/-/g,'')+crypto.randomUUID().replace(/-/g,'');
-  await env.DB.prepare('INSERT INTO meta (key,value) VALUES (?,?)').bind('secret',secret).run();
-  return secret;
+  /* INSERT OR IGNORE：并发首次请求时只有一个写入成功，其余复用已生成的值，
+     避免 UNIQUE 冲突把注册/登录打成 500。 */
+  await env.DB.prepare('INSERT OR IGNORE INTO meta (key,value) VALUES (?,?)').bind('secret',secret).run();
+  const saved=await env.DB.prepare('SELECT value FROM meta WHERE key=?').bind('secret').first();
+  return (saved&&saved.value)||secret;
 }
 
 /* ---------- 密码哈希（PBKDF2 / SHA-256） ---------- */

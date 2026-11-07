@@ -2,10 +2,13 @@ import {
   json,preflight,ensureSchema,getAuthUser,isAdmin,nowStr
 } from '../_lib.js';
 
-/* 备份导出的表（顺序固定，便于日后恢复） */
+/* 备份导出的表（顺序固定，便于日后恢复）
+   注意：新增表必须同步加进来，否则恢复备份会丢徽章、档案、推送订阅和编辑历史。 */
 const TABLES=[
   'users','posts','replies','likes','notifications',
-  'boards','polls','poll_options','poll_votes','checkins','meta'
+  'boards','polls','poll_options','poll_votes','checkins',
+  'post_edits','badges','user_badges','user_profiles','push_subscriptions',
+  'invitations','meta'
 ];
 
 export async function onRequestOptions(){ return preflight(); }

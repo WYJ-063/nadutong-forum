@@ -140,6 +140,33 @@ export async function onRequestDelete({request,env,params}){
   /* 3) 该用户点过的赞、收到的通知 */
   await env.DB.prepare('DELETE FROM likes WHERE user_id=?').bind(uid).run();
   await env.DB.prepare('DELETE FROM notifications WHERE user_id=?').bind(uid).run();
+  /* 3.5) 投票 / 编辑历史 / 徽章 / 档案 / 推送订阅 / 邀请记录
+     以前删账号不会清这些表，会留下指向已不存在用户的孤儿数据。 */
+  await env.DB.prepare('DELETE FROM poll_votes WHERE user_id=?').bind(uid).run();
+  await env.DB.prepare('DELETE FROM post_edits WHERE editor_id=?').bind(uid).run();
+  if(postIds.length){
+    const ph=postIds.map(()=>'?').join(',');
+    await env.DB.prepare(
+      `DELETE FROM post_edits WHERE post_id IN (${ph})`).bind(...postIds).run();
+    const pollRes=await env.DB.prepare(
+      `SELECT id FROM polls WHERE post_id IN (${ph})`).bind(...postIds).all();
+    const pollIds=(pollRes.results||[]).map(p=>p.id);
+    if(pollIds.length){
+      const pph=pollIds.map(()=>'?').join(',');
+      await env.DB.prepare(
+        `DELETE FROM poll_votes WHERE poll_id IN (${pph})`).bind(...pollIds).run();
+      await env.DB.prepare(
+        `DELETE FROM poll_options WHERE poll_id IN (${pph})`).bind(...pollIds).run();
+      await env.DB.prepare(
+        `DELETE FROM polls WHERE id IN (${pph})`).bind(...pollIds).run();
+    }
+  }
+  await env.DB.prepare('DELETE FROM user_badges WHERE user_id=?').bind(uid).run();
+  await env.DB.prepare('DELETE FROM user_profiles WHERE user_id=?').bind(uid).run();
+  await env.DB.prepare('DELETE FROM checkins WHERE user_id=?').bind(uid).run();
+  await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=?').bind(uid).run();
+  try{ await env.DB.prepare('DELETE FROM invitations WHERE inviter_id=? OR invitee_id=?')
+    .bind(uid,uid).run(); }catch(e){ /* 邀请表可能尚未创建 */ }
   /* 4) 账号本身 */
   await env.DB.prepare('DELETE FROM users WHERE id=?').bind(uid).run();
   return json({ok:true,deletedPosts:postIds.length,deletedReplies:ownReplies.length});

@@ -13,9 +13,11 @@ export async function onRequestGet({request,env,params}){
   const post=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
   if(!post)return json({error:'帖子不存在或已被删除'},404);
 
-  /* 浏览量 +1 */
-  await env.DB.prepare('UPDATE posts SET views=views+1 WHERE id=?').bind(id).run();
-  post.views=(Number(post.views)||0)+1;
+  /* 浏览量 +1：作者本人反复打开自己的帖子不计数，避免浏览数虚高 */
+  if(!(me&&me.id===post.author_id)){
+    await env.DB.prepare('UPDATE posts SET views=views+1 WHERE id=?').bind(id).run();
+    post.views=(Number(post.views)||0)+1;
+  }
 
   /* 帖子点赞 */
   const pv=await env.DB.prepare(
@@ -72,6 +74,20 @@ export async function onRequestDelete({request,env,params}){
   /* 帖子点赞 */
   await env.DB.prepare(
     `DELETE FROM likes WHERE target_type='post' AND target_id=?`).bind(id).run();
+  /* 投票、编辑历史、相关通知：以前删帖不会清，留下指向已删帖子的孤儿数据 */
+  const pollRes=await env.DB.prepare('SELECT id FROM polls WHERE post_id=?').bind(id).all();
+  const pollIds=(pollRes.results||[]).map(p=>p.id);
+  if(pollIds.length){
+    const pph=pollIds.map(()=>'?').join(',');
+    await env.DB.prepare(
+      `DELETE FROM poll_votes WHERE poll_id IN (${pph})`).bind(...pollIds).run();
+    await env.DB.prepare(
+      `DELETE FROM poll_options WHERE poll_id IN (${pph})`).bind(...pollIds).run();
+    await env.DB.prepare(
+      `DELETE FROM polls WHERE id IN (${pph})`).bind(...pollIds).run();
+  }
+  await env.DB.prepare('DELETE FROM post_edits WHERE post_id=?').bind(id).run();
+  await env.DB.prepare('DELETE FROM notifications WHERE post_id=?').bind(id).run();
   /* 帖子 */
   await env.DB.prepare('DELETE FROM posts WHERE id=?').bind(id).run();
   /* 扣回作者发帖所得基础积分（不低于 0） */

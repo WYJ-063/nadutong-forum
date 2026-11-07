@@ -1,8 +1,21 @@
 /* 邀请分享卡片 - 独立文件，不修改app.js */
 (function(){
+  var watching=false;
   function init(){
     var box=document.getElementById('invite-box');
-    if(!box){ setTimeout(init,500); return; }
+    if(!box){
+      /* 不在账号页时不要每 500ms 轮询：改为监听 DOM，等邀请框出现再挂按钮 */
+      if(!watching&&document.body){
+        watching=true;
+        var mo=new MutationObserver(function(){
+          if(document.getElementById('invite-box')){
+            mo.disconnect();watching=false;init();
+          }
+        });
+        mo.observe(document.body,{childList:true,subtree:true});
+      }
+      return;
+    }
 
     // 监听invite-box内容变化
     var observer=new MutationObserver(function(){
@@ -30,7 +43,13 @@
   }
 
   function showShareModal(code,count){
-    var T=window.SHARE_THEMES?SHARE_THEMES[(window.DB&&DB.data&&DB.data.theme)||'default']:null;
+    /* app.js 里 SHARE_THEMES / DB 都是 const 顶层声明，不会挂到 window 上，
+       所以必须用 typeof 判断裸标识符，否则永远取不到主题、卡片配色跟站点不一致。
+       用 try 包一层，防止 app.js 加载中断时这里再抛 ReferenceError。 */
+    var themes=null,themeKey='default';
+    try{themes=(typeof SHARE_THEMES!=='undefined')?SHARE_THEMES:null;}catch(e){themes=null;}
+    try{themeKey=(typeof DB!=='undefined'&&DB.data&&DB.data.theme)||'default';}catch(e){themeKey='default';}
+    var T=themes?(themes[themeKey]||themes['default']||null):null;
     if(!T)T={bg1:'#16225C',bg2:'#0A1238',card:'rgba(255,255,255,.06)',cardBorder:'rgba(160,180,255,.18)',avatarBg:'#6D8CFF',text:'#F3F6FF',sub:'#A9B8E8',accent:'#E8874A'};
 
     var W=750,M=40,cardW=W-M*2;

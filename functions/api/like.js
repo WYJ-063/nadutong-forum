@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,
-  addPoints,addNotification,removeLikeNotification,POINTS_RULE,nowStr
+  addPoints,addPointsClamped,addNotification,removeLikeNotification,POINTS_RULE,nowStr
 } from './_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -15,20 +15,7 @@ export async function onRequestPost({request,env}){
   if(!id)return json({error:'缺少目标'},400);
   await ensureSchema(env);
 
-  const existing=await env.DB.prepare(
-    'SELECT 1 FROM likes WHERE user_id=? AND target_type=? AND target_id=?')
-    .bind(me.id,type,id).first();
-
-  if(existing){
-    await env.DB.prepare(
-      'DELETE FROM likes WHERE user_id=? AND target_type=? AND target_id=?')
-      .bind(me.id,type,id).run();
-    /* 取消点赞时，移除对应的点赞通知 */
-    await removeLikeNotification(env,me.id,type,id);
-    return json({liked:false});
-  }
-
-  /* 校验目标存在，并取帖子标题用于通知 */
+  /* 先查目标：点赞要校验存在，取消点赞也要用作者信息把积分退回去 */
   let target,postId,postTitle;
   if(type==='post'){
     target=await env.DB.prepare(
@@ -43,6 +30,23 @@ export async function onRequestPost({request,env}){
       postTitle=p?p.title:'';
     }
   }
+
+  const existing=await env.DB.prepare(
+    'SELECT 1 FROM likes WHERE user_id=? AND target_type=? AND target_id=?')
+    .bind(me.id,type,id).first();
+
+  if(existing){
+    await env.DB.prepare(
+      'DELETE FROM likes WHERE user_id=? AND target_type=? AND target_id=?')
+      .bind(me.id,type,id).run();
+    /* 取消点赞时，移除对应的点赞通知，并收回当初加给作者的积分。
+       否则「点赞→取消→再点赞」可以无限刷分。 */
+    await removeLikeNotification(env,me.id,type,id);
+    if(target&&target.author_id&&target.author_id!==me.id)
+      await addPointsClamped(env,target.author_id,-Number(POINTS_RULE.liked||0));
+    return json({liked:false});
+  }
+
   if(!target)return json({error:'目标不存在'},404);
 
   await env.DB.prepare(

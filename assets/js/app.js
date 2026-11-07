@@ -146,10 +146,10 @@ const DB={
     if(raw){
       try{this.data=JSON.parse(raw);}
       catch(e){
-        // 解析失败时先尽力备份原始内容，再初始化；避免损抔数据被静默复盖。
+        // 解析失败时先尽力备份原始内容，再初始化；避免损坏数据被静默覆盖。
         try{await Store.set(DB_KEY+'_corrupt_backup_'+Date.now(),String(raw));}catch(_e){}
         this.data=null;
-        toast('本地数据读取异常：已尝试备份损抔数据，并载入初始数据。请检查后尽快导出数据。','warn');
+        toast('本地数据读取异常：已尝试备份损坏数据，并载入初始数据。请检查后尽快导出数据。','warn');
       }
     }
     if(!this.data)this.data=seedDB();
@@ -190,7 +190,7 @@ const DB={
         const missingIds=new Set(missingPosts.map(p=>p.id));
         d.answers.push(...fresh.answers.filter(a=>missingIds.has(a.postId)&&!d.answers.some(old=>old?.id===a.id)));
       }
-      // 对已经升级到 20 条初始帖子、但还没有内置回复的本地数据补齐回复；不复盖用户自己的回复。
+      // 对已经升级到 20 条初始帖子、但还没有内置回复的本地数据补齐回复；不覆盖用户自己的回复。
       const seedPostIds=new Set(Array.from({length:20},(_,i)=>`p-${i+1}`));
       const hasAllSeedPosts=Array.from(seedPostIds).every(id=>d.posts.some(p=>p?.id===id));
       const hasSeedAnswers=d.answers.some(a=>String(a?.id||'').startsWith('seed-a-p-'));
@@ -227,7 +227,7 @@ const DB={
 【法器】在故事中承载特殊功能的器物。
 【归档说明】本词条汇总异人界常用称谓，细节可由各门派谱系与已结案事件进一步补充。`,tags:'炁,术法,法器,设定索引'}
     ];
-    // 旧版公开典藏条目改为内部档案口吻；仅替换已知的默认句子，不复盖用户自定义内容。
+    // 旧版公开典藏条目改为内部档案口吻；仅替换已知的默认句子，不覆盖用户自定义内容。
     if(Array.isArray(d.publicLibrary)){
       const phraseMoves=[
         ['【档案备注】本条兼顾现实文化背景与作品设定；作品中的具体人物、能力和事件以原作设定为准。','【档案备注】本条收录门派源流、常见术法与异人界往来记录；人物经历、能力与事件可继续通过内部档案交叉查证。'],
@@ -361,9 +361,12 @@ const Cloud={
     this.token=d.token;this.user=d.user;
     try{localStorage.setItem('ndt-cloud-token',d.token);}catch(e){}
   },
-  async register(login,password,name){
-    this.setSession(await this.request('/auth/register',
-      {method:'POST',body:JSON.stringify({login,password,name})}));
+  async register(login,password,name,invite){
+    const payload={login,password,name};
+    if(invite)payload.invite=String(invite).trim().toUpperCase();
+    const d=await this.request('/auth/register',{method:'POST',body:JSON.stringify(payload)});
+    this.lastInviteBonus=Number(d.inviteBonus)||0;
+    this.setSession(d);
     return this.user;
   },
   async login(login,password){
@@ -735,7 +738,9 @@ function cloudFormsHtml(mode){
       <label class="fl">云端账号</label>
       <input class="field" id="cf-login" placeholder="3-20 位字母/数字/下划线" autocomplete="username">
       ${!isLogin?`<label class="fl">昵称（论坛显示名）</label>
-      <input class="field" id="cf-name" placeholder="例如 华北小异人">`:''}
+      <input class="field" id="cf-name" placeholder="例如 华北小异人" maxlength="16">
+      <label class="fl">邀请码（可选）</label>
+      <input class="field" id="cf-invite" placeholder="填写好友的邀请码，双方各得 100 积分" maxlength="16">`:''}
       <label class="fl">密码</label>
       <input class="field" id="cf-pass" type="password" placeholder="至少 6 位" autocomplete="${isLogin?'current-password':'new-password'}">
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
@@ -922,7 +927,7 @@ async function renderCloudPushState(){
     if(('Notification' in window)&&Notification.permission==='denied')
       status.textContent='浏览器通知权限已被禁止，需先在浏览器站点设置中允许通知，再点“开启推送”。';
     else
-      status.textContent='未开启：点击”开启推送”并在浏览器弹窗中允许即可。';
+      status.textContent='未开启：点击“开启推送”并在浏览器弹窗中允许即可。';
   }
 }
 /* 加载邀请码卡片 */
@@ -1100,7 +1105,7 @@ function seedDB(){
     {id:'p-11',board:'异人讨论',pinned:0,title:'异人界近年跨区协作增多，是好事还是隐患？',content:'大型事件越来越难靠单一区域处理，协作效率明显重要；但人员权限、情报边界与责任划分也更复杂。想听听不同地区的工作经验，尽量谈制度，不点名评价个人。',authorId:'',authorName:'西南联络员',createdAt:'2026-10-15 10:20',votes:['v-1','v-2','v-3'],views:5320,editedBy:[]},
     {id:'p-12',board:'功法交流',pinned:0,title:'新人入门资料索引更新：先看安全守则，再看基础概念',content:'管理组把公开可讨论的基础术语、门派分类和安全提醒做了索引。这里不提供危险术法的练习步骤，也不建议任何人脱离指导私自尝试。若发现过时条目，请附上可核验来源。',authorId:'',authorName:'论坛管理员',createdAt:'2026-10-14 14:05',votes:['v-1','v-2','v-3','v-4','v-5'],views:8240,editedBy:[]},
     {id:'p-13',board:'灌水',pinned:0,title:'说说各地营业部最离谱的“普通快递”备注',content:'轻松一下：不涉及真实客户信息的前提下，大家遇到过哪些让人摸不着头脑的备注？请注意打码，不要上传面单、电话、地址，也别把任务经历写成段子泄密。',authorId:'',authorName:'华北仓库小赵',createdAt:'2026-10-13 22:17',votes:['v-1'],views:1870,editedBy:[]},
-    {id:'p-14',board:'天下见闻',pinned:0,title:'【复盘】大型异人事件后，普通社会的信息隔离怎么做更稳妥？',content:'事件结束不代表风险结束。现场目击者安置、损抔设施解释、网络传言澄清都需要配合。欢迎分享各区通用做法，但请勿透露真实处置方案与可被利用的流程漏洞。',authorId:'',authorName:'论坛管理员',createdAt:'2026-10-12 08:55',votes:['v-1','v-2','v-3','v-4','v-5','v-6','v-7'],views:12760,editedBy:[]},
+    {id:'p-14',board:'天下见闻',pinned:0,title:'【复盘】大型异人事件后，普通社会的信息隔离怎么做更稳妥？',content:'事件结束不代表风险结束。现场目击者安置、损坏设施解释、网络传言澄清都需要配合。欢迎分享各区通用做法，但请勿透露真实处置方案与可被利用的流程漏洞。',authorId:'',authorName:'论坛管理员',createdAt:'2026-10-12 08:55',votes:['v-1','v-2','v-3','v-4','v-5','v-6','v-7'],views:12760,editedBy:[]},
     {id:'p-15',board:'求助',pinned:0,title:'有没有跨区任务结束后的心理恢复与休整建议？',content:'连续出勤后容易出现睡眠紊乱、注意力下降等状态。想收集一些不涉及个人隐私的休整经验：如何安排轮班、如何做交接、什么时候应该主动申请暂停任务。',authorId:'',authorName:'山西小医馆学徒',createdAt:'2026-10-11 17:45',votes:['v-1','v-2','v-3'],views:3910,editedBy:[]},
     {id:'p-16',board:'公告',pinned:0,title:'关于论坛旧帖归档与敏感信息清理的说明',content:'管理组将分批检查旧帖中的失效链接、个人信息与未核实传闻。涉及安全风险的内容可能被折叠或移入内部归档；正常讨论会保留。若认为误处理，可通过站内渠道提交复核。',authorId:'',authorName:'论坛管理员',createdAt:'2026-10-10 09:30',votes:['v-1','v-2'],views:3220,editedBy:[]},
     {id:'p-17',board:'异人讨论',pinned:0,title:'门派交流会取消或延期后，年轻弟子该如何补足经验？',content:'线下交流减少后，基础理论、礼仪、风险识别和案例复盘仍然可以继续。希望各位分享合法合规、不会暴露门派机密的学习方式，不要发布内部教材扫描件。',authorId:'',authorName:'武当外院弟子',createdAt:'2026-10-09 13:12',votes:['v-1','v-2','v-3'],views:4460,editedBy:[]},
@@ -1140,7 +1145,7 @@ function seedDB(){
     ],
     'p-7':[
       ['临时工预备役','现场先疏散普通人这点很重要，别只顾着处理异常。'],
-      ['老邱修器材','善后记录也要写清损抔物品和交接人，后面省很多麻烦。']
+      ['老邱修器材','善后记录也要写清损坏物品和交接人，后面省很多麻烦。']
     ],
     'p-8':[
       ['论坛常驻观察员','希望以后能显示来源标签，光靠标题真不好判断。'],
@@ -1343,7 +1348,7 @@ function recordEdit(item){
   item.editedBy=item.editedBy||[];
   item.editedBy.push({name:u.name,at:nowStr()});
 }
-/* 帖子/回答的显示作者（可被编辑复盖，方便做论坛体） */
+/* 帖子/回答的显示作者（可被编辑覆盖，方便做论坛体） */
 function postAuthor(p){
   const u=DB.data.users.find(x=>x.id===p.authorId)||{name:'未知'};
   return p.authorName||u.name;
@@ -1399,10 +1404,10 @@ function viewHome(){
   return surfaceHeader('home')+
   `<div class="hero"><div class="wrap">
     <h1>您的包裹，无处不达</h1>
-    <p>复盖全国的高效物流网络，准时、安全、可信赖。输入运单号，实时掌握包裹动态。</p>
+    <p>覆盖全国的高效物流网络，准时、安全、可信赖。输入运单号，实时掌握包裹动态。</p>
     <div class="track-box"><input id="tb-code" placeholder="请输入运单号，如 NDT7770001234"><button class="btn btn-orange" id="tb-go">查快递</button></div>
     <div class="hero-stats">
-      <div class="s"><b>31省</b><span>全国复盖</span></div>
+      <div class="s"><b>31省</b><span>全国覆盖</span></div>
       <div class="s"><b>99.8%</b><span>准时送达率</span></div>
       <div class="s"><b>24小时</b><span>全天客服</span></div>
       <div class="s"><b>0丢件</b><span>安全承诺</span></div>
@@ -1606,7 +1611,7 @@ function viewAbout(){
   return surfaceHeader('about')+`<div class="page-head"><div class="wrap"><h1>关于我们</h1><p>哪都通快递——您的包裹，无处不达</p></div></div>
   <div class="section"><div class="wrap"><div class="card-box" style="max-width:860px;margin:0 auto">
     <h3 style="margin-bottom:10px">公司简介</h3>
-    <p style="color:var(--muted);line-height:1.9">哪都通快递有限公司是一家全国性综合快递物流企业，服务网络复盖全国 31 个省、自治区、直辖市。公司始终秉承"安全、准时、可信赖"的服务理念，为千千万万客户提供包裹揽收、中转、派送的一体化服务。</p>
+    <p style="color:var(--muted);line-height:1.9">哪都通快递有限公司是一家全国性综合快递物流企业，服务网络覆盖全国 31 个省、自治区、直辖市。公司始终秉承"安全、准时、可信赖"的服务理念，为千千万万客户提供包裹揽收、中转、派送的一体化服务。</p>
     <h3 style="margin:24px 0 10px">我们的承诺</h3>
     <div class="grid g3" style="gap:14px">
       <div class="svc-card" style="padding:20px"><h3 style="font-size:15px">准时</h3><p>高效中转网络，时效有保障。</p></div>
@@ -2141,12 +2146,14 @@ function cloudNoticesHtml(list,unread,total,filter){
     <div class="fnc-list">${list.length?list.map(n=>{
       const like=n.type==='like';
       const mention=n.type==='mention';
+      const badge=n.type==='badge';
       const target=like?(n.targetType==='reply'?'评论':'帖子'):'帖子';
-      const titleTxt=like?`${esc(n.actorName)} 赞了你的${target}`
+      const titleTxt=badge?`${esc(n.actorName)} 为你发放了徽章`
+        :like?`${esc(n.actorName)} 赞了你的${target}`
         :mention?`${esc(n.actorName)} 在帖子中提到了你`
         :`${esc(n.actorName)} 回复了你的帖子`;
-      const iconCls=like?'is-growth':mention?'is-mention':'is-reply';
-      const iconSym=like?'♥':mention?'@':'✦';
+      const iconCls=like?'is-growth':mention?'is-mention':badge?'is-mention':'is-reply';
+      const iconSym=like?'♥':mention?'@':badge?'🎖':'✦';
       return `<article class="fnc-item ${n.read?'is-read':'is-unread'}" data-cn-item="${esc(n.id)}">
         <span class="fnc-icon ${iconCls}">${iconSym}</span>
         <div class="fnc-body">
@@ -2240,7 +2247,7 @@ function forumListHtml(list,curId,showPin){
       if(au){const g=forumLevelOf(au);aLv=g.level;aLn=g.name;aAv=au.avatar||'';}
     }
     return `<div class="q-item">
-      <div class="q-vote q-vote-list"><button type="button" class="vt ${liked?'on':''}" data-vote="${p.id}" aria-label="赞同帖子" aria-pressure="${liked?'true':'false'}"><span class="vote-arrow">▲</span><span class="vote-label">赞同</span></button><b class="vote-count">${likeCount}</b></div>
+      <div class="q-vote q-vote-list"><button type="button" class="vt ${liked?'on':''}" data-vote="${p.id}" aria-label="赞同帖子" aria-pressed="${liked?'true':'false'}"><span class="vote-arrow">▲</span><span class="vote-label">赞同</span></button><b class="vote-count">${likeCount}</b></div>
       <div class="q-main">
         <h3 data-open="${p.id}">${p.pinned?'<span class="tag tag-red" style="margin-right:6px">置顶</span>':''}${p.essence?'<span class="tag tag-essence" style="margin-right:6px">精</span>':''}${esc(p.title)}</h3>
         <div class="q-ex">${esc(p.content)}</div>
@@ -2627,7 +2634,7 @@ async function initBadgeBaseline(){
     _knownBadgeIds=new Set(badges.map(b=>b.id));
   }catch(e){}
 }
-/* 检测新徽章并触发庆祝（活动自动获得、管理员手动发放都复盖） */
+/* 检测新徽章并触发庆祝（活动自动获得、管理员手动发放都覆盖） */
 async function checkNewBadges(){
   if(!Cloud.connected)return;
   try{
@@ -8253,7 +8260,7 @@ function abilityOf(u){
   return a;
 }
 
-/* 雷达图绘制（显示与分享共用；opts 可复盖颜色/尺寸） */
+/* 雷达图绘制（显示与分享共用；opts 可覆盖颜色/尺寸） */
 function drawRadarChart(canvas,labels,values,opts={}){
   const dpr=Math.max(1,opts.dpr||window.devicePixelRatio||1);
   const W=opts.px||canvas.clientWidth||320;
@@ -8750,6 +8757,10 @@ function viewTetris(){
 }
 
 function router(){
+  /* DB 尚未加载完成时直接返回：hashchange 监听在 Store.open 之前就已注册，
+     用户此时点链接会读到 DB.data=null 并抛出 TypeError，白屏。
+     启动流程完成时会再调用一次 router()，不会漏渲染。 */
+  if(!DB.data)return;
   const currentHash=location.hash||'#/'; 
   const previousHash=window._lastRouteHash;
   if(previousHash)rememberCurrentView(previousHash);
@@ -8949,7 +8960,12 @@ document.addEventListener('click',e=>{
         if(registering){
           const name=$('#cf-name').value.trim();
           if(!name){msg.className='cloud-msg err';msg.textContent='请填写昵称';cloudSub.disabled=false;return;}
-          await Cloud.register(login,pass,name);toast('云端账号注册成功，已登录','ok');
+          const inviteEl=$('#cf-invite');
+          const invite=inviteEl?inviteEl.value.trim():'';
+          await Cloud.register(login,pass,name,invite);
+          toast(Cloud.lastInviteBonus?'云端账号注册成功，邀请奖励已到账'
+            :invite?'云端账号注册成功（邀请码无效，未发放奖励）'
+            :'云端账号注册成功，已登录','ok');
         }else{
           await Cloud.login(login,pass);toast('已登录云端','ok');
         }
@@ -9191,7 +9207,7 @@ document.addEventListener('click',e=>{
       }).catch(err=>{pv.disabled=false;toast(err.message,'err');});
       return;
     }
-    const p=DB.data.posts.find(x=>x.id===pv.dataset.vote);if(p&&toggleVote(p.votes)){const liked=p.votes.includes(DB.user.id);if(liked){addForumLikeNotice(p,DB.user.id);addPoints(DB.user,Number(pointsRule().like)||0);}DB.save();syncUnreadBadges();syncVoteUI('post',p.id,p.votes);toast(liked?'已赞同':'已取消赞同','ok');}return;}
+    const p=DB.data.posts.find(x=>x.id===pv.dataset.vote);if(p&&toggleVote(p.votes)){const liked=p.votes.includes(DB.user.id);if(liked){addForumLikeNotice(p,DB.user.id);addPoints(DB.user,Number(pointsRule().like)||0);}else{addPoints(DB.user,-(Number(pointsRule().like)||0));}DB.save();syncUnreadBadges();syncVoteUI('post',p.id,p.votes);toast(liked?'已赞同':'已取消赞同','ok');}return;}
   const av=t.closest('[data-avote]');
   if(av){
     e.preventDefault();e.stopPropagation();
@@ -9379,7 +9395,7 @@ document.addEventListener('click',e=>{
     DB.save();syncUnreadBadges();toast(autoAdded?'回答已提交，已触发关键词自动回复':'回答已提交','ok');router();return;
   }
   if(t.closest('#p-vote')){
-    e.preventDefault();e.stopPropagation();const p=DB.data.posts.find(x=>x.id===curPostId());if(p&&toggleVote(p.votes)){const liked=p.votes.includes(DB.user.id);if(liked){addForumLikeNotice(p,DB.user.id);addPoints(DB.user,Number(pointsRule().like)||0);}DB.save();syncUnreadBadges();syncVoteUI('post',p.id,p.votes);toast(liked?'已赞同':'已取消赞同','ok');}return;}
+    e.preventDefault();e.stopPropagation();const p=DB.data.posts.find(x=>x.id===curPostId());if(p&&toggleVote(p.votes)){const liked=p.votes.includes(DB.user.id);if(liked){addForumLikeNotice(p,DB.user.id);addPoints(DB.user,Number(pointsRule().like)||0);}else{addPoints(DB.user,-(Number(pointsRule().like)||0));}DB.save();syncUnreadBadges();syncVoteUI('post',p.id,p.votes);toast(liked?'已赞同':'已取消赞同','ok');}return;}
   if(t.closest('#p-edit')){
     const p=DB.data.posts.find(x=>x.id===curPostId());
     modal(`<h3>编辑帖子</h3><div class="m-body">
@@ -10151,7 +10167,8 @@ Store.open().then(async()=>{
   await DB.load();
   Cloud.init();
   // 云端通知轮询：定时 + 页面重新可见/聚焦时刷新红点
-  const pollCloudNotif=()=>{ Cloud.pollNotifications().then(()=>syncUnreadBadges()).catch(()=>{}); };
+  /* 页面不可见时不轮询：省流量/电量，重新可见时会立刻刷新一次 */
+  const pollCloudNotif=()=>{ if(document.hidden)return; Cloud.pollNotifications().then(()=>syncUnreadBadges()).catch(()=>{}); };
   window._pollCloudNotif=pollCloudNotif;
   setInterval(pollCloudNotif,30000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollCloudNotif();});

@@ -1,7 +1,10 @@
-import {json,preflight,ensureSchema,getAuthUser,genId,nowStr} from './_lib.js';
+import {json,preflight,ensureSchema,getAuthUser} from './_lib.js';
+import {ensureInviteTable,inviteCodeOf,INVITE_POINTS} from './_invite.js';
 
 export async function onRequestOptions(){ return preflight(); }
 
+/* GET /api/invite —— 返回我的邀请码、已邀请人数与最近邀请的成员
+   旧实现读 users.invite_code（无此列）并写 invitations（无此表），必定 500。 */
 export async function onRequestGet({request,env}){
  try{
   await ensureSchema(env);
@@ -10,21 +13,24 @@ export async function onRequestGet({request,env}){
   const uid=String(me.id||'');
   if(!uid)return json({error:'会话失效'},401);
 
-  let code=me.invite_code||me.inviteCode||'';
-  if(!code){
-    code=genId('INV').slice(0,8).toUpperCase();
-    await env.DB.prepare('UPDATE users SET invite_code=? WHERE id=?').bind(code,uid).run();
-  }
+  await ensureInviteTable(env);
+  const code=inviteCodeOf(uid);
 
-  // 查邀请记录
-  const invRes=await env.DB.prepare('SELECT invitee_id FROM invitations WHERE inviter_id=? ORDER BY created_at DESC').bind(uid).all();
-  const invRows=invRes.results||[];
-  const invited=[];
-  for(const r of invRows.slice(0,10)){
-    const u=await env.DB.prepare('SELECT name,login,created_at FROM users WHERE id=?').bind(r.invitee_id).first();
-    if(u)invited.push(u);
-  }
-  return json({code,count:invRows.length,invited});
+  const {results}=await env.DB.prepare(
+    `SELECT u.name,u.login FROM invitations i
+     JOIN users u ON u.id=i.invitee_id
+     WHERE i.inviter_id=?
+     ORDER BY i.created_at DESC LIMIT 10`).bind(uid).all();
+  const invited=results||[];
+  const cnt=await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM invitations WHERE inviter_id=?').bind(uid).first();
+
+  return json({
+    code,
+    count:Number(cnt&&cnt.n)||invited.length,
+    invited,
+    reward:INVITE_POINTS
+  });
  }catch(e){
   return json({error:String((e&&e.message)||e)},500);
  }

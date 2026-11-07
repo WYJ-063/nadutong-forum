@@ -7,13 +7,16 @@ export async function onRequestOptions(){ return preflight(); }
 /* 签到规则：每日基础 5 积分；每连续 7 天额外 +10（周奖励） */
 const CHECKIN_BASE=5;
 const CHECKIN_WEEK_BONUS=10;
+/* 签到日按北京时间（UTC+8）计算：旧实现用 UTC 日期，导致 00:00-08:00 签到
+   仍算「昨天」，连续天数和「今天已签到」都不对。 */
+const TZ_OFFSET_MS=8*60*60*1000;
 function dateStr(d){
-  return d.toISOString().slice(0,10);
+  return new Date(d.getTime()+TZ_OFFSET_MS).toISOString().slice(0,10);
 }
 function yesterdayStr(d){
-  const y=new Date(d.getTime());
+  const y=new Date(d.getTime()+TZ_OFFSET_MS);
   y.setUTCDate(y.getUTCDate()-1);
-  return dateStr(y);
+  return y.toISOString().slice(0,10);
 }
 
 /* GET /api/checkin —— 当前签到状态 */
