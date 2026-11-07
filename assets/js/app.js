@@ -2642,8 +2642,7 @@ async function checkNewBadges(){
 /* 炫彩效果元数据（与 CSS .bd-eff-* 对应） */
 const BADGE_EFFECT_OPTIONS=[
   {v:'0',label:'金辉'},{v:'1',label:'紫电'},{v:'2',label:'烈焰'},
-  {v:'3',label:'青碧'},{v:'4',label:'彩虹'},{v:'5',label:'银辉'},
-  {v:'glow1',label:'曜金·旋转金环'},{v:'flow2',label:'冰蓝·流光'}
+  {v:'3',label:'青碧'},{v:'4',label:'彩虹'},{v:'5',label:'银辉'}
 ];
 async function openBadgeManageModal(){
   let editingId=null; /* null=新建，否则为编辑中的徽章 id */

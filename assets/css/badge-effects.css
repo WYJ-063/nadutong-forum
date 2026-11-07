@@ -1,0 +1,22 @@
+/* 徽章新特效 - 独立文件，不覆盖原有main.css */
+
+/* 曜金 glow1：黑底金边，外圈旋转金环 */
+.bd-eff-glow1{--be-ink:#F0D080;--be-edge:#D4AF37;--be-glow:rgba(212,175,55,.5);
+  --be-bg:linear-gradient(135deg,#1A1A1A,#2D2410 50%,#0D0D0D);}
+.bd-badge.bd-eff-glow1,.up-badge.bd-eff-glow1,.bd-grant.bd-eff-glow1{
+  border-width:2px;border-style:solid;
+}
+.bd-badge.bd-eff-glow1::before,.up-badge.bd-eff-glow1::before,.bd-grant.bd-eff-glow1::before{
+  content:"";position:absolute;inset:-5px;border-radius:inherit;
+  border:2px dashed rgba(212,175,55,.6);
+  animation:beSpin 8s linear infinite;pointer-events:none;
+}
+
+/* 冰蓝流光 flow2：冰蓝渐变背景流动 */
+.bd-eff-flow2{--be-ink:#fff;--be-edge:#4FC3F7;--be-glow:rgba(79,195,247,.5);
+  --be-bg:linear-gradient(120deg,#0D47A1,#4FC3F7,#81D4FA,#29B6F6,#0D47A1);
+  background-size:300% 300%;
+  animation:beFlow 5s ease infinite;
+}
+@keyframes beFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes beSpin{to{transform:rotate(360deg)}}
