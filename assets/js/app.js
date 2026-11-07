@@ -361,9 +361,9 @@ const Cloud={
     this.token=d.token;this.user=d.user;
     try{localStorage.setItem('ndt-cloud-token',d.token);}catch(e){}
   },
-  async register(login,password,name,inviteCode){
+  async register(login,password,name){
     this.setSession(await this.request('/auth/register',
-      {method:'POST',body:JSON.stringify({login,password,name,inviteCode:inviteCode||''})}));
+      {method:'POST',body:JSON.stringify({login,password,name})}));
     return this.user;
   },
   async login(login,password){
@@ -738,8 +738,6 @@ function cloudFormsHtml(mode){
       <input class="field" id="cf-name" placeholder="例如 华北小异人">`:''}
       <label class="fl">密码</label>
       <input class="field" id="cf-pass" type="password" placeholder="至少 6 位" autocomplete="${isLogin?'current-password':'new-password'}">
-      ${!isLogin?`<label class="fl">邀请码（选填）</label>
-      <input class="field" id="cf-invite" placeholder="有邀请码填这里，双方各 +100 积分" style="text-transform:uppercase">`:''}
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-orange" id="cf-sub">${isLogin?'登录云端':'注册并登录'}</button>
       </div>
@@ -785,17 +783,6 @@ function cloudAccountHtml(u){
         <button type="button" class="btn btn-sm btn-orange" id="cloud-push-toggle" style="flex:none">检测中…</button>
       </div>
       <p class="ph-sub" id="cloud-push-status" style="margin:10px 0 0"></p>
-    </div>
-    <div class="cloud-push-box" style="margin-top:14px;padding:14px 16px;border:1px solid var(--pt-line,#e5e8f0);border-radius:14px;background:linear-gradient(135deg,#fff8e7,#fff)">
-      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
-        <div style="min-width:0">
-          <strong>🎁 邀请好友</strong>
-          <p class="ph-sub" style="margin:4px 0 0">把邀请码发给朋友，注册时填写，双方各得 100 积分</p>
-        </div>
-      </div>
-      <div id="invite-box" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="cl-spin"></span> 正在加载邀请码…
-      </div>
     </div>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
       <div class="cloud-mod-head"><strong>成员管理 <span class="ph-sub" id="cm-count" style="font-weight:400"></span></strong><span style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm btn-ghost" data-bmanage>🎖 徽章管理</button><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></span></div>
@@ -991,7 +978,6 @@ function bindCloudPush(){
   const box=document.getElementById('cloud-push-box');
   if(!box)return;
   renderCloudPushState();
-  loadInviteBox();
   const btn=document.getElementById('cloud-push-toggle');
   btn.addEventListener('click',async()=>{
     btn.disabled=true;
@@ -8967,7 +8953,7 @@ document.addEventListener('click',e=>{
         if(registering){
           const name=$('#cf-name').value.trim();
           if(!name){msg.className='cloud-msg err';msg.textContent='请填写昵称';cloudSub.disabled=false;return;}
-          await Cloud.register(login,pass,name,$('#cf-invite')?.value?.trim()||'');toast('云端账号注册成功，已登录','ok');
+          await Cloud.register(login,pass,name);toast('云端账号注册成功，已登录','ok');
         }else{
           await Cloud.login(login,pass);toast('已登录云端','ok');
         }
