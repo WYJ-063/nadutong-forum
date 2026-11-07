@@ -946,13 +946,13 @@ async function loadInviteBox(){
       (list?'<div style=”width:100%;margin-top:6px”>'+list+'</div>':'');
     const btnCopy=$('#invite-copy',box);
     const btnLink=$('#invite-copy-link',box);
-    if(btnCopy)btnCopy.onclick=()=>{
+    if(btnCopy)btnCopy.addEventListener('click',()=>{
       navigator.clipboard.writeText(d.code).then(()=>toast('邀请码已复制','ok')).catch(()=>toast('复制失败','err'));
-    };
-    if(btnLink)btnLink.onclick=()=>{
+    });
+    if(btnLink)btnLink.addEventListener('click',()=>{
       const link=location.origin+location.pathname+'#/register?ref='+d.code;
       navigator.clipboard.writeText(link).then(()=>toast('邀请链接已复制','ok')).catch(()=>toast('复制失败','err'));
-    };
+    });
   }catch(e){
     box.innerHTML='<span class=”ph-sub”>邀请码加载失败：'+esc(e.message)+'</span>';
   }
