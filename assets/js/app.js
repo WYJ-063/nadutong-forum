@@ -938,58 +938,11 @@ async function loadInviteBox(){
       '</div>').join('');
     box.innerHTML=
       '<code style="font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a">'+esc(d.code)+'</code>'+
-      '<button type="button" class="btn btn-sm btn-orange" id="invite-share-btn" style="border-radius:20px">🎴 生成分享卡片</button>'+
       '<span class="ph-sub" style="margin-left:auto">已邀请 <b style="color:#c8860a;font-size:16px">'+d.count+'</b> 人</span>'+
-      '<div id="invite-card-preview" style="width:100%;margin-top:10px;display:none"></div>'+
       (list?'<div style="width:100%;margin-top:6px">'+list+'</div>':'');
-    const btn=document.getElementById('invite-share-btn');
-    if(btn)btn.onclick=()=>generateInviteCard(d);
   }catch(e){
     box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }
-}
-/* 生成邀请分享卡片（弹窗形式，与能力档案同款风格） */
-function generateInviteCard(d){
-  const T=SHARE_THEMES[DB.data.theme]||SHARE_THEMES.default;
-  const W=750,M=40,cardW=W-M*2;
-  const headH=120,codeH=180,footH=80,gap=20;
-  const H=M+headH+gap+codeH+gap+footH+M;
-  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');
-  drawShareBackground(ctx,W,H,T);
-  let y=M;
-  glassCard(ctx,M,y,cardW,headH,T);
-  ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillStyle=T.text;ctx.font='900 30px "Microsoft YaHei",sans-serif';
-  ctx.fillText('🎯 好友邀请',M+26,y+40);
-  ctx.fillStyle=T.sub;ctx.font='15px "Microsoft YaHei",sans-serif';
-  ctx.fillText('注册时填写邀请码，双方各得 100 积分',M+26,y+78);
-  const cntTxt='已邀请 '+d.count+' 人';
-  ctx.font='700 18px "Microsoft YaHei",sans-serif';
-  const bw=ctx.measureText(cntTxt).width+32;
-  ctx.fillStyle=T.avatarBg;roundRect(ctx,W-M-26-bw,y+headH/2-20,bw,40,20);ctx.fill();
-  ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(cntTxt,W-M-26-bw/2,y+headH/2+1);
-  y+=headH+gap;
-  glassCard(ctx,M,y,cardW,codeH,T);
-  sectionTitle(ctx,M+26,y+12,'我的专属邀请码',T);
-  ctx.textAlign='center';
-  ctx.fillStyle=T.accent;ctx.font='900 52px "Microsoft YaHei",monospace';
-  ctx.fillText(d.code,W/2,y+110);
-  ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
-  ctx.fillText('复制以上邀请码，注册时填入即可',W/2,y+155);
-  y+=codeH+gap;
-  ctx.textAlign='center';
-  ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
-  ctx.fillText('哪都通 · 异人论坛',W/2,y+20);
-  ctx.fillStyle=T.text;ctx.font='700 18px "Microsoft YaHei",sans-serif';
-  ctx.fillText(siteUrl(),W/2,y+52);
-  const dataUrl=canvas.toDataURL('image/jpeg',.92);
-  modal(`<h3>邀请分享卡片</h3><div class="m-body" style="text-align:center">
-    <img src="${dataUrl}" style="max-width:100%;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
-  </div>
-  <div class="m-foot"><a class="btn btn-orange" id="invite-card-dl" download="邀请卡片.jpg">保存图片</a>
-  <button class="btn btn-ghost btn-sm" data-m="no">关闭</button></div>`);
-  const dl=document.getElementById('invite-card-dl');if(dl)dl.href=dataUrl;
 }
 async function enableWebPush(){
   if(!Cloud.connected)throw new Error('请先登录云端账号');
