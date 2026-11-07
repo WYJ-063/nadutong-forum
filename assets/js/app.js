@@ -939,20 +939,25 @@ async function loadInviteBox(){
         esc(u.name)+' <span class=”ph-sub”>'+esc(u.login)+'</span>'+
       '</div>').join('');
     box.innerHTML=
-      '<code style=”font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:8px;border:1px solid #ffd97a”>'+esc(d.code)+'</code>'+
-      '<button class=”btn btn-sm btn-orange” id=”invite-copy”>复制邀请码</button>'+
-      '<button class=”btn btn-sm btn-ghost” id=”invite-copy-link”>复制邀请链接</button>'+
-      '<span class=”ph-sub” style=”margin-left:auto”>已邀请 <b style=”color:#c8860a”>'+d.count+'</b> 人</span>'+
+      '<code style=”font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a”>'+esc(d.code)+'</code>'+
+      '<button class=”btn btn-sm btn-orange” id=”invite-copy” style=”border-radius:20px;padding:6px 16px”>📋 复制邀请码</button>'+
+      '<button class=”btn btn-sm” id=”invite-copy-link” style=”border-radius:20px;padding:6px 16px;background:#e8f0fe;color:#2b5ea7;border:1px solid #c5d9f8”>🔗 复制邀请链接</button>'+
+      '<span class=”ph-sub” style=”margin-left:auto”>已邀请 <b style=”color:#c8860a;font-size:16px”>'+d.count+'</b> 人</span>'+
       (list?'<div style=”width:100%;margin-top:6px”>'+list+'</div>':'');
-    const btnCopy=$('#invite-copy',box);
-    const btnLink=$('#invite-copy-link',box);
-    if(btnCopy)btnCopy.addEventListener('click',()=>{
-      navigator.clipboard.writeText(d.code).then(()=>toast('邀请码已复制','ok')).catch(()=>toast('复制失败','err'));
-    });
-    if(btnLink)btnLink.addEventListener('click',()=>{
-      const link=location.origin+location.pathname+'#/register?ref='+d.code;
-      navigator.clipboard.writeText(link).then(()=>toast('邀请链接已复制','ok')).catch(()=>toast('复制失败','err'));
-    });
+    const doCopy=async(text,msg)=>{
+      try{ await navigator.clipboard.writeText(text); toast(msg,'ok'); }
+      catch(e){
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); toast(msg,'ok'); }
+        catch(e2){ toast('复制失败，请手动复制','err'); }
+        document.body.removeChild(ta);
+      }
+    };
+    const bc=$('#invite-copy',box), bl=$('#invite-copy-link',box);
+    if(bc)bc.addEventListener('click',()=>doCopy(d.code,'邀请码已复制'));
+    if(bl)bl.addEventListener('click',()=>doCopy(location.origin+location.pathname+'#/register?ref='+d.code,'邀请链接已复制'));
   }catch(e){
     box.innerHTML='<span class=”ph-sub”>邀请码加载失败：'+esc(e.message)+'</span>';
   }
