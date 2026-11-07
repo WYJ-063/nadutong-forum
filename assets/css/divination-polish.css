@@ -12,12 +12,12 @@
 .portal--tarot .tarot-module { --yj-accent: #6B5BD2; } /* 夜空紫 */
 .portal--huang .tarot-module { --yj-accent: #B03A2E; } /* 朱砂 */
 
-/* 标题换成衬线，与"周易 / 灵签"的调性一致 */
+/* 标题：沿用站点默认字体（不再指定衬线字族，避免机器上缺字体回退成奇怪的字形），
+   只保留字重与微小的字距，让三个标题比原来更"立"一点 */
 .portal--yijing .yj-head h2,
 .portal--tarot .yj-head h2,
 .portal--huang .yj-head h2 {
-  font-family: 'Noto Serif CJK SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
-  letter-spacing: .06em;
+  letter-spacing: .02em;
   font-weight: 800;
 }
 
@@ -300,8 +300,7 @@
 }
 
 .portal--huang .huang-result h3 {
-  font-family: 'Noto Serif CJK SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
-  letter-spacing: .12em;
+  letter-spacing: .04em;
   color: #3B2C1A;
 }
 
@@ -359,22 +358,21 @@
   color: #F3ECDF;
 }
 
-/* 签文竖排，像真的签条 */
+/* 签文横排，左往右正常阅读；原文里用 \n 分句，保留换行 */
 .portal--huang .huang-poem {
-  display: inline-block;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  max-height: 56vh;
+  display: block;
+  white-space: pre-line;
+  max-width: 420px;
   margin: 20px auto 18px;
-  padding: 22px 26px;
+  padding: 18px 24px;
   background: rgba(255, 255, 255, .5);
   border: 1px solid #E4D4B4;
   border-radius: 4px;
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .4);
-  font-family: 'Noto Serif CJK SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
   font-size: 17px;
-  line-height: 2;
-  letter-spacing: .16em;
+  line-height: 2.05;
+  letter-spacing: .06em;
+  text-align: center;
   color: #3B2C1A;
 }
 
