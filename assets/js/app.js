@@ -937,9 +937,29 @@ async function loadInviteBox(){
         esc(u.name)+' <span class="ph-sub">'+esc(u.login)+'</span>'+
       '</div>').join('');
     box.innerHTML=
-      '<code style="font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a">'+esc(d.code)+'</code>'+
-      '<span class="ph-sub" style="margin-left:auto">已邀请 <b style="color:#c8860a;font-size:16px">'+d.count+'</b> 人</span>'+
+      '<div style="width:100%;background:linear-gradient(135deg,#fff8e7,#fff3d0);border-radius:12px;padding:16px;text-align:center;border:1px solid #ffd97a">'+
+        '<div style="font-size:12px;color:#a07820;margin-bottom:6px">我的专属邀请码</div>'+
+        '<div style="font-size:28px;font-weight:800;letter-spacing:4px;color:#c8860a">'+esc(d.code)+'</div>'+
+        '<div style="font-size:12px;color:#a07820;margin-top:6px">已邀请 <b style="font-size:16px;color:#c8860a">'+d.count+'</b> 位好友加入</div>'+
+      '</div>'+
+      '<button type="button" class="btn btn-orange" style="flex:1;border-radius:20px;padding:8px 16px;font-size:13px" id="invite-copy-code">📋 复制邀请码</button>'+
+      '<button type="button" class="btn" style="flex:1;border-radius:20px;padding:8px 16px;font-size:13px;background:#e8f0fe;color:#2b5ea7;border:1px solid #c5d9f8" id="invite-copy-link">🔗 复制邀请链接</button>'+
       (list?'<div style="width:100%;margin-top:6px">'+list+'</div>':'');
+    const doCopy=async(text,msg)=>{
+      try{ await navigator.clipboard.writeText(text); toast(msg,'ok'); }
+      catch(e){
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); toast(msg,'ok'); }
+        catch(e2){ toast('复制失败，请手动长按复制','err'); }
+        document.body.removeChild(ta);
+      }
+    };
+    const bc=document.getElementById('invite-copy-code');
+    const bl=document.getElementById('invite-copy-link');
+    if(bc)bc.onclick=()=>doCopy(d.code,'邀请码已复制');
+    if(bl)bl.onclick=()=>doCopy(location.origin+location.pathname+'#/register?ref='+d.code,'邀请链接已复制');
   }catch(e){
     box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }

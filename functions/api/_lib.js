@@ -188,6 +188,13 @@ const SCHEMA=[
   city TEXT,
   birthday TEXT,
   updated_at TEXT
+)`,
+`CREATE TABLE IF NOT EXISTS invitations (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE,
+  inviter_id TEXT,
+  invitee_id TEXT,
+  created_at TEXT
 )`
 ];
 /* 默认板块（首次运行写入） */
@@ -205,6 +212,8 @@ async function seedBoards(env){
 const BADGE_SEEDS=[
   /* 活动徽章（自动发放） */
   ['act_20261103','我来也','🔥','活动期（11月3日-5日）内发帖或回复自动获得，永久纪念','activity','4'],
+  ['inviter_1','接引人','🤝','邀请第一位好友注册成功，双方各得100积分','auto','invite1'],
+  ['inviter_5','哪都通HR','💼','成功邀请5位好友注册，公司正式编外招聘官','auto','invite5'],
   /* 管理员手动称号（20 个） */
   ['title_01','哪都通临时工','📦','哪都通快递基层干员','manual','0'],
   ['title_02','哪都通元老','🏛','论坛建站元勋','manual','5'],
@@ -322,7 +331,7 @@ async function getEquippedBadge(env,userId){
   return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc,effect:normEffect(row.effect)}:null;
 }
 /* 炫彩效果取值范围：0~5，非法值统一回退为 0 */
-const BADGE_EFFECTS=['0','1','2','3','4','5'];
+const BADGE_EFFECTS=['0','1','2','3','4','5','invite1','invite5'];
 function normEffect(v){
   const s=String(v==null?'0':v);
   return BADGE_EFFECTS.includes(s)?s:'0';
@@ -396,7 +405,9 @@ const MIGRATIONS=[
   `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`,
   `ALTER TABLE posts ADD COLUMN edited_at TEXT`,
   `ALTER TABLE posts ADD COLUMN edit_count INTEGER DEFAULT 0`,
-  `ALTER TABLE badges ADD COLUMN effect TEXT DEFAULT '0'`
+  `ALTER TABLE badges ADD COLUMN effect TEXT DEFAULT '0'`,
+  `ALTER TABLE users ADD COLUMN invite_code TEXT`,
+  `ALTER TABLE users ADD COLUMN referred_by TEXT`
 ];
 /* 全文搜索：posts_fts（FTS5 trigram 分词，对中文子串友好，需 SQLite 3.34+）。
    触发器自动同步增删改；首次对历史帖子回填。任何失败都静默降级（搜索接口回退 LIKE）。 */
@@ -790,6 +801,7 @@ function publicUser(row){
     id:row.id, login:row.login, name:row.name, avatar:row.avatar||'',
     role:Number(row.role)||1, points,
     muted:Number(row.muted)||0, banned:Number(row.banned)||0,
+    inviteCode:row.inviteCode||row.invite_code||'',
     level:g.level, levelName:g.name,
     createdAt:row.created_at
   };
