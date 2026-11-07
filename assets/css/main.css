@@ -3251,8 +3251,6 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
 }
 @keyframes beShine{0%,55%{left:-70%}100%{left:130%}}
 @keyframes beRainbow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
-@keyframes beSpin{to{transform:rotate(360deg)}}
-@keyframes beFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
 /* 曜金 glow1：黑底金边，外圈旋转金环 */
 .bd-eff-glow1{--be-ink:#F0D080;--be-edge:#D4AF37;--be-glow:rgba(212,175,55,.5);
@@ -3272,6 +3270,7 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
   background-size:300% 300%;
   animation:beFlow 5s ease infinite;
 }
+@keyframes beFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
 /* 炫彩选择器（徽章管理弹窗） */
 .bd-eff-pick{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
