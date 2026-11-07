@@ -226,8 +226,6 @@ const BADGE_SEEDS=[
   ['title_18','逆生三重','🌀','逆生三重的传人','manual','1'],
   ['title_19','阳五雷','⚡','阳五雷掌控者，掌心雷霆','manual','2'],
   ['title_20','异人界新人','🌱','初入异人界的新人','manual','5']
-['inviter_1','接引人','🤝','邀请第一位好友注册成功，双方各得100积分','auto','invite1'],
-['inviter_5','哪都通HR','💼','成功邀请5位好友注册，公司正式编外招聘官','auto','invite5'],
 ];
 async function seedBadges(env){
   for(const [id,name,icon,desc,kind,effect] of BADGE_SEEDS){
@@ -324,7 +322,7 @@ async function getEquippedBadge(env,userId){
   return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc,effect:normEffect(row.effect)}:null;
 }
 /* 炫彩效果取值范围：0~5，非法值统一回退为 0 */
-const BADGE_EFFECTS=['0','1','2','3','4','5','invite1','invite5'];
+const BADGE_EFFECTS=['0','1','2','3','4','5'];
 function normEffect(v){
   const s=String(v==null?'0':v);
   return BADGE_EFFECTS.includes(s)?s:'0';
