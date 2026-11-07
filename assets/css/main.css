@@ -3251,30 +3251,27 @@ body[data-portal-theme] .modal{animation:modalIn .32s cubic-bezier(.22,.61,.36,1
 }
 @keyframes beShine{0%,55%{left:-70%}100%{left:130%}}
 @keyframes beRainbow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+@keyframes beSpin{to{transform:rotate(360deg)}}
+@keyframes beFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
-/* 接引人 invite1：暖金握手光，柔和呼吸 */
-.bd-eff-invite1{--be-ink:#5a3a0a;--be-edge:#E8A838;--be-glow:rgba(232,168,56,.6);
-  --be-bg:linear-gradient(135deg,#F6D27C,#FFF3D0 50%,#E8A838);}
-.bd-badge.bd-eff-invite1,.up-badge.bd-eff-invite1,.bd-grant.bd-eff-invite1{
-  animation:beBreathe 2.4s ease-in-out infinite;
-}
-@keyframes beBreathe{
-  0%,100%{box-shadow:0 4px 14px rgba(232,168,56,.4)}
-  50%{box-shadow:0 4px 26px rgba(232,168,56,.85),0 0 0 3px rgba(255,220,130,.35)}
-}
-
-/* 哪都通HR invite5：深蓝商务，旋转金环 */
-.bd-eff-invite5{--be-ink:#fff;--be-edge:#2B5EA7;--be-glow:rgba(43,94,167,.6);
-  --be-bg:linear-gradient(135deg,#1A3A6B,#2B5EA7 50%,#0F2547);}
-.bd-badge.bd-eff-invite5,.up-badge.bd-eff-invite5,.bd-grant.bd-eff-invite5{
+/* 曜金 glow1：黑底金边，外圈旋转金环 */
+.bd-eff-glow1{--be-ink:#F0D080;--be-edge:#D4AF37;--be-glow:rgba(212,175,55,.5);
+  --be-bg:linear-gradient(135deg,#1A1A1A,#2D2410 50%,#0D0D0D);}
+.bd-badge.bd-eff-glow1,.up-badge.bd-eff-glow1,.bd-grant.bd-eff-glow1{
   border-width:2px;border-style:solid;
 }
-.bd-badge.bd-eff-invite5::before,.up-badge.bd-eff-invite5::before,.bd-grant.bd-eff-invite5::before{
-  content:"";position:absolute;inset:-4px;border-radius:inherit;
-  border:2px dashed rgba(255,215,100,.7);
-  animation:beSpin 6s linear infinite;pointer-events:none;
+.bd-badge.bd-eff-glow1::before,.up-badge.bd-eff-glow1::before,.bd-grant.bd-eff-glow1::before{
+  content:"";position:absolute;inset:-5px;border-radius:inherit;
+  border:2px dashed rgba(212,175,55,.6);
+  animation:beSpin 8s linear infinite;pointer-events:none;
 }
-@keyframes beSpin{to{transform:rotate(360deg)}}
+
+/* 冰蓝流光 flow2：冰蓝渐变背景流动 */
+.bd-eff-flow2{--be-ink:#fff;--be-edge:#4FC3F7;--be-glow:rgba(79,195,247,.5);
+  --be-bg:linear-gradient(120deg,#0D47A1,#4FC3F7,#81D4FA,#29B6F6,#0D47A1);
+  background-size:300% 300%;
+  animation:beFlow 5s ease infinite;
+}
 
 /* 炫彩选择器（徽章管理弹窗） */
 .bd-eff-pick{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
