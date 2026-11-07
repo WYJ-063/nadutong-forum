@@ -784,6 +784,17 @@ function cloudAccountHtml(u){
       </div>
       <p class="ph-sub" id="cloud-push-status" style="margin:10px 0 0"></p>
     </div>
+    <div class="cloud-push-box" style="margin-top:14px;padding:14px 16px;border:1px solid var(--pt-line,#e5e8f0);border-radius:14px;background:linear-gradient(135deg,#fff8e7,#fff)">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:0">
+          <strong>邀请好友</strong>
+          <p class="ph-sub" style="margin:4px 0 0">把邀请码发给朋友，注册时填写，双方各得 100 积分</p>
+        </div>
+      </div>
+      <div id="invite-box" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="cl-spin"></span> 正在加载邀请码…
+      </div>
+    </div>
     ${u.role>=3?`<div class="cloud-mod" id="cloud-mod">
       <div class="cloud-mod-head"><strong>成员管理 <span class="ph-sub" id="cm-count" style="font-weight:400"></span></strong><span style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm btn-ghost" data-bmanage>🎖 徽章管理</button><button class="btn btn-sm btn-ghost" id="cm-reload">刷新列表</button></span></div>
       <div class="cloud-mod-search"><input class="field" id="cm-search" placeholder="搜索成员昵称 / 账号 / 编号…"></div>
@@ -922,31 +933,15 @@ async function loadInviteBox(){
     const d=await Cloud.request('/invite');
     if(!document.body.contains(box))return;
     const list=(d.invited||[]).slice(0,10).map(u=>
-      '<div style=”width:100%;font-size:13px;color:#888;padding:4px 0;border-top:1px dashed #eee”>'+
-        esc(u.name)+' <span class=”ph-sub”>'+esc(u.login)+'</span>'+
+      '<div style="width:100%;font-size:13px;color:#888;padding:4px 0;border-top:1px dashed #eee">'+
+        esc(u.name)+' <span class="ph-sub">'+esc(u.login)+'</span>'+
       '</div>').join('');
     box.innerHTML=
-      '<code style=”font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a”>'+esc(d.code)+'</code>'+
-      '<button class=”btn btn-sm btn-orange” id=”invite-copy” style=”border-radius:20px;padding:6px 16px”>📋 复制邀请码</button>'+
-      '<button class=”btn btn-sm” id=”invite-copy-link” style=”border-radius:20px;padding:6px 16px;background:#e8f0fe;color:#2b5ea7;border:1px solid #c5d9f8”>🔗 复制邀请链接</button>'+
-      '<span class=”ph-sub” style=”margin-left:auto”>已邀请 <b style=”color:#c8860a;font-size:16px”>'+d.count+'</b> 人</span>'+
-      (list?'<div style=”width:100%;margin-top:6px”>'+list+'</div>':'');
-    const doCopy=async(text,msg)=>{
-      try{ await navigator.clipboard.writeText(text); toast(msg,'ok'); }
-      catch(e){
-        const ta=document.createElement('textarea');
-        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-        document.body.appendChild(ta); ta.select();
-        try{ document.execCommand('copy'); toast(msg,'ok'); }
-        catch(e2){ toast('复制失败，请手动复制','err'); }
-        document.body.removeChild(ta);
-      }
-    };
-    const bc=$('#invite-copy',box), bl=$('#invite-copy-link',box);
-    if(bc)bc.addEventListener('click',()=>doCopy(d.code,'邀请码已复制'));
-    if(bl)bl.addEventListener('click',()=>doCopy(location.origin+location.pathname+'#/register?ref='+d.code,'邀请链接已复制'));
+      '<code style="font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a">'+esc(d.code)+'</code>'+
+      '<span class="ph-sub" style="margin-left:auto">已邀请 <b style="color:#c8860a;font-size:16px">'+d.count+'</b> 人</span>'+
+      (list?'<div style="width:100%;margin-top:6px">'+list+'</div>':'');
   }catch(e){
-    box.innerHTML='<span class=”ph-sub”>邀请码加载失败：'+esc(e.message)+'</span>';
+    box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }
 }
 async function enableWebPush(){
@@ -978,6 +973,7 @@ function bindCloudPush(){
   const box=document.getElementById('cloud-push-box');
   if(!box)return;
   renderCloudPushState();
+  loadInviteBox();
   const btn=document.getElementById('cloud-push-toggle');
   btn.addEventListener('click',async()=>{
     btn.disabled=true;
