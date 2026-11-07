@@ -15,10 +15,6 @@
     opt1.dataset.eff='glow1';
     opt1.title='曜金·旋转金环';
     opt1.style.cssText='background:linear-gradient(135deg,#1A1A1A,#D4AF37);';
-    opt1.addEventListener('click',function(){
-      pick.querySelectorAll('.bd-eff-opt').forEach(function(b){b.classList.remove('sel')});
-      opt1.classList.add('sel');
-    });
     pick.appendChild(opt1);
 
     var opt2=document.createElement('button');
@@ -27,10 +23,6 @@
     opt2.dataset.eff='flow2';
     opt2.title='冰蓝·流光';
     opt2.style.cssText='background:linear-gradient(135deg,#0D47A1,#4FC3F7);';
-    opt2.addEventListener('click',function(){
-      pick.querySelectorAll('.bd-eff-opt').forEach(function(b){b.classList.remove('sel')});
-      opt2.classList.add('sel');
-    });
     pick.appendChild(opt2);
   }
 
