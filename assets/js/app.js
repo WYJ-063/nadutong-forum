@@ -973,7 +973,6 @@ function bindCloudPush(){
   const box=document.getElementById('cloud-push-box');
   if(!box)return;
   renderCloudPushState();
-  loadInviteBox();
   const btn=document.getElementById('cloud-push-toggle');
   btn.addEventListener('click',async()=>{
     btn.disabled=true;
