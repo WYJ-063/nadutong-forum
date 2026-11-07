@@ -948,52 +948,48 @@ async function loadInviteBox(){
     box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }
 }
-/* 生成邀请分享卡片 */
+/* 生成邀请分享卡片（与能力档案同款风格） */
 function generateInviteCard(d){
   const preview=document.getElementById('invite-card-preview');
   if(!preview)return;
-  const canvas=document.createElement('canvas');
-  canvas.width=600;canvas.height=900;
+  const T=SHARE_THEMES[DB.data.theme]||SHARE_THEMES.default;
+  const W=750,M=40,cardW=W-M*2;
+  const headH=120,codeH=180,footH=80,gap=20;
+  const H=M+headH+gap+codeH+gap+footH+M;
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
-  // 背景渐变
-  const g=ctx.createLinearGradient(0,0,600,900);
-  g.addColorStop(0,'#1a1a2e');g.addColorStop(0.5,'#16213e');g.addColorStop(1,'#0f3460');
-  ctx.fillStyle=g;ctx.fillRect(0,0,600,900);
-  // 装饰圆
-  ctx.fillStyle='rgba(232,168,56,0.1)';
-  ctx.beginPath();ctx.arc(500,150,120,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(100,750,100,0,Math.PI*2);ctx.fill();
-  // 标题
-  ctx.fillStyle='#E8A838';ctx.font='bold 36px sans-serif';ctx.textAlign='center';
-  ctx.fillText('哪都通',300,120);
-  ctx.fillStyle='#fff';ctx.font='20px sans-serif';
-  ctx.fillText('· 异人论坛 ·',300,160);
-  // 邀请文案
-  ctx.fillStyle='#ccc';ctx.font='18px sans-serif';
-  ctx.fillText('诚邀你加入我们',300,260);
-  // 邀请码大框
-  ctx.fillStyle='rgba(255,255,255,0.08)';
-  ctx.roundRect(100,320,400,180,16);ctx.fill();
-  ctx.strokeStyle='#E8A838';ctx.lineWidth=2;
-  ctx.roundRect(100,320,400,180,16);ctx.stroke();
-  ctx.fillStyle='#E8A838';ctx.font='14px sans-serif';
-  ctx.fillText('我的专属邀请码',300,360);
-  ctx.fillStyle='#fff';ctx.font='bold 48px monospace';
-  ctx.fillText(d.code,300,430);
-  ctx.fillStyle='#aaa';ctx.font='14px sans-serif';
-  ctx.fillText('注册时填写，双方各得100积分',300,475);
-  // 底部
-  ctx.fillStyle='#888';ctx.font='14px sans-serif';
-  ctx.fillText('扫码或访问网站注册，输入邀请码',300,600);
-  ctx.fillStyle='#E8A838';ctx.font='bold 16px sans-serif';
-  ctx.fillText(location.origin,300,640);
-  // 用户名
-  if(Cloud.user&&Cloud.user.name){
-    ctx.fillStyle='#aaa';ctx.font='14px sans-serif';
-    ctx.fillText('邀请人：'+Cloud.user.name,300,800);
-  }
-  // 转图片显示
-  preview.innerHTML='<img src="'+canvas.toDataURL('image/png')+'" style="width:100%;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.3)" alt="邀请卡片">';
+  drawShareBackground(ctx,W,H,T);
+  let y=M;
+  /* 头部卡 */
+  glassCard(ctx,M,y,cardW,headH,T);
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillStyle=T.text;ctx.font='900 30px "Microsoft YaHei",sans-serif';
+  ctx.fillText('🎯 好友邀请',M+26,y+40);
+  ctx.fillStyle=T.sub;ctx.font='15px "Microsoft YaHei",sans-serif';
+  ctx.fillText('注册时填写邀请码，双方各得 100 积分',M+26,y+78);
+  /* 右侧已邀请数 */
+  const cntTxt='已邀请 '+d.count+' 人';
+  ctx.font='700 18px "Microsoft YaHei",sans-serif';
+  const bw=ctx.measureText(cntTxt).width+32;
+  ctx.fillStyle=T.avatarBg;roundRect(ctx,W-M-26-bw,y+headH/2-20,bw,40,20);ctx.fill();
+  ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(cntTxt,W-M-26-bw/2,y+headH/2+1);
+  y+=headH+gap;
+  /* 邀请码大卡 */
+  glassCard(ctx,M,y,cardW,codeH,T);
+  sectionTitle(ctx,M+26,y+12,'我的专属邀请码',T);
+  ctx.textAlign='center';
+  ctx.fillStyle=T.accent;ctx.font='900 52px "Microsoft YaHei",monospace';
+  ctx.fillText(d.code,W/2,y+110);
+  ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
+  ctx.fillText('复制以上邀请码，注册时填入即可',W/2,y+155);
+  y+=codeH+gap;
+  /* 页脚 */
+  ctx.textAlign='center';
+  ctx.fillStyle=T.sub;ctx.font='14px "Microsoft YaHei",sans-serif';
+  ctx.fillText('哪都通 · 异人论坛',W/2,y+20);
+  ctx.fillStyle=T.text;ctx.font='700 18px "Microsoft YaHei",sans-serif';
+  ctx.fillText(siteUrl(),W/2,y+52);
+  preview.innerHTML='<img src="'+canvas.toDataURL('image/jpeg',.92)+'" style="width:100%;border-radius:16px" alt="邀请卡片">';
   preview.style.display='block';
   toast('分享卡片已生成，长按保存图片','ok');
 }
