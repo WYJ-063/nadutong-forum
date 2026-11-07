@@ -938,11 +938,64 @@ async function loadInviteBox(){
       '</div>').join('');
     box.innerHTML=
       '<code style="font-size:22px;font-weight:700;letter-spacing:3px;color:#c8860a;background:#fff3d0;padding:8px 16px;border-radius:10px;border:1px solid #ffd97a">'+esc(d.code)+'</code>'+
+      '<button type="button" class="btn btn-sm btn-orange" id="invite-share-btn" style="border-radius:20px">🎴 生成分享卡片</button>'+
       '<span class="ph-sub" style="margin-left:auto">已邀请 <b style="color:#c8860a;font-size:16px">'+d.count+'</b> 人</span>'+
+      '<div id="invite-card-preview" style="width:100%;margin-top:10px;display:none"></div>'+
       (list?'<div style="width:100%;margin-top:6px">'+list+'</div>':'');
+    const btn=document.getElementById('invite-share-btn');
+    if(btn)btn.onclick=()=>generateInviteCard(d);
   }catch(e){
     box.innerHTML='<span class="ph-sub">邀请码加载失败：'+esc(e.message)+'</span>';
   }
+}
+/* 生成邀请分享卡片 */
+function generateInviteCard(d){
+  const preview=document.getElementById('invite-card-preview');
+  if(!preview)return;
+  const canvas=document.createElement('canvas');
+  canvas.width=600;canvas.height=900;
+  const ctx=canvas.getContext('2d');
+  // 背景渐变
+  const g=ctx.createLinearGradient(0,0,600,900);
+  g.addColorStop(0,'#1a1a2e');g.addColorStop(0.5,'#16213e');g.addColorStop(1,'#0f3460');
+  ctx.fillStyle=g;ctx.fillRect(0,0,600,900);
+  // 装饰圆
+  ctx.fillStyle='rgba(232,168,56,0.1)';
+  ctx.beginPath();ctx.arc(500,150,120,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(100,750,100,0,Math.PI*2);ctx.fill();
+  // 标题
+  ctx.fillStyle='#E8A838';ctx.font='bold 36px sans-serif';ctx.textAlign='center';
+  ctx.fillText('哪都通',300,120);
+  ctx.fillStyle='#fff';ctx.font='20px sans-serif';
+  ctx.fillText('· 异人论坛 ·',300,160);
+  // 邀请文案
+  ctx.fillStyle='#ccc';ctx.font='18px sans-serif';
+  ctx.fillText('诚邀你加入我们',300,260);
+  // 邀请码大框
+  ctx.fillStyle='rgba(255,255,255,0.08)';
+  ctx.roundRect(100,320,400,180,16);ctx.fill();
+  ctx.strokeStyle='#E8A838';ctx.lineWidth=2;
+  ctx.roundRect(100,320,400,180,16);ctx.stroke();
+  ctx.fillStyle='#E8A838';ctx.font='14px sans-serif';
+  ctx.fillText('我的专属邀请码',300,360);
+  ctx.fillStyle='#fff';ctx.font='bold 48px monospace';
+  ctx.fillText(d.code,300,430);
+  ctx.fillStyle='#aaa';ctx.font='14px sans-serif';
+  ctx.fillText('注册时填写，双方各得100积分',300,475);
+  // 底部
+  ctx.fillStyle='#888';ctx.font='14px sans-serif';
+  ctx.fillText('扫码或访问网站注册，输入邀请码',300,600);
+  ctx.fillStyle='#E8A838';ctx.font='bold 16px sans-serif';
+  ctx.fillText(location.origin,300,640);
+  // 用户名
+  if(Cloud.user&&Cloud.user.name){
+    ctx.fillStyle='#aaa';ctx.font='14px sans-serif';
+    ctx.fillText('邀请人：'+Cloud.user.name,300,800);
+  }
+  // 转图片显示
+  preview.innerHTML='<img src="'+canvas.toDataURL('image/png')+'" style="width:100%;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.3)" alt="邀请卡片">';
+  preview.style.display='block';
+  toast('分享卡片已生成，长按保存图片','ok');
 }
 async function enableWebPush(){
   if(!Cloud.connected)throw new Error('请先登录云端账号');
