@@ -387,6 +387,21 @@ const Cloud={
     try{localStorage.removeItem('ndt-cloud-token');}catch(e){}
   },
   logout(){this.clear();},
+  /* ---------- 账号：改密码 / 改昵称 / 管理员重置他人密码 ---------- */
+  async changePassword(oldPassword,newPassword){
+    return await this.request('/auth/password',
+      {method:'POST',body:JSON.stringify({oldPassword,newPassword})});
+  },
+  async updateName(name){
+    const d=await this.request('/users/'+encodeURIComponent(this.user.id)+'/profile',
+      {method:'POST',body:JSON.stringify({name})});
+    if(d.user)this.user=d.user;
+    return d;
+  },
+  async resetUserPassword(id,password){
+    return await this.request('/users/'+encodeURIComponent(id),
+      {method:'POST',body:JSON.stringify({action:'resetpass',password})});
+  },
   /* 论坛数据（支持分页/精华/作者过滤；返回 {posts,total,hasMore,...}） */
   async listPosts(board,sort,opts={}){
     const q=new URLSearchParams();
@@ -778,6 +793,19 @@ function cloudAccountHtml(u){
       <button class="btn btn-ghost btn-sm" id="cloud-refresh">刷新资料</button>
       ${u.role>=3?'<button class="btn btn-ghost btn-sm" id="cloud-export">导出数据备份</button>':''}
     </div>
+    <div class="cloud-push-box" style="margin-top:14px;padding:14px 16px;border:1px solid var(--pt-line,#e5e8f0);border-radius:14px;background:var(--pt-soft,#f7f8fc)">
+      <strong>账号设置</strong>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <input class="field" id="acct-name" maxlength="16" value="${esc(u.name)}" placeholder="昵称（最多 16 字）" style="max-width:180px">
+        <button type="button" class="btn btn-sm btn-ghost" id="acct-name-save">保存昵称</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <input class="field" id="acct-old-pass" type="password" placeholder="当前密码" autocomplete="current-password" style="max-width:170px">
+        <input class="field" id="acct-new-pass" type="password" placeholder="新密码（至少 6 位）" autocomplete="new-password" style="max-width:190px">
+        <button type="button" class="btn btn-sm btn-orange" id="acct-pass">修改密码</button>
+      </div>
+      <p class="ph-sub" style="margin:8px 0 0">改昵称会同步更新你在论坛的历史帖子与回复署名；改密码不会让当前设备退出登录。</p>
+    </div>
     <p class="ph-sub" style="margin-top:14px">云端共享：论坛帖子、回复、点赞与积分等级。<br>仍保留在本地：聊天/聊天室、抽签问卦、小游戏、界面主题与个人设置。</p>
     <div class="cloud-push-box" id="cloud-push-box" style="margin-top:14px;padding:14px 16px;border:1px solid var(--pt-line,#e5e8f0);border-radius:14px;background:var(--pt-soft,#f7f8fc)">
       <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
@@ -828,6 +856,7 @@ function cloudModListHtml(users){
         <button class="btn btn-sm btn-ghost" data-cmbadge="${u.id}" title="手动发放徽章/称号">🎖 发徽章</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.muted?'unmute':'mute'}:${u.id}">${u.muted?'解除禁言':'禁言'}</button>
         <button class="btn btn-sm btn-ghost" data-cm="${u.banned?'unban':'ban'}:${u.id}" ${u.banned?'':'style="color:#FF9DA0"'}>${u.banned?'解除拉黑':'拉黑'}</button>
+        <button class="btn btn-sm btn-ghost" data-cmpass="${u.id}" style="color:#7B5CF0">🔑 重置密码</button>
         <button class="btn btn-sm btn-ghost" data-cmdel="${u.id}" style="color:#FF6B6B">删除账号</button>
       </div>`:''}
     </div>`;
@@ -9004,6 +9033,41 @@ document.addEventListener('click',e=>{
     })();
     return;
   }
+  /* 账号设置：保存昵称 */
+  const acctName=t.closest('#acct-name-save');
+  if(acctName){
+    const name=(($('#acct-name')||{}).value||'').trim();
+    if(!name){toast('昵称不能为空','err');return;}
+    if([...name].length>16){toast('昵称最多 16 个字','err');return;}
+    acctName.disabled=true;
+    (async()=>{
+      try{
+        await Cloud.updateName(name);
+        router();
+        toast('昵称已更新，历史帖子署名同步完成','ok');
+      }catch(e){toast(e.message,'err');acctName.disabled=false;}
+    })();
+    return;
+  }
+  /* 账号设置：修改密码 */
+  const acctPass=t.closest('#acct-pass');
+  if(acctPass){
+    const oldPass=(($('#acct-old-pass')||{}).value||'');
+    const newPass=(($('#acct-new-pass')||{}).value||'');
+    if(!oldPass||!newPass){toast('请填写当前密码和新密码','err');return;}
+    if(newPass.length<6){toast('新密码至少 6 位','err');return;}
+    acctPass.disabled=true;
+    (async()=>{
+      try{
+        await Cloud.changePassword(oldPass,newPass);
+        const a=$('#acct-old-pass'),b2=$('#acct-new-pass');
+        if(a)a.value='';if(b2)b2.value='';
+        toast('密码已修改，下次登录请使用新密码','ok');
+      }catch(e){toast(e.message,'err');}
+      acctPass.disabled=false;
+    })();
+    return;
+  }
   /* 成员管理：刷新列表 */
   const cmReload=t.closest('#cm-reload');
   if(cmReload){loadCloudMod();return;}
@@ -9023,7 +9087,33 @@ document.addEventListener('click',e=>{
     });
     return;
   }
-  /* 设/撤管理员（最高权限管理员） */
+  /* 管理员：重置他人密码 */
+  const cmPass=t.closest('[data-cmpass]');
+  if(cmPass){
+    const uid=cmPass.dataset.cmpass;
+    const u=(_cloudModUsers||[]).find(x=>x.id===uid)||{name:'该用户'};
+    const mask=openMask(`<h3>重置密码</h3>
+      <div class="m-body">
+        <p class="ph-sub" style="margin:0 0 12px">为「${esc(u.name)}」设置新密码（至少 6 位）。对方下次登录需改用新密码，其帖子、积分与徽章不受影响。</p>
+        <input class="field" id="cmpass-new" type="password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
+        <p class="ph-sub" id="cmpass-msg" style="margin:8px 0 0"></p>
+      </div>
+      <div class="m-foot"><button class="btn btn-sm btn-ghost" id="cmpass-cancel">取消</button><button class="btn btn-sm btn-orange" id="cmpass-ok">确认重置</button></div>`);
+    mask.querySelector('#cmpass-cancel').onclick=()=>mask.remove();
+    mask.querySelector('#cmpass-ok').onclick=async()=>{
+      const inp=mask.querySelector('#cmpass-new');
+      const msg=mask.querySelector('#cmpass-msg');
+      const okBtn=mask.querySelector('#cmpass-ok');
+      const pass=inp?inp.value:'';
+      if(pass.length<6){if(msg)msg.textContent='新密码至少 6 位';return;}
+      okBtn.disabled=true;
+      try{
+        await Cloud.resetUserPassword(uid,pass);
+        mask.remove();toast('已重置该用户密码','ok');
+      }catch(e){if(msg)msg.textContent=e.message;okBtn.disabled=false;}
+    };
+    return;
+  }
   const cmRole=t.closest('[data-cmrole]');
   if(cmRole){
     const [role,targetId]=cmRole.dataset.cmrole.split(':');

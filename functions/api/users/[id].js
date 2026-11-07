@@ -1,6 +1,6 @@
 import {
   json,readBody,preflight,ensureSchema,publicUser,publicUserFull,getAuthUser,isAdmin,
-  getUserBadges,shapePostList,shapeReplyList
+  getUserBadges,shapePostList,shapeReplyList,hashPassword
 } from '../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -61,7 +61,7 @@ export async function onRequestGet({request,env,params}){
 }
 
 /* POST /api/users/:id  —— 管理员禁言 / 解除禁言 / 拉黑 / 解除拉黑
-   body: { action: 'mute'|'unmute'|'ban'|'unban' } */
+   body: { action: 'mute'|'unmute'|'ban'|'unban'|'resetpass', password?（仅 resetpass） } */
 export async function onRequestPost({request,env,params}){
   const me=await getAuthUser(request,env);
   if(!me)return json({error:'请先登录云端账号'},401);
@@ -73,6 +73,17 @@ export async function onRequestPost({request,env,params}){
   if(Number(me.role)<4&&Number(row.role)>=4)return json({error:'无权对最高权限管理员执行该操作'},403);
   const b=await readBody(request);
   const action=String(b.action||'');
+  /* 管理员重置他人密码（忘记密码时唯一的找回途径，不需要邮箱）。
+     只更新目标用户的 pass_hash/salt，不动其它数据和已登录会话。 */
+  if(action==='resetpass'){
+    const password=String(b.password||'');
+    if(password.length<6)return json({error:'新密码至少 6 位'},400);
+    const salt=crypto.randomUUID();
+    const passHash=await hashPassword(password,salt);
+    await env.DB.prepare('UPDATE users SET pass_hash=?,salt=? WHERE id=?')
+      .bind(passHash,salt,params.id).run();
+    return json({ok:true,user:publicUser(row)});
+  }
   let muted=Number(row.muted)||0, banned=Number(row.banned)||0;
   if(action==='mute')muted=1;
   else if(action==='unmute')muted=0;
