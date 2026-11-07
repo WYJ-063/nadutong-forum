@@ -48,8 +48,11 @@ export async function onRequestPost({request,env}){
       .bind(genId('inv'),inviteCode,inviter.id,id,createdAt).run();
     // 通知邀请人
     await env.DB.prepare(
-      `INSERT INTO notifications (id,user_id,type,content,link,created_at) VALUES (?,?,?,?,?,?)`)
-      .bind(genId('n'),inviter.id,'invite',`${name} 通过你的邀请注册成功，+100 积分`,`#/u/${id}`,nowStr()).run();
+      `INSERT INTO notifications
+         (id,user_id,type,actor_id,actor_name,target_type,target_id,post_id,post_title,excerpt,read,created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`)
+      .bind(genId('n'),inviter.id,'invite','system','系统','user',id,'',name,
+        `${name} 通过你的邀请注册成功，双方各得100积分`,nowStr()).run();
     // 发引荐人徽章（第1人）和星探徽章（第5人）
     const {results:invList}=await env.DB.prepare('SELECT COUNT(*) as c FROM invitations WHERE inviter_id=?').bind(inviter.id).all();
     const cnt=Number(invList?.[0]?.c||0);
