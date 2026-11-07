@@ -1,0 +1,78 @@
+/* ============================================================
+   界面细节增强（骨架屏 / 列表逐条入场 / 数字滚动）
+   独立文件，不改 main.css；主题色统一走 --pt-* 变量，深浅色都能用
+   ============================================================ */
+
+/* ---------- 1. 骨架屏 ---------- */
+.skel-list{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.skel-card{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:16px 18px;border-radius:14px;
+  background:var(--pt-panel,#fff);
+  border:1px solid var(--pt-border,#e7ecf3);
+}
+.skel-vote{
+  flex:none;width:52px;height:62px;border-radius:10px;
+}
+.skel-main{flex:1;display:flex;flex-direction:column;gap:9px;min-width:0}
+.skel-line{height:12px;border-radius:6px}
+.skel-line.w20{width:20%}
+.skel-line.w40{width:40%}
+.skel-line.w70{width:70%}
+.skel-line.w95{width:95%}
+.skel-meta{display:flex;align-items:center;gap:10px;margin-top:3px}
+.skel-dot{width:22px;height:22px;border-radius:50%;flex:none}
+/* 统一的微光扫过 */
+.skel-vote,.skel-line,.skel-dot{
+  background-image:linear-gradient(90deg,
+    var(--pt-soft,#eef1f6) 25%,
+    rgba(255,255,255,.62) 37%,
+    var(--pt-soft,#eef1f6) 63%);
+  background-size:400% 100%;
+  animation:skelSweep 1.5s ease-in-out infinite;
+}
+.skel-card:nth-child(2) .skel-vote,.skel-card:nth-child(2) .skel-line,
+.skel-card:nth-child(2) .skel-dot{animation-delay:.12s}
+.skel-card:nth-child(3) .skel-vote,.skel-card:nth-child(3) .skel-line,
+.skel-card:nth-child(3) .skel-dot{animation-delay:.24s}
+.skel-card:nth-child(4) .skel-vote,.skel-card:nth-child(4) .skel-line,
+.skel-card:nth-child(4) .skel-dot{animation-delay:.36s}
+@keyframes skelSweep{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
+/* 骨架下面的加载提示：弱化，不抢骨架的视觉 */
+.cloud-loading.skel-hint{
+  margin-top:14px;justify-content:center;font-size:12.5px;
+  color:var(--pt-muted,#8b95a5);opacity:.85;
+}
+
+/* ---------- 2. 列表逐条入场 ---------- */
+/* 稍微错开时间，避免整块内容同时"弹"出来 */
+.q-item{animation:qItemIn .34s cubic-bezier(.2,.8,.3,1) both}
+.q-item:nth-child(1){animation-delay:0ms}
+.q-item:nth-child(2){animation-delay:45ms}
+.q-item:nth-child(3){animation-delay:90ms}
+.q-item:nth-child(4){animation-delay:135ms}
+.q-item:nth-child(5){animation-delay:180ms}
+.q-item:nth-child(6){animation-delay:225ms}
+.q-item:nth-child(7){animation-delay:270ms}
+.q-item:nth-child(8){animation-delay:315ms}
+.q-item:nth-child(9){animation-delay:360ms}
+.q-item:nth-child(10){animation-delay:405ms}
+.q-item:nth-child(11){animation-delay:450ms}
+.q-item:nth-child(n+12){animation-delay:480ms}
+@keyframes qItemIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ---------- 3. 数字滚动 ---------- */
+/* 数字变化时由 ui-polish.js 加这个类，做一次轻微放大回弹 */
+.num-pop{display:inline-block;animation:numPop .42s ease-out}
+@keyframes numPop{
+  0%{transform:scale(1)}
+  45%{transform:scale(1.22)}
+  100%{transform:scale(1)}
+}
+
+/* ---------- 无障碍：系统设置了"减少动态效果"就全部关掉 ---------- */
+@media (prefers-reduced-motion:reduce){
+  .skel-vote,.skel-line,.skel-dot{animation:none}
+  .q-item{animation:none}
+  .num-pop{animation:none}
+}

@@ -2351,7 +2351,11 @@ function viewForum(board,sort){
   </div>`;
   if(cloudOn){
     _forumView={board,sort,posts:[],offset:0,hasMore:false,total:0,loading:false};
-    const c=shell('<div class="cloud-loading"><span class="cl-spin"></span>正在从云端加载帖子…</div>');
+    /* 骨架屏：先把列表的形状摆出来，等云端返回再替换（样式在 ui-polish.css） */
+    const _skelCard='<div class="skel-card"><div class="skel-vote"></div><div class="skel-main"><div class="skel-line w70"></div><div class="skel-line w95"></div><div class="skel-line w40"></div><div class="skel-meta"><div class="skel-dot"></div><div class="skel-line w20"></div></div></div></div>';
+    const _skel='<div class="skel-list">'+_skelCard+_skelCard+_skelCard+_skelCard+'</div>'+
+      '<div class="cloud-loading skel-hint"><span class="cl-spin"></span>正在从云端加载帖子…</div>';
+    const c=shell(_skel);
     setTimeout(loadCloudForumFirst,0);
     return portalShell('forum',c);
   }
