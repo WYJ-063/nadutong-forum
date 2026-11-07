@@ -1,7 +1,30 @@
-/* 徽章特效注入 - 独立文件，不碰后端不改app.js */
+/* 徽章特效注入 - 独立文件，完全不碰app.js和后端 */
 (function(){
   var MARK_GLOW='[GLOW1]';
   var MARK_FLOW='[FLOW2]';
+
+  // 动态加两个特效选项到选择器
+  function injectOptions(){
+    var pick=document.getElementById('b-eff-pick');
+    if(!pick)return;
+    if(pick.querySelector('[data-eff="glow1"]'))return;
+
+    var opt1=document.createElement('button');
+    opt1.type='button';
+    opt1.className='bd-eff-opt';
+    opt1.dataset.eff='glow1';
+    opt1.title='曜金·旋转金环';
+    opt1.style.cssText='background:linear-gradient(135deg,#1A1A1A,#D4AF37);';
+    pick.appendChild(opt1);
+
+    var opt2=document.createElement('button');
+    opt2.type='button';
+    opt2.className='bd-eff-opt';
+    opt2.dataset.eff='flow2';
+    opt2.title='冰蓝·流光';
+    opt2.style.cssText='background:linear-gradient(135deg,#0D47A1,#4FC3F7);';
+    pick.appendChild(opt2);
+  }
 
   // 监听徽章提交：把选的特效标记加到desc里
   function watchSubmit(){
@@ -51,10 +74,12 @@
   }
 
   var observer=new MutationObserver(function(){
+    injectOptions();
     watchSubmit();
     applyEffects();
   });
   observer.observe(document.body,{childList:true,subtree:true});
+  injectOptions();
   watchSubmit();
   applyEffects();
 })();
