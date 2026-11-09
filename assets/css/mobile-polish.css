@@ -1,0 +1,135 @@
+/* ============================================================
+   手机端打磨（v45）
+   目标：触控手感、防误缩放、文本与图片不撑破、操作按钮不挤、
+        横滑导航更好认、刘海/安全区留白、平板过渡断点。
+   约定：只做覆盖式补丁，不改 main.css / app.js；所有规则都在
+        媒体查询里，桌面端完全不受影响。
+   ============================================================ */
+
+/* ---------- 0. 全局触控手感（对鼠标无影响） ---------- */
+html, body { touch-action: manipulation; }          /* 去掉双击缩放与 300ms 点击延迟 */
+a, button, [role="button"], .side-item, .nav a, .tab, .vt, .qm, .rp-btn {
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: none) {
+  /* 手机上按下即有一次轻微回弹，比"没有任何反馈"更像原生按钮 */
+  a:active, button:active, .side-item:active, .nav a:active, .chat-list-item:active {
+    transform: scale(.975);
+    transition: transform .08s ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  a:active, button:active, .side-item:active, .nav a:active { transform: none; }
+}
+
+/* ---------- 1. 680 以下：输入框防自动放大 + 可点区域 ---------- */
+@media (max-width: 680px) {
+  /* iOS Safari / WebView 在字号小于 16px 的输入框聚焦时会自动放大页面，
+     这一步把输入类控件统一到 16px，避免"点一下整页被放大"。 */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select, textarea, .field {
+    font-size: 16px !important;
+  }
+  /* 触控目标下限：低于 28px 的元素手指很难点中 */
+  .qm, .rp-btn, .chat-time-node, .p-crumb a, .tag {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .vt { min-width: 40px; min-height: 40px; justify-content: center; }
+  .btn-sm { min-height: 32px; }
+}
+
+/* ---------- 2. 长文本 / 表格 / 图片不撑破容器 ---------- */
+@media (max-width: 680px) {
+  .p-panel, .answer, .a-body, .q-main, .p-crumb, .ph-sub, .reply-actions {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .p-main img, .p-main video, .p-main iframe, .modal img {
+    max-width: 100%;
+    height: auto;
+  }
+  .p-main pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* 管理页里的宽表格：手机上改成整块横滑，而不是把页面撑出横向滚动条 */
+  .p-main table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ---------- 3. 帖子页排版：标题降一档、操作按钮不挤成一团 ---------- */
+@media (max-width: 680px) {
+  .p-panel { padding: 16px 14px; border-radius: 10px; }
+  /* 帖子详情标题是行内写死的 23px，手机上偏大，压到 19px */
+  .p-panel > h2 { font-size: 19px !important; line-height: 1.45; }
+  .p-panel h2 { margin-bottom: 6px; }
+  .q-meta { flex-wrap: wrap; gap: 6px 8px; row-gap: 6px; }
+  .q-meta .btn-sm, .q-meta .qm { font-size: 12px; padding: 6px 10px; }
+  .q-meta > span { font-size: 12px; }
+  .q-meta .user-chip { margin-left: 0; }
+  /* 手机上不要用 margin-left:auto 把某个按钮顶到行尾：
+     会让"分享"单独掉到第二行、还靠左，看着像漏了个按钮。
+     统一让操作按钮紧跟信息区自然换行。 */
+  .q-meta .btn, .q-meta .btn-sm, .q-meta .qm { margin-left: 0 !important; }
+  /* 回帖一块：左侧赞数窄一点，把宽度让给正文 */
+  .answer { gap: 8px; }
+  .q-vote-answer { min-width: 30px; }
+}
+@media (max-width: 380px) {
+  .q-meta .btn-sm, .q-meta .qm { font-size: 11.5px; padding: 6px 8px; }
+}
+
+/* ---------- 4. 横向导航条：隐藏滚动条、两端渐隐、当前项自动可见 ---------- */
+@media (max-width: 680px) {
+  .nav { scrollbar-width: none; -ms-overflow-style: none; scroll-padding: 0 14px; }
+  .nav::-webkit-scrollbar { width: 0; height: 0; }
+  /* 还能往右滑时，右端 26px 渐隐（用 mask，不额外加覆盖层，
+     所以不会挡住点击，也不会在顶栏吸顶时错位）。
+     属性由 mobile-polish.js 按真实滚动位置实时切换。 */
+  .nav[data-mpf~="r"] {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+  }
+  .nav[data-mpf~="l"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px);
+    mask-image: linear-gradient(90deg, transparent, #000 14px);
+  }
+  .nav[data-mpf~="l"][data-mpf~="r"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 26px), transparent);
+  }
+  .nav a.on { scroll-margin: 0 64px; }
+}
+
+/* ---------- 5. 安全区：刘海屏与底部手势条 ---------- */
+@media (max-width: 680px) {
+  .portal-top { padding-top: calc(7px + env(safe-area-inset-top, 0px)); }
+  .p-main { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .modal { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .wx-input-wrap { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- 6. 平板过渡断点：681–1024 之间侧栏收窄，避免正文被挤 ---------- */
+@media (min-width: 681px) and (max-width: 1024px) {
+  .sidebar { width: 176px; padding: 14px 8px; }
+  .side-item { padding: 9px 10px; font-size: 13.5px; }
+  .p-main { padding: 18px 18px; }
+  .p-panel { padding: 18px 18px; }
+}
+
+/* ---------- 7. 手机上滚动更顺 ---------- */
+@media (max-width: 680px) {
+  .sidebar, .chat-scroll, .wx-scroll, .p-main {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* 宽内容横向滑动时不要顺带触发页面回弹 */
+  .nav, .p-main table, pre { overscroll-behavior-x: contain; }
+}
