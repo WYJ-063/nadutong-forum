@@ -1,0 +1,272 @@
+/* ============================================================
+   动效与手感增强层 · motion-polish
+   ------------------------------------------------------------
+   独立文件，排在所有主题 CSS 之后加载（最后一张）。
+
+   设计原则：
+   1) 只做「按压 / 悬停 / 过渡 / 焦点」四类反馈，
+      不改任何布局尺寸、字体、配色方案；
+   2) 颜色一律走 --pt-* 变量并带基础色兜底，
+      深蓝默认、日间、古风、赛博、玫瑰、极光、微信等主题都能用；
+   3) 悬停效果全部包在 @media (hover:hover) 里 ——
+      触摸屏不会因为"点一下"留下粘住的 hover 态；
+   4) 结尾统一尊重 prefers-reduced-motion。
+
+   —— 与既有文件的关系 ——
+   ui-polish.css 已经做了骨架屏、列表逐条入场、数字弹跳；
+   本文件不重复那些，只补它没覆盖的交互层面。
+   ============================================================ */
+
+:root{
+  --mz-fast:.14s;                            /* 按下 / 轻反馈 */
+  --mz-base:.22s;                            /* 常规过渡 */
+  --mz-slow:.42s;                            /* 主题、大块变化 */
+  --mz-out:cubic-bezier(.22,.8,.28,1);       /* 顺滑出场，无过冲 */
+  --mz-spring:cubic-bezier(.34,1.45,.55,1);  /* 轻微回弹，用于弹入 */
+}
+
+/* ============================================================
+   一、按压手感
+   ------------------------------------------------------------
+   原来的按钮基本只有 :hover 的颜色变化，按下去没有任何形变，
+   点击时"没有实感"。这里统一补 1px 下沉 + 0.98 缩放，
+   并把 transition 从 all 收窄到具体属性，减少无关重绘。
+   ============================================================ */
+.btn,.btn-sm,.site-tab,.forum-tabs .ft,.q-vote .vt,
+.editor-bar .eb,.stk-picker button,.p-crumb a{
+  transition:
+    transform var(--mz-fast) var(--mz-out),
+    background-color var(--mz-fast) ease,
+    border-color var(--mz-fast) ease,
+    color var(--mz-fast) ease,
+    box-shadow var(--mz-fast) ease;
+}
+
+.btn:active,.btn-sm:active,.site-tab:active,.forum-tabs .ft:active,
+.q-vote .vt:active,.editor-bar .eb:active,.stk-picker button:active{
+  transform:translateY(1px) scale(.985);
+}
+
+/* 主按钮悬停时轻微抬起，与按压形成一上一下的对比 */
+@media (hover:hover){
+  .btn:hover,.btn-sm:hover{transform:translateY(-1px);}
+  /* 抬起后按下，落差更清楚，所以 :active 必须排在 :hover 之后 */
+  .btn:active,.btn-sm:active{transform:translateY(1px) scale(.985);}
+}
+
+/* ============================================================
+   二、帖子 / 回答行的悬停层次
+   ------------------------------------------------------------
+   论坛列表原本只有标题变橙，整行没有任何反应，
+   鼠标扫过时看不出"当前停在哪一条"。
+   做法：左侧长出一条 3px 强调条（scaleY 从 0.4 展开），
+   叠加一层从左向右淡出的极淡底色，不改变内边距。
+   ============================================================ */
+@media (hover:hover){
+  .q-item,.answer{
+    position:relative;
+    border-radius:10px;
+    transition:
+      background-color var(--mz-base) ease,
+      box-shadow var(--mz-base) ease;
+  }
+  .q-item::before,.answer::before{
+    content:"";
+    position:absolute;
+    left:-14px;top:16px;bottom:16px;
+    width:3px;border-radius:3px;
+    background:var(--pt-accent,var(--blue-2));
+    opacity:0;
+    transform:scaleY(.4);
+    transform-origin:50% 0;
+    transition:opacity var(--mz-base) ease,transform var(--mz-base) var(--mz-out);
+    pointer-events:none;
+  }
+  .q-item:hover::before,.answer:hover::before{
+    opacity:1;transform:scaleY(1);
+  }
+  /* 渐变底色：左侧最浓，到 60% 处已经完全透明，避免出现一条生硬的色块 */
+  .q-item:hover,.answer:hover{
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb,var(--pt-accent,var(--blue-2)) 7%,transparent) 0%,
+        transparent 62%);
+  }
+  /* 标题与元信息的颜色也跟上，过渡别是硬变 */
+  .q-main h3,.q-meta .qm{transition:color var(--mz-fast) ease;}
+}
+
+/* ============================================================
+   三、徽章：悬停时"亮起来"
+   ------------------------------------------------------------
+   徽章是这套皮肤最想让人多看一眼的地方。炫彩徽章自己是动画不断，
+   但鼠标停上去毫无反应。这里不加 transform（部分徽章是 inline，
+   transform 会失效），改用 filter 提亮 —— 对任何 display 都有效，
+   也不会和已有的扫光 ::after、星砂 ::before 打架。
+   ============================================================ */
+@media (hover:hover){
+  [class*="bd-eff-"].bd-badge,
+  [class*="bd-eff-"].bd-grant,
+  .lv-badge.bd-badge,
+  .up-badge{
+    transition:
+      filter var(--mz-base) ease,
+      box-shadow var(--mz-base) ease,
+      border-color var(--mz-base) ease;
+  }
+  [class*="bd-eff-"].bd-badge:hover,
+  [class*="bd-eff-"].bd-grant:hover,
+  .lv-badge.bd-badge:hover{
+    filter:brightness(1.09) saturate(1.14);
+  }
+  /* 徽章墙的单格：本来就是卡片，提亮 + 外发光一起上 */
+  .up-badge:hover{
+    box-shadow:
+      0 8px 22px color-mix(in srgb,var(--pt-accent,var(--blue-2)) 18%,transparent),
+      0 0 0 1px var(--pt-accent,var(--blue-2));
+  }
+  .up-badge .ub-icon{transition:transform var(--mz-base) var(--mz-out);}
+  .up-badge:hover .ub-icon{transform:translateY(-2px) scale(1.06);}
+}
+
+/* ============================================================
+   四、卡片的过渡曲线统一
+   ------------------------------------------------------------
+   现有卡片各自写死 .15s / .18s 的线性过渡，抬升时是"匀速平移"，
+   缺少减速感。这里统一成同一条缓出曲线，并把属性收窄到
+   transform / box-shadow / border-color / background-color。
+   ============================================================ */
+.svc-card,.arc-card,.fnc-item,.up-badge,
+.wx-im,.p-panel,.event-card,.post-card,.space-card{
+  transition:
+    transform var(--mz-base) var(--mz-out),
+    box-shadow var(--mz-base) ease,
+    border-color var(--mz-base) ease,
+    background-color var(--mz-base) ease;
+}
+
+/* 服务卡片的图标跟着卡片一起动作，比单独一张卡片浮动更有生气 */
+.svc-ico{transition:transform var(--mz-base) var(--mz-out);}
+@media (hover:hover){
+  .svc-card:hover .svc-ico{transform:translateY(-3px) scale(1.05);}
+}
+
+/* ============================================================
+   五、输入框焦点
+   ------------------------------------------------------------
+   原来的 focus 只有一个很淡的 3px 光晕，深色主题下几乎看不见。
+   改为跟着主题强调色走的柔和外环，并让边框颜色渐变过去。
+   ============================================================ */
+.field,.fs-input,
+input[type="text"],input[type="search"],
+input[type="password"],input[type="email"],input[type="number"],
+textarea{
+  transition:
+    border-color var(--mz-base) ease,
+    box-shadow var(--mz-base) ease,
+    background-color var(--mz-base) ease;
+}
+
+.field:focus,.fs-input:focus,
+input[type="text"]:focus,input[type="search"]:focus,
+input[type="password"]:focus,input[type="email"]:focus,input[type="number"]:focus,
+textarea:focus{
+  border-color:var(--pt-accent,var(--blue-2));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--pt-accent,var(--blue-2)) 16%,transparent);
+}
+
+/* ============================================================
+   六、提示条（toast）
+   ------------------------------------------------------------
+   原来是 0.25s 匀速平移，弹出像"跳出来"。改成轻微回弹，
+   落定时有一点过冲再回来，手感更像真实的界面反馈。
+   ============================================================ */
+.toast{
+  animation:toastIn .3s var(--mz-spring) both;
+  will-change:transform,opacity;
+}
+@keyframes toastIn{
+  from{opacity:0;transform:translateY(12px) scale(.96);}
+  to{opacity:1;transform:none;}
+}
+
+/* ============================================================
+   七、主题切换不要硬切
+   ------------------------------------------------------------
+   portal 的 --pt-* 一换，子元素各自有 transition 的会渐变，
+   没有的会瞬间跳色。外层背景色补一条过渡，至少底色是顺的。
+   ============================================================ */
+.portal{
+  transition:
+    background-color var(--mz-slow) ease,
+    color var(--mz-slow) ease;
+}
+
+/* ============================================================
+   八、表情包 / 图片
+   ------------------------------------------------------------
+   聊天与帖子里的贴纸本来固定尺寸，鼠标停上去给一点放大，
+   配合 cursor:zoom-in 提示"可以看得更大"。
+   ============================================================ */
+.sticker{transition:transform var(--mz-base) var(--mz-out);}
+@media (hover:hover){
+  .sticker{cursor:zoom-in;}
+  .sticker:hover{transform:scale(1.06);}
+}
+
+/* 头像：悬停时轻微放大并补一圈主题色描边 */
+.user-chip .av,.up-link img{transition:transform var(--mz-base) var(--mz-out),box-shadow var(--mz-base) ease;}
+@media (hover:hover){
+  .user-chip:hover .av{transform:scale(1.06);}
+}
+
+/* ============================================================
+   九、空状态的呼吸
+   ------------------------------------------------------------
+   列表为空时那个大 emoji 原来是完全静止的，页面显得"死"。
+   给一点极慢的上下浮动（4s，位移 3px），不抢注意力。
+   ============================================================ */
+.empty .es{animation:emptyBreath 4s ease-in-out infinite;}
+@keyframes emptyBreath{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-3px);}
+}
+
+/* ============================================================
+   十、键盘焦点可见
+   ------------------------------------------------------------
+   鼠标点按钮时不希望出现描边，但 Tab 键走查时必须能看见。
+   :focus-visible 恰好做这件事，顺带把无障碍补齐。
+   ============================================================ */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible,
+.btn:focus-visible,
+.side-item:focus-visible{
+  outline:2px solid var(--pt-accent,var(--blue-2));
+  outline-offset:2px;
+  border-radius:6px;
+}
+
+/* ============================================================
+   十一、尊重系统设置
+   ------------------------------------------------------------
+   用户在系统里开了"减少动态效果"（前庭功能敏感 / 单纯嫌晃），
+   这里把本文件新增的所有动画和过渡降到最少，不做任何位移。
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  :root{
+    --mz-fast:.01s;
+    --mz-base:.01s;
+    --mz-slow:.01s;
+  }
+  .q-item::before,.answer::before{display:none;}
+  .toast{animation:none;}
+  .empty .es{animation:none;}
+  .svc-card:hover .svc-ico,
+  .up-badge:hover .ub-icon,
+  .sticker:hover,
+  .btn:hover,.btn:active,
+  .user-chip:hover .av{transform:none;}
+  .q-item:hover,.answer:hover{background:none;}
+}
