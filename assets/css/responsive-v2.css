@@ -1,0 +1,329 @@
+/* =====================================================================
+   哪都通论坛 · 响应式收敛层（v52）
+   ---------------------------------------------------------------------
+   为什么单独开这个文件：
+   main.css 里历史上叠了四五套移动端补丁（约 627 / 1312 / 1357 / 1934
+   / 2281 / 2650 行附近各有一套），互相覆盖。最典型的三处：
+     1) .theme-switch 一会儿 flex-wrap:nowrap，一会儿 wrap，于是手机上
+        前六个主题挤一行、最后一个「微信绿」被单独挤到第三行正中；
+     2) 「默认」这种两字按钮被压成两行「默 / 认」，是少了 white-space；
+     3) .sidebar 在手机上已经是横向滚动条，但右侧没有「还能往右滑」的提示。
+   本层放在最后加载，只收敛这几处，不改任何既有功能。
+   ===================================================================== */
+
+/* ---------- 一、任何宽度下：主题按钮一律不折行 ---------- */
+.portal-top .theme-switch {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.portal-top .theme-switch button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* 小桌面（901–1180）：把 8 个主题压到一行放得下，不再横滚 */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .portal-top { gap: 10px; }
+  .portal-top .p-logo { gap: 8px; letter-spacing: 1px; }
+  .portal-top .theme-switch { gap: 4px; }
+  .portal-top .theme-switch button { padding: 5px 6px; font-size: 11px; }
+}
+
+/* ---------- 二、手机：顶部两行，主题一行横滑 ---------- */
+@media (max-width: 900px) {
+  .portal-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    height: auto !important;
+    min-height: 0 !important;
+    padding-top: calc(7px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 6px !important;
+  }
+  .portal-top .p-logo { flex: 0 1 auto; min-width: 0; }
+  .portal-top .user-chip { margin-left: auto; }
+  .portal-top .theme-switch {
+    order: 9;
+    flex: 1 0 100%;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0 1px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* 右侧渐隐，提示还能往右滑，不用用户自己猜 */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  }
+  .portal-top .theme-switch::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- 三、手机：左侧栏收成一条横滑导航 ---------- */
+@media (max-width: 900px) {
+  .nav-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .sidebar {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sidebar .side-item {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 7px 11px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .sidebar .side-item .side-item-label { white-space: nowrap; }
+}
+
+/* ---------- 四、手机：帖子详情顶部那排操作按钮 ---------- */
+@media (max-width: 900px) {
+  .q-meta { flex-wrap: wrap; gap: 6px; }
+  .q-meta .btn,
+  .q-meta button {
+    padding: 5px 9px;
+    font-size: 12px;
+    min-height: 0;
+    line-height: 1.5;
+    border-radius: 8px;
+  }
+  /* 面包屑和标题之间收一点，别顶得太开 */
+  .p-crumb { margin-bottom: 4px; }
+}
+
+/* ---------- 五、手机：把顶部那条 51px 的空白填掉 ----------
+   .portal-top 是 fixed（0–83），但 .portal-body 的 padding-top 是按旧版
+   两行 header 算的 134，于是 83–134 之间空出一条。这里改成跟实际高度一致，
+   并把安全区算进去（刘海屏要再加 env(safe-area-inset-top)）。 */
+@media (max-width: 900px) {
+  .portal-body { padding-top: calc(84px + env(safe-area-inset-top, 0px)) !important; }
+  .nav-wrap { top: calc(84px + env(safe-area-inset-top, 0px)) !important; }
+}
+
+/* ---------- 六、手机：分类/排序那一行也能横滑，并给渐隐提示 ---------- */
+@media (max-width: 900px) {
+  .forum-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 14px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+  .forum-tabs::-webkit-scrollbar { display: none; }
+  .forum-tabs > * { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* ---------- 七、手机：右侧「更多」按钮 + 底部半屏导航面板 ---------- */
+@media (max-width: 900px) {
+  /* sticky 的 .nav-wrap 同时充当绝对定位的参照 */
+  .nav-wrap { position: sticky; }
+
+  .sb-more {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--pt-border, #cfd6e4);
+    background: var(--pt-sidebar, #14204d);
+    color: var(--pt-text-soft, #dfe4f5);
+    font-size: 11.5px;
+    line-height: 1.5;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .22);
+    white-space: nowrap;
+  }
+  .sb-more:active { transform: translateY(-50%) scale(.96); }
+
+  /* 给按钮让出位置，别压住最后一个侧栏项 */
+  .sidebar { padding-right: 64px; }
+
+  /* 展开态：从底部弹出的一张面板，按分组三列铺开 */
+  .sidebar.sb-open {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 120;
+    box-sizing: border-box;
+    /* main.css 里给 .sidebar 写死了 width:100%，会把 left/right 撑破，这里收回 */
+    width: auto;
+    max-height: 72vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 7px;
+    padding: 12px 14px 16px;
+    border-radius: 16px;
+    background: var(--pt-panel, #fff);
+    border: 1px solid var(--pt-border, #d8dfee);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  /* 面板打开时，右上角那颗「更多/收起」就别露在外面了 */
+  .nav-wrap.sb-open .sb-more {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* 分组标题：原来在手机上被压成 0 宽，这里恢复成整行小标题 */
+  .sidebar.sb-open .sd-group {
+    flex: 0 0 100%;
+    display: block;
+    width: auto;
+    margin: 5px 0 1px;
+    padding-left: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--pt-muted, #8b95a7);
+  }
+
+  .sidebar.sb-open .side-item {
+    flex: 0 0 calc(33.333% - 5px);
+    margin: 0;
+    padding: 9px 5px;
+    gap: 4px;
+    min-width: 0;
+    border-radius: 10px;
+    background: var(--pt-hover, #eef1f7);
+    color: var(--pt-text, #1f2433);
+    font-size: 11px;
+    box-shadow: none;
+  }
+  /* 三列空间紧，图标收小一点，让「重点异人关系网」这类七个字也放得下 */
+  .sidebar.sb-open .side-item svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+  }
+  .sidebar.sb-open .side-item .side-item-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar.sb-open .side-item.on {
+    background: var(--pt-accent, #2E47B8);
+    color: #fff;
+  }
+  .sidebar.sb-open .side-item .lock { display: none; }
+
+  /* 面板头部 */
+  .sb-sheet-head {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -2px 0 4px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--pt-border-soft, #e6eaf4);
+  }
+  .sb-sheet-head > span {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pt-text, #1f2433);
+  }
+  .sb-sheet-head .sb-sheet-close {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--pt-border, #d8dfee);
+    background: transparent;
+    color: var(--pt-text-soft, #3d4a63);
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
+  /* 面板背后的遮罩，点一下收起 */
+  .sb-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 119;
+    background: rgba(10, 14, 30, .45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+}
+
+/* ---------- 八、桌面（>900px）：只加手感，不动任何布局尺寸 ---------- */
+@media (min-width: 901px) {
+  /* 侧栏滚动条：细一点，别拉一整条灰杠 */
+  .sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .2) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .22);
+    border-radius: 999px;
+  }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+
+  /* 侧栏项：hover 有个平滑位移，别硬切 */
+  .side-item {
+    transition: background-color .18s ease, color .18s ease, transform .18s ease;
+  }
+  .side-item:hover { transform: translateX(2px); }
+
+  /* 主题按钮与分类胶囊：过渡统一 */
+  .theme-switch > button {
+    transition: background-color .18s ease, color .18s ease,
+                border-color .18s ease, box-shadow .18s ease;
+  }
+  .forum-tabs > * {
+    transition: background-color .18s ease, color .18s ease,
+                border-color .18s ease, box-shadow .18s ease;
+  }
+
+  /* 帖子列表项： hover 轻微浮起 */
+  .q-item {
+    transition: box-shadow .2s ease, background-color .2s ease;
+  }
+  .q-item:hover {
+    box-shadow: 0 8px 22px rgba(20, 26, 48, .10);
+  }
+
+  /* 滚动条全局也收细，页面右侧不再突兀 */
+  body::-webkit-scrollbar { width: 8px; }
+  body::-webkit-scrollbar-thumb {
+    background: rgba(120, 130, 150, .35);
+    border-radius: 999px;
+  }
+  body::-webkit-scrollbar-track { background: transparent; }
+}
+
+
+
+

@@ -136,12 +136,17 @@
     }
   }
 
-  function injectSideEntry() {
+  function injectSideEntry(force) {
     var side = document.querySelector('.sidebar');
     if (!side) return;
     if (side.querySelector('[data-ndf-fav-entry]')) { favCountRefresh(); return; }
-    var anchor = side.querySelector('.side-item[data-section="forum-notices"]') ||
-      side.querySelector('.side-item');
+    var anchor = side.querySelector('.side-item[data-section="forum-notices"]');
+    /* 锚点还没渲染出来：先别急着插，否则会插到第一个项后面再挪回原位，
+       位置一跳就是"闪"。下一帧/下一次 DOM 变化会再试；实在等不到才兜底。 */
+    if (!anchor) {
+      if (!force) return;
+      anchor = side.querySelector('.side-item');
+    }
     var entry = document.createElement('div');
     entry.className = 'side-item ndf-fav-entry';
     entry.setAttribute('data-ndf-fav-entry', '1');
@@ -579,7 +584,7 @@
     if (busy) return;
     busy = true;
     try {
-      injectSideEntry();
+      injectSideEntry(true);
       injectFavBtn();
       injectFloorNav();
       restoreDrafts();
@@ -641,6 +646,13 @@
   function repinSide() {
     try {
       if (!document.querySelector('.ndf-fav-entry')) injectSideEntry();
+      /* 再等一帧确认：万一 app.js 在同一个任务里又把侧栏重写了一遍，
+         这里能在绘制之前补回来，避免"消失一下再出现" */
+      requestAnimationFrame(function () {
+        try {
+          if (!document.querySelector('.ndf-fav-entry')) injectSideEntry(true);
+        } catch (e) {}
+      });
     } catch (e) {}
   }
   function boot() {
