@@ -169,99 +169,55 @@
     padding-right: 14px;
   }
 
-  /* 展开态：从底部弹出的一张面板，按分组三列铺开 */
-  .nav-wrap.sb-open { z-index: 130; }
-  .sidebar.sb-open {
+
+  /* ---------- 展开面板：独立容器，不再改造 .sidebar ----------
+     旧做法是把 .sidebar 本体改成 fixed 面板，但它的 height 被 main.css 锁着，
+     一加头部就只剩一行「全部功能」、下面的分组全塌掉；而且头部是插在
+     .sidebar 里的，收起以后还留在那儿，把横滑条撑成两行。
+     现在面板是一块自己的 DOM，和横滑条彻底分开，互不影响。 */
+  .sb-sheet {
     position: fixed;
     left: 10px;
     right: 10px;
-    top: auto;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    z-index: 120;
-    box-sizing: border-box;
-    /* main.css 里给 .sidebar 写死了 width:100%，会把 left/right 撑破，这里收回 */
-    width: auto;
-    max-height: 72vh;
-    overflow-x: hidden;
-    overflow-y: auto;
+    z-index: 210;
     display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 7px;
-    padding: 12px 14px 16px;
-    border-radius: 16px;
+    flex-direction: column;
+    max-height: 74vh;
     background: var(--pt-panel, #fff);
     border: 1px solid var(--pt-border, #d8dfee);
+    border-radius: 16px;
     box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-
-  /* 面板打开时，右上角那颗「更多/收起」就别露在外面了 */
-  .nav-wrap.sb-open .sb-more {
+    overflow: hidden;
     opacity: 0;
+    visibility: hidden;
+    transform: translateY(16px);
+    transition: transform .22s cubic-bezier(.2, .8, .3, 1), opacity .18s ease, visibility .18s;
     pointer-events: none;
   }
-
-  /* 分组标题：原来在手机上被压成 0 宽，这里恢复成整行小标题 */
-  .sidebar.sb-open .sd-group {
-    flex: 0 0 100%;
-    display: block;
-    width: auto;
-    margin: 5px 0 1px;
-    padding-left: 2px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--pt-muted, #8b95a7);
+  .sb-sheet.on {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
   }
 
-  .sidebar.sb-open .side-item {
-    flex: 0 0 calc(33.333% - 5px);
-    margin: 0;
-    padding: 9px 5px;
-    gap: 4px;
-    min-width: 0;
-    border-radius: 10px;
-    background: var(--pt-hover, #eef1f7);
-    color: var(--pt-text, #1f2433);
-    font-size: 11px;
-    box-shadow: none;
-  }
-  /* 三列空间紧，图标收小一点，让「重点异人关系网」这类七个字也放得下 */
-  .sidebar.sb-open .side-item svg {
-    width: 14px;
-    height: 14px;
-    flex: 0 0 14px;
-  }
-  .sidebar.sb-open .side-item .side-item-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .sidebar.sb-open .side-item.on {
-    background: var(--pt-accent, #2E47B8);
-    color: #fff;
-  }
-  .sidebar.sb-open .side-item .lock { display: none; }
-
-  /* 面板头部 */
   .sb-sheet-head {
-    flex: 0 0 100%;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: -2px 0 4px;
-    padding-bottom: 8px;
+    padding: 12px 14px 9px;
     border-bottom: 1px solid var(--pt-border-soft, #e6eaf4);
   }
   .sb-sheet-head > span {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--pt-text, #1f2433);
   }
   .sb-sheet-head .sb-sheet-close {
     margin-left: auto;
-    padding: 4px 12px;
+    padding: 4px 13px;
     border-radius: 999px;
     border: 1px solid var(--pt-border, #d8dfee);
     background: transparent;
@@ -271,40 +227,80 @@
     cursor: pointer;
   }
 
+  .sb-sheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 7px;
+    padding: 6px 12px 14px;
+  }
+  .sb-sheet-g {
+    flex: 0 0 100%;
+    margin: 8px 2px 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--pt-muted, #8b95a7);
+  }
+  .sb-sheet-i {
+    flex: 0 0 calc(33.333% - 5px);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 6px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--pt-hover, #eef1f7);
+    color: var(--pt-text, #1f2433);
+    font-size: 11.5px;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .sb-sheet-i > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sb-sheet-i svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+  }
+  .sb-sheet-i.on {
+    background: var(--pt-accent, #2E47B8);
+    color: #fff;
+  }
+  .sb-sheet-i .lock { display: none; }
+
+  @media (max-width: 430px) {
+    .sb-sheet-i {
+      flex: 0 0 calc(50% - 4px);
+      font-size: 12px;
+    }
+  }
+
+  /* 面板打开时把右边那颗「更多」藏起来 */
+  .sb-more.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* 面板背后的遮罩：只压暗。
      之前这里加了 backdrop-filter: blur(2px)，手机上一压上去整页就糊成
      一片灰雾，看起来像插件崩了，所以把模糊去掉了。 */
   .sb-mask {
     position: fixed;
     inset: 0;
-    z-index: 119;
+    z-index: 209;
     background: rgba(10, 14, 30, .5);
   }
 
-  /* 从底部轻轻推上来，让人能明确看到"面板开了"（只动位置，不动透明度） */
-  .sidebar.sb-open {
-    animation: sbSheetIn .22s cubic-bezier(.2, .8, .3, 1) both;
-  }
-  @keyframes sbSheetIn {
-    from { transform: translateY(16px); }
-    to { transform: none; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .sidebar.sb-open { animation: none; }
-  }
-}
-
-/* 窄屏（≤430px）：三列太挤，改两列，名字不用靠省略号 */
-@media (max-width: 430px) {
-  .sidebar.sb-open .side-item {
-    flex: 0 0 calc(50% - 4px);
-    font-size: 12px;
-  }
-  .sidebar.sb-open .side-item svg {
-    width: 15px;
-    height: 15px;
-    flex: 0 0 15px;
-  }
 }
 
 /* ---------- 八、桌面（>900px）：只加手感，不动任何布局尺寸 ---------- */
