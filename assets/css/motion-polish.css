@@ -249,7 +249,239 @@ button:focus-visible,
 }
 
 /* ============================================================
-   十一、尊重系统设置
+   十一、七套皮肤的全站适配
+   ------------------------------------------------------------
+   问题一：占卜 / 塔罗模块引用了两个从未定义过的变量。
+      .yj-card    {background:var(--panel)}     → 背景声明作废，卡片透明
+      .tc-face    {background:var(--panel)}     → 塔罗牌面没有底色
+      .yj-inputs input  {background:var(--panel2)} → 输入框透明
+      .yj-hist-item     {background:var(--panel2)}
+      .btn-danger-soft  {background:color-mix(in srgb,var(--orange) 10%,var(--panel))}
+   变量缺失时整条声明被丢弃，结果就是这些卡片、输入框在深色皮肤下
+   跟页面背景糊成一片；它们同时用 --ink 写文字，深色底 + 深色字，
+   基本读不出来。补上这两个变量，这一片就一起好了。
+
+   问题二：一批组件把底色写死成 #fff，文字却跟随主题。
+   在「默认 / 赛博 / 极光」三套深色皮肤下表现为刺眼的白方块。
+   这里把「底色 + 文字色」成对改成 --pt-* 变量 ——
+   深色皮肤下是深底浅字，日间/微信/玫瑰/古风下是浅底深字，
+   七套皮肤共用同一套规则，不需要按皮肤名一条条写。
+
+   全部规则限定在 .portal 内，快递门户首屏（.header / .track-box /
+   .site-tab）完全不受影响。
+   ============================================================ */
+
+.portal{
+  /* 补上缺失的两个变量：占卜模块的卡片、输入框、牌面靠它们上色 */
+  --panel:var(--pt-panel);
+  --panel2:var(--pt-panel-2);
+  /* 把基础色映射到皮肤变量，一次覆盖 80 多处旧组件 */
+  --card:var(--pt-panel);
+  --line:var(--pt-border);
+  --muted:var(--pt-muted);
+  --ink:var(--pt-text);
+  --shadow:var(--pt-shadow);
+  /* 兜底文字色：原来 .portal 没设 color，未显式着色的文字会继承 body 的
+     深色 --ink，在深色皮肤上就是深底深字 */
+  color:var(--pt-text);
+}
+
+/* ---------- 白底组件成对修正（底色与文字一起换） ---------- */
+.portal .field,
+.portal .fs-input{
+  background:var(--pt-input);
+  color:var(--pt-text);
+  border-color:var(--pt-border);
+}
+.portal .field::placeholder,
+.portal .fs-input::placeholder{color:var(--pt-muted);}
+
+.portal .card-box{
+  background:var(--pt-panel);
+  border-color:var(--pt-border);
+}
+
+.portal .btn-ghost{
+  background:var(--pt-panel);
+  color:var(--pt-text);
+  border-color:var(--pt-border);
+}
+.portal .btn-ghost:hover{
+  background:var(--pt-panel-2);
+  color:var(--pt-text);
+  border-color:var(--pt-accent);
+}
+
+.portal .modal{
+  background:var(--pt-panel);
+  color:var(--pt-text);
+  border:1px solid var(--pt-border);
+}
+.portal .modal .m-body,
+.portal .modal h3{color:var(--pt-text);}
+
+.portal .mention-picker{
+  background:var(--pt-panel);
+  border-color:var(--pt-border);
+}
+.portal .mention-picker .mp-item.on{background:var(--pt-panel-2);}
+
+.portal .ev-toggle{
+  background:var(--pt-panel);
+  color:var(--pt-text);
+  border-color:var(--pt-border);
+}
+.portal .ev-toggle:hover{
+  border-color:var(--pt-accent);
+  color:var(--pt-text);
+}
+
+.portal .share-act{
+  background:var(--pt-panel);
+  color:var(--pt-text);
+  border-color:var(--pt-border);
+}
+.portal .share-act:hover{
+  background:var(--pt-panel-2);
+  border-color:var(--pt-accent);
+}
+.portal .share-qr-box .sqr{
+  background:var(--pt-panel);
+  border-color:var(--pt-border);
+}
+
+.portal .share-card{
+  background:linear-gradient(135deg,var(--pt-panel-2),var(--pt-panel));
+  border-color:var(--pt-border);
+}
+.portal .share-card .sc-title{color:var(--pt-text);}
+
+/* 置灰小标签原来靠 --muted 着色，变量映射后会变成浅字压浅底，单独补一下 */
+.portal .tag-gray{
+  background:var(--pt-panel-2);
+  color:var(--pt-muted);
+}
+
+/* ---------- 深色皮肤下几处对比度补强 ---------- */
+/* 论坛列表里的板块标签：浅蓝底蓝字在白底上没问题，
+   但在深色皮肤上整排浅块会跳出来，这里跟着面板走 */
+.portal .q-meta .tag{
+  background:var(--pt-panel-2);
+  color:var(--pt-text-soft);
+}
+
+/* 装修模板预览卡：封面渐变靠 --tpl-a / --tpl-b，JS 没注入时没有兜底，
+   会变成一块空封面。补上皮肤自带的封面色作为默认。 */
+.portal .tpl-card .tc-cover{
+  background:linear-gradient(120deg,var(--tpl-a,var(--pt-cover-a)),var(--tpl-b,var(--pt-cover-b)));
+}
+
+/* 面板顶部一道极淡的内高光：深色皮肤下面板不再是纯色块，
+   有一点"玻璃"的厚度感；浅色皮肤下这层白叠在白底上，看不见也不碍事。
+   注意 card-box 本来有投影，这里必须把投影一起写上，否则会被覆盖掉。 */
+.portal .p-panel{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.portal .card-box{
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* ============================================================
+   十二、再补几个质感小动画
+   ============================================================ */
+
+/* ---------- 12.1 主题切换按钮（截图里那一排） ---------- */
+.portal .theme-switch button{
+  transition:
+    background-color var(--mz-base) ease,
+    border-color var(--mz-base) ease,
+    color var(--mz-base) ease,
+    box-shadow var(--mz-base) ease,
+    transform var(--mz-fast) var(--mz-out);
+}
+@media (hover:hover){
+  .portal .theme-switch button:hover{
+    transform:translateY(-1px);
+    border-color:var(--pt-accent);
+    color:var(--pt-text);
+  }
+}
+/* 选中的那一个：跟随皮肤强调色，而不是固定蓝色
+   （main.css 只给古风/赛博/微信单独写了 .on 的颜色，日间、玫瑰、极光
+     一直沿用固定的 --blue-2，所以在玫瑰金皮肤里会冒出一个蓝色按钮）。
+   注意这里不加 animation：点赞/发帖后的静默重渲染会整块重建 portal，
+   加了动画就会每次重渲染都弹一下。 */
+.portal .theme-switch button.on{
+  background:var(--pt-accent);
+  border-color:transparent;
+  color:var(--pt-accent-text);
+  font-weight:700;
+  box-shadow:
+    0 2px 12px color-mix(in srgb,var(--pt-accent) 40%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* ---------- 12.2 换肤时整站柔化，不是硬切 ----------
+   皮肤变量一换，所有声明了 transition 的元素会各自渐变；
+   这里把几个大块的过渡时长拉到同一档，肉眼看到的是"整体褪色再上色"，
+   而不是一块一块跳。 */
+.portal,
+.portal-top,
+.sidebar,
+.p-panel,
+.card-box{
+  transition:
+    background-color var(--mz-slow) ease,
+    color var(--mz-slow) ease,
+    border-color var(--mz-slow) ease;
+}
+
+/* ---------- 12.3 侧栏：图标轻移 + 当前项左侧竖条 ---------- */
+.sidebar .side-item{position:relative;}
+.sidebar .side-item svg,
+.sidebar .side-item .side-item-ico{
+  transition:transform var(--mz-base) var(--mz-out);
+}
+@media (hover:hover){
+  .sidebar .side-item:hover svg{transform:translateX(3px);}
+}
+.sidebar .side-item.on::before{
+  content:"";
+  position:absolute;
+  left:0;top:9px;bottom:9px;
+  width:3px;border-radius:0 3px 3px 0;
+  background:var(--pt-accent);
+}
+
+/* ---------- 12.4 主按钮按压时的一层泛光 ----------
+   按下瞬间从中心扩散出一圈柔光，松开随透明度淡出。
+   只作用于主色按钮，幽灵按钮是浅底，加了也看不见。 */
+.portal .btn{position:relative;overflow:hidden;}
+.portal .btn::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.45),transparent 62%);
+  opacity:0;
+  transform:scale(.4);
+  transition:opacity .4s ease,transform .55s var(--mz-out);
+}
+.portal .btn:active::after{
+  opacity:1;
+  transform:scale(1);
+  transition:none;
+}
+.portal .btn-ghost::after{display:none;}
+
+/* ---------- 12.5 顶部 logo 的小动作 ---------- */
+.portal-top .p-logo .mk{transition:transform .32s var(--mz-spring);}
+@media (hover:hover){
+  .portal-top .p-logo:hover .mk{transform:rotate(-7deg) scale(1.05);}
+}
+
+/* ============================================================
+   十三、尊重系统设置
    ------------------------------------------------------------
    用户在系统里开了"减少动态效果"（前庭功能敏感 / 单纯嫌晃），
    这里把本文件新增的所有动画和过渡降到最少，不做任何位移。
@@ -269,4 +501,9 @@ button:focus-visible,
   .btn:hover,.btn:active,
   .user-chip:hover .av{transform:none;}
   .q-item:hover,.answer:hover{background:none;}
+
+  /* 新加的那几处也一并关掉 */
+  .portal .btn::after{display:none;}
+  .portal-top .p-logo:hover .mk{transform:none;}
+  .sidebar .side-item:hover svg{transform:none;}
 }
