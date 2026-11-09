@@ -481,7 +481,82 @@ button:focus-visible,
 }
 
 /* ============================================================
-   十三、尊重系统设置
+   十三、新增第八套皮肤：暖橙（theme-orange）
+   ------------------------------------------------------------
+   这套皮肤整体是"炭火"基调：近黑的深棕底 + 明橙强调。
+   现有七套里深色只有默认深蓝、赛博霓虹、极光星河，都是冷色；
+   冷色之外补一个暖色深调，切过去能明显换一种气氛。
+
+   注意 --blue / --blue-2 / --blue-deep / --blue-ink 这组旧变量：
+   站内还有 35 处组件在用它们（主按钮底色、侧栏选中项、logo 徽标、
+   各种小图标）。这套皮肤里把这四个一并改成橙色，
+   那些组件就跟着变暖，不需要逐条写覆盖规则。
+   作用域只有 .portal.theme-orange，首页和其它皮肤不受影响。
+   ============================================================ */
+
+.portal.theme-orange{
+  /* 品牌色系列 → 橙 */
+  --blue:#E06E10;--blue-2:#F5821F;--blue-deep:#A84E05;--blue-ink:#4A2306;
+
+  /* 底色：越靠外围越暗，形成一点炭火的层次 */
+  --pt-bg:#170E08;--pt-topbar:#120A05;--pt-sidebar:#150C06;
+  --pt-panel:#22160C;--pt-panel-2:#2C1D10;--pt-input:#1A1007;
+  --pt-border:#4B2D14;--pt-border-soft:#38200E;
+
+  /* 文字 */
+  --pt-text:#FFF3E6;--pt-text-soft:#F2DCC4;--pt-muted:#C79C78;
+
+  /* 强调色：亮橙压深字，用于主题按钮选中态、聚焦边框 */
+  --pt-accent:#F5821F;--pt-accent-text:#1A0A01;
+  --pt-highlight:#FFB35C;--pt-highlight-bg:rgba(245,130,31,.14);--pt-highlight-text:#FFE8CC;
+  --pt-link:#FFB067;--pt-hover:#3A2312;
+
+  --pt-cover-a:#7E3A06;--pt-cover-b:#F5821F;
+  --pt-shadow:0 10px 28px rgba(0,0,0,.38);
+  --pt-glow:rgba(245,130,31,.22);
+
+  --pt-bubble-them:#2C1D10;--pt-bubble-them-text:#FFE2C4;
+
+  --pt-ok:#3FA76F;--pt-warn:#FFB35C;--pt-danger:#E5533F;
+  --badge:#FF7A45;--badge-glow:rgba(255,122,69,.4);
+}
+
+/* 内容区：两层暖光，让整页不是一块死板的深棕 */
+.portal.theme-orange .p-main{
+  background:
+    radial-gradient(1100px 420px at 78% -120px,rgba(245,130,31,.16),transparent 62%),
+    radial-gradient(900px 520px at -10% 110%,rgba(224,110,16,.09),transparent 60%),
+    var(--pt-bg);
+}
+
+/* 顶栏下沿一道极淡的橙线，和内容区拉开层次 */
+.portal.theme-orange .portal-top{
+  border-bottom-color:rgba(245,130,31,.26);
+  box-shadow:0 1px 0 rgba(245,130,31,.1);
+}
+
+/* logo 徽标：橙色渐变 + 自发光，比纯色实底更像一枚"火漆印" */
+.portal.theme-orange .p-logo .mk{
+  background:linear-gradient(140deg,#FF9A3D,#E06E10);
+  box-shadow:0 4px 14px rgba(245,130,31,.35);
+}
+
+/* 侧栏当前项：亮橙底压深字（白字压在亮橙上对比不够） */
+.portal.theme-orange .side-item.on{
+  background:var(--pt-accent);
+  color:var(--pt-accent-text);
+}
+
+/* 帖子标签的基类原来是 #EAF0FF 浅蓝底，在炭火色调里会跳成一排冷色块。
+   改成半透明橙底；tag-orange / tag-red / tag-green / tag-gray 这些带语义的
+   变体保持原样，免得把"警告/成功"的含义一起吃掉。 */
+.portal.theme-orange .tag:not(.tag-orange):not(.tag-red):not(.tag-green):not(.tag-gray){
+  background:rgba(245,130,31,.14);
+  color:var(--pt-highlight);
+}
+
+/* ============================================================
+   十四、尊重系统设置
    ------------------------------------------------------------
    用户在系统里开了"减少动态效果"（前庭功能敏感 / 单纯嫌晃），
    这里把本文件新增的所有动画和过渡降到最少，不做任何位移。

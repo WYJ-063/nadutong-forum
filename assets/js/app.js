@@ -1755,14 +1755,14 @@ function portalShell(active,content){
     return `<div class="side-item ${active===id?'on':''}" data-section="${section}" data-hash="${locked?'':hash}">${svgIco(ico)}<span class="side-item-label">${name}</span>${badge}${locked?'<span class="lock">锁</span>':''}</div>`;
   };
   const th=DB.data.theme||'default';
-  const themeClasses={day:'theme-day',classic:'theme-classic',cyber:'theme-cyber',rose:'theme-rose',aurora:'theme-aurora',wechat:'theme-wechat'};
+  const themeClasses={day:'theme-day',classic:'theme-classic',cyber:'theme-cyber',rose:'theme-rose',aurora:'theme-aurora',wechat:'theme-wechat',orange:'theme-orange'};
   const thCls=themeClasses[th]||'';
   const themeBtn=(v,label)=>`<button data-theme-set="${v}" class="${th===v?'on':''}">${label}</button>`;
   return `<div class="portal ${thCls} portal--${active||'none'}">
     <div class="portal-top">
       <div class="p-logo" id="p-home"><span class="mk">${svgIco('shield')}</span>哪都通 · 异人论坛<small>YIREN FORUM</small></div>
       <div class="theme-switch" title="整体主题">
-        ${themeBtn('default','默认')}${themeBtn('day','日间')}${themeBtn('classic','古风卷宗')}${themeBtn('cyber','赛博霓虹')}${themeBtn('rose','玫瑰金')}${themeBtn('aurora','极光星河')}${themeBtn('wechat','微信绿')}
+        ${themeBtn('default','默认')}${themeBtn('day','日间')}${themeBtn('classic','古风卷宗')}${themeBtn('cyber','赛博霓虹')}${themeBtn('rose','玫瑰金')}${themeBtn('aurora','极光星河')}${themeBtn('wechat','微信绿')}${themeBtn('orange','暖橙')}
       </div>
       <div class="user-chip" id="p-space">
         <div class="av">${avHtml(u,'av')}</div>
