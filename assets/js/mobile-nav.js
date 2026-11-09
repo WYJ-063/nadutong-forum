@@ -31,6 +31,24 @@
     return document.querySelector('.portal') || document.body;
   }
 
+  /* 老版本是直接把 .sidebar 改造成面板的：它会往横滑条里插一条
+     「全部功能 / 关闭」的头部，并给 .sidebar 加 sb-open。
+     浏览器如果还留着旧 JS 的缓存，这条头部会一直挂在页面上，
+     关掉面板也去不掉。这里每次启动都把残留清干净。 */
+  function purgeLegacy() {
+    var b = document.querySelector('.sidebar');
+    if (!b) return;
+    if (b.classList.contains('sb-open')) b.classList.remove('sb-open');
+    var heads = b.querySelectorAll('.sb-sheet-head');
+    for (var i = heads.length - 1; i >= 0; i--) {
+      if (heads[i].parentElement) heads[i].parentElement.removeChild(heads[i]);
+    }
+    var stray = document.querySelectorAll('.nav-wrap > .sb-sheet');
+    for (var j = stray.length - 1; j >= 0; j--) {
+      if (stray[j].parentElement) stray[j].parentElement.removeChild(stray[j]);
+    }
+  }
+
   function ensureSheet() {
     if (sheet && sheet.parentElement) return;
     sheet = document.createElement('div');
@@ -143,6 +161,7 @@
   }
 
   function boot() {
+    purgeLegacy();
     wrap = document.querySelector('.nav-wrap');
     bar = document.querySelector('.sidebar');
     if (!wrap || !bar) return;
@@ -190,6 +209,7 @@
   window.addEventListener('hashchange', function () { setTimeout(tick, 120); });
 
   function start() {
+    purgeLegacy();
     boot();
     try {
       var target = document.getElementById('app') || document.body;

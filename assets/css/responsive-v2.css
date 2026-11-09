@@ -285,6 +285,10 @@
     }
   }
 
+  /* 兜底：浏览器里如果还残留旧版 JS 插进 .sidebar 的「全部功能」头部，
+     直接藏掉，不让它把一行横滑条撑成两行 */
+  .sidebar > .sb-sheet-head { display: none !important; }
+  .nav-wrap .sb-sheet { display: none !important; }
   /* 面板打开时把右边那颗「更多」藏起来 */
   .sb-more.is-hidden {
     opacity: 0;
