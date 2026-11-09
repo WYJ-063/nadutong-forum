@@ -612,20 +612,28 @@ button:focus-visible,
     order:4;
     display:grid;
     grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:5px;
+    gap:4px;
     overflow:visible;
-    padding:1px 0 5px;
+    padding:0 0 4px;
+    /* responsive-v2.css 第 63 行给这个容器加了一条无条件的右侧 18px 渐隐遮罩
+       （原本是"提示还能往右滑"）。改成 4×2 网格后不再横向溢出，
+       这条遮罩就只剩下副作用：把最后一列（赛博霓虹 / 暖橙）的右边缘削掉一截。
+       这里关掉它。680–900 之间仍然横滑，遮罩照旧生效。 */
+    -webkit-mask-image:none;
+    mask-image:none;
   }
   .portal-top .theme-switch button{
-    padding:7px 2px;
-    font-size:11px;
-    line-height:1.2;
+    padding:5px 2px;
+    font-size:10.5px;
+    line-height:1.15;
     white-space:nowrap;
     text-align:center;
+    border-radius:6px;
   }
 }
 @media(max-width:360px){
-  .portal-top .theme-switch button{font-size:10px;padding:6px 1px}
+  .portal-top .theme-switch{gap:3px;}
+  .portal-top .theme-switch button{font-size:10px;padding:4px 1px}
 }
 
 /* ============================================================
