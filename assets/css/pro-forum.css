@@ -1,0 +1,169 @@
+/* ============================================================
+   哪都通 · 论坛手机端视觉打磨（v48）
+   ------------------------------------------------------------
+   目标不是"加功能"，是把手机上论坛的呼吸感调顺：
+   · 顶部两排板块/排序胶囊不再冒出一条粗滚动条
+   · 列表里投赞同那一列收窄，把宽度还给标题
+   · 标题、摘要、作者信息行的字号与行距重新排一次
+   · 横滑导航压一档高度，正文多露出一截
+   约定：全部规则限定在 max-width:680px，桌面端与平板不受影响；
+        不改 main.css，只在后面叠加覆盖。
+   ============================================================ */
+
+@media (max-width: 680px) {
+
+  /* ---------- 1. 顶部胶囊条：横滑但不出滚动条 ---------- */
+  .portal .forum-tabs {
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overscroll-behavior-x: contain;
+  }
+  .portal .forum-tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .portal .forum-tabs .ft {
+    padding: 6px 13px;
+    font-size: 12.5px;
+    min-height: 30px;
+    line-height: 1.2;
+  }
+  /* 还能往右滑时右端渐隐（属性由 pro-forum.js 按真实滚动位置切换） */
+  .portal .forum-tabs[data-pf~="r"] {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
+  }
+  .portal .forum-tabs[data-pf~="l"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px);
+    mask-image: linear-gradient(90deg, transparent, #000 14px);
+  }
+  .portal .forum-tabs[data-pf~="l"][data-pf~="r"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 22px), transparent);
+  }
+
+  /* ---------- 2. 帖子列表：宽度让给正文，字号行距重排 ---------- */
+  .portal .q-item {
+    gap: 10px;
+    padding: 13px 0;
+    align-items: flex-start;
+  }
+  .portal .q-item:last-child { border-bottom: 0; }
+
+  /* 投赞同那一列：按钮竖排压成 38px，数字跟在下面，不再挤出列宽 */
+  .portal .q-vote-list { width: 44px; flex: 0 0 44px; gap: 2px; padding-top: 0; }
+  .portal .q-item .q-vote-list .vt {
+    width: 38px;
+    min-height: 42px;
+    padding: 0;
+    flex-direction: column;
+    gap: 0;
+    border-radius: 10px;
+  }
+  .portal .q-item .q-vote-list .vt .vote-arrow { font-size: 14px; line-height: 1.3; }
+  /* 手机上只留箭头：40px 宽的胶囊里塞"▲ 赞同"必然糊成一团，
+     语义交给 aria-label（脚本里已写了"赞同帖子"） */
+  .portal .q-item .q-vote-list .vt .vote-label { display: none; }
+  .portal .q-item .q-vote-list .vote-count { font-size: 12.5px; line-height: 1.2; }
+
+  /* 标题 16.5px / 1.5：两行标题读起来不贴在一起 */
+  .portal .q-main h3 { font-size: 16.5px; line-height: 1.5; font-weight: 600; }
+  .portal .q-main .q-ex { font-size: 12.5px; line-height: 1.65; margin: 4px 0 8px; }
+  .portal .q-meta { font-size: 11.5px; gap: 5px 8px; line-height: 1.6; }
+  /* 板块标签不是可点控件，别跟着 28px 触控下限一起变高 */
+  .portal .q-meta .tag { font-size: 11px; padding: 1px 7px; min-height: 0; }
+  .portal .q-meta .mini-av { width: 19px; height: 19px; font-size: 10px; }
+
+  /* 信息行固定拆成两行：上一行"谁发的 / 什么板块"，下一行"多少回答 / 浏览 / 时间"。
+     不这么切的话，手机窄屏下这几项会随机掉行，一会儿"浏览"孤零零落到第二行、
+     一会儿"回答数"又挤到第一行末尾。 */
+  .portal .q-item .q-meta::before {
+    content: '';
+    flex: 1 0 100%;
+    height: 0;
+    order: 1;
+  }
+  .portal .q-item .q-meta > span:not([class]),
+  .portal .q-item .q-meta > .qm { order: 2; }
+
+  /* ---------- 3. 页面骨架：面包屑与卡片间距 ---------- */
+  .portal .p-crumb { font-size: 12px; margin-bottom: 10px; }
+  .portal .p-panel { padding: 14px 13px; margin-bottom: 12px; }
+  .portal .p-panel .ph-sub { margin-bottom: 12px; font-size: 12.5px; line-height: 1.6; }
+  .portal .cloud-pill { font-size: 11.5px; padding: 5px 9px; }
+  .portal .forum-search { margin: 4px 0 12px; padding: 5px 6px 5px 11px; }
+  .portal .forum-search .btn-sm { min-height: 32px; padding: 0 12px; }
+
+  /* ---------- 4. 横滑导航：压一档高度 ---------- */
+  .portal .sidebar { padding: 6px 7px; gap: 4px; }
+  .portal .side-item { padding: 8px 11px; font-size: 13.5px; border-radius: 7px; margin-bottom: 0; }
+
+  /* ---------- 5. 帖子详情里的操作行：统一成小胶囊 ---------- */
+  /* 原来"✎ 编辑 / 🗑 删除 / ☆ 收藏 / ↗ 分享"四种长相混在一行，
+     还会被挤成"一个掉到上一行末尾"的样子。统一尺寸与形状后就齐了。 */
+  .portal .q-meta .qm {
+    border: 1px solid var(--pt-border);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 11.5px;
+    line-height: 1.3;
+    min-height: 0;
+    justify-content: center;
+  }
+  .portal .q-meta .btn-sm { min-height: 26px; padding: 0 10px; font-size: 11.5px; }
+  /* 列表页里的"💬 N 个回答"是信息不是操作，保持无边框 */
+  .portal .q-item .q-meta .qm { border: 0; padding: 0; border-radius: 0; }
+  /* 删除类操作压暗一档，别在整行里最抢眼 */
+  .portal #p-del, .portal [data-adel] { color: #E0484D; opacity: .72; }
+  .portal #p-del:hover, .portal [data-adel]:hover { opacity: 1; }
+
+  /* 帖子详情顶部的操作行：编辑 / 删除 / 收藏 / 分享 四个，宽度肯定放不下，
+     干脆整组换到第二行，别出现"编辑蹭在上一行末尾"的参差。
+     回答区通常只有一个删除，就让它自然跟在信息后面。 */
+  .portal .p-panel > .q-meta .btn-sm,
+  .portal .p-panel > .q-meta .qm { order: 3; }
+  .portal .p-panel > .q-meta::before {
+    content: '';
+    flex: 1 0 100%;
+    height: 0;
+    order: 2;
+  }
+  .portal .p-panel > .q-meta .btn-sm { margin-left: 0 !important; }
+  /* 回答里通常只有一个"删除"，做成小红字就够了：套个胶囊反而多占一整行 */
+  .portal .answer .q-meta .qm {
+    border: 0;
+    background: none;
+    padding: 0 2px;
+    font-size: 11px;
+    line-height: 1.3;
+    min-height: 0;
+    opacity: .68;
+  }
+  .portal .answer .q-meta .qm:hover { opacity: 1; }
+  /* "回复"按钮收一档，正文与楼中楼之间不再被它撑开 */
+  .portal .rp-btn { min-height: 28px; padding: 4px 12px; font-size: 12.5px; border-radius: 999px; }
+
+  /* ---------- 6. 楼中楼：作者名与时间别粘在一起 ---------- */
+  .portal .sr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+  .portal .sub-replies { padding: 0; }
+  .portal .sub-reply.depth-1 { padding-left: 10px; }
+  .portal .sub-reply.depth-2 { margin-left: 4px; }
+  /* 楼号小标压薄，并挪到作者行最前面：手机窄屏下它原来老是被挤到第二行，
+     孤零零一行只有一个"1 楼"，看着像漏了东西。 */
+  .portal .ndf-floor { font-size: 10px; padding: 0 6px; line-height: 1.5; opacity: .8; }
+  .portal .answer .ndf-floor { order: -1; margin-left: 0; margin-right: 2px; }
+
+  /* ---------- 7. 正文行高：1.95 在手机上偏稀，收到 1.85 ---------- */
+  .portal .p-panel > div[style*="white-space:pre-wrap"] { line-height: 1.85 !important; }
+  .portal .a-body { font-size: 14.5px; line-height: 1.8; }
+}
+
+/* 380 及更窄的小屏：再让一步，正文能多两三个字 */
+@media (max-width: 380px) {
+  .portal .q-item { gap: 8px; padding: 11px 0; }
+  .portal .q-vote-list { width: 38px; flex: 0 0 38px; }
+  .portal .q-item .q-vote-list .vt { width: 34px; min-height: 40px; }
+  .portal .q-main h3 { font-size: 15.5px; }
+  .portal .q-meta { font-size: 11px; }
+  .portal .p-panel { padding: 12px 11px; }
+}

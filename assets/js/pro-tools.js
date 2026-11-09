@@ -624,22 +624,33 @@
   }, true);
 
   window.addEventListener('hashchange', function () {
-    setTimeout(run, 260);
+    /* 切板块时侧栏正在重建：先当场补入口，再延后干别的 */
+    repinSide();
+    schedule(90);
   });
 
   /* DOM 变化后重建注入（app.js 每次路由都会重写 #app） */
   var timer = null;
-  function schedule() {
+  function schedule(ms) {
     clearTimeout(timer);
-    timer = setTimeout(run, 180);
+    timer = setTimeout(run, ms || 90);
+  }
+  /* 侧栏在切换板块时会被整体重建，注入的"我的收藏"跟着消失。
+     MutationObserver 的回调在浏览器绘制之前跑，所以这里是"当场"补回去，
+     用户不会看到它先消失再出现。 */
+  function repinSide() {
+    try {
+      if (!document.querySelector('.ndf-fav-entry')) injectSideEntry();
+    } catch (e) {}
   }
   function boot() {
     run();
     var app = document.getElementById('app');
     if (app && window.MutationObserver) {
       new MutationObserver(function () {
+        repinSide();
         if (busy) return;
-        schedule();
+        schedule(90);
       }).observe(app, { childList: true, subtree: true });
     }
     setTimeout(run, 600);

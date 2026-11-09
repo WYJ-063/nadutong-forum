@@ -124,10 +124,10 @@
   50% { background: rgba(36, 59, 155, .18); }
 }
 
-/* 手机：楼层条整行铺开 */
+/* 手机：楼层条收成一行，别为了"共 N 层"多占一整行 */
 @media (max-width: 560px) {
-  .ndf-jump { font-size: 12px; padding: 8px 10px; }
-  .ndf-jump .ndf-jump-total { margin-left: 0; width: 100%; }
+  .ndf-jump { font-size: 12px; padding: 7px 10px; gap: 6px; }
+  .ndf-jump .ndf-jump-total { margin-left: auto; width: auto; font-size: 11px; opacity: .85; }
 }
 
 /* ---------- 消息中心：同类合并 ---------- */
