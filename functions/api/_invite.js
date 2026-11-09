@@ -67,13 +67,21 @@ async function ensureInviteBadges(env){
 }
 
 /* 按当前邀请人数补发里程碑徽章（幂等：grantBadge 已拥有会跳过）。
-   既用于新人注册结算，也用于老用户打开邀请面板时补发历史漏掉的徽章。 */
+   既用于新人注册结算，也用于老用户打开邀请面板/登录时补发历史漏掉的徽章。
+   先查人数：绝大多数用户没邀请过人，这一步就是唯一开销，不碰 badges 表。 */
 export async function syncInviteBadges(env,inviterId){
   if(!inviterId)return {count:0,granted:[]};
+  let count=0;
+  try{
+    const row=await env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM invitations WHERE inviter_id=?').bind(inviterId).first();
+    count=Number(row&&row.n)||0;
+  }catch(e){
+    /* invitations 表还没建过（从没走过邀请流程）：直接当作 0，不在热路径上建表 */
+    return {count:0,granted:[]};
+  }
+  if(count<1)return {count,granted:[]};
   await ensureInviteBadges(env);
-  const row=await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM invitations WHERE inviter_id=?').bind(inviterId).first();
-  const count=Number(row&&row.n)||0;
   const granted=[];
   for(const b of INVITE_BADGES){
     if(count<b.need)continue;
