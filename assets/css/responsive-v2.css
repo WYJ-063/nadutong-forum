@@ -345,11 +345,17 @@
                 border-color .18s ease, box-shadow .18s ease;
   }
 
-  /* 帖子列表项： hover 轻微浮起 */
+  /* 帖子列表项：鼠标移上去时整块浮起来。
+     原来试过在左边拉一条 3px 竖条当引导，但那是一根直线，
+     压在圆角卡片的边缘上，反而让整块看起来是方的 —— 换成整块淡底 + 圆角。 */
   .q-item {
+    position: relative;
+    border-radius: 14px;
     transition: box-shadow .2s ease, background-color .2s ease;
   }
   .q-item:hover {
+    background: rgba(110, 130, 190, .07);
+    border-bottom-color: transparent; /* 别让那条分隔线横穿圆角底部 */
     box-shadow: 0 8px 22px rgba(20, 26, 48, .10);
   }
 
@@ -377,21 +383,8 @@
                 border-color .18s ease, box-shadow .18s ease, transform .18s ease;
   }
 
-  /* 帖子列表项：hover 时左侧浮出一条 3px 的主色引导条 */
-  .q-item {
-    position: relative;
-  }
-  .q-item:hover::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 12%;
-    bottom: 12%;
-    width: 3px;
-    border-radius: 999px;
-    background: var(--pt-accent, #2f6fed);
-    opacity: .85;
-  }
+  /* 帖子列表项：hover 的引导条已经改成整块淡底（见上面 .q-item:hover），
+     这里不再画 3px 竖条 —— 直条配圆角卡片会让整块看着还是方的。 */
 }
 
 /* ---------- 九、手感补充层（纯视觉，不碰任何布局尺寸） ---------- */
@@ -429,6 +422,67 @@
   .sb-sheet-i:active {
     background: rgba(110, 130, 190, .16);
   }
+}
+
+/* ---------- 十、圆角统一 ----------
+   原来全站的圆是混着用的：按钮 6 / 7 / 8px，赞同块 7 / 10 / 11 / 12px，
+   标签 999px，卡片 12~14px。放在一起看就是"有的方有的圆"，
+   尤其帖子里的赞同块和旁边的「置顶」小按钮，方角压在圆角卡片上很扎眼。
+   这里统一到一套：小控件 10px、块状 12px、卡片 14px、标签全圆。
+   只改圆角，不改尺寸、不改颜色、不改任何逻辑。 */
+.portal .btn,
+.portal .btn-sm,
+.portal .btn-ghost,
+.portal .btn-orange {
+  border-radius: 10px;
+}
+
+/* 赞同那一块：按钮 + 数字看起来是一个整体，圆角跟着放大一点 */
+.portal .q-vote .vt,
+.portal .q-vote-list .vt,
+.portal .q-vote-answer .vt,
+.portal .q-vote-detail .vt {
+  border-radius: 12px;
+}
+.portal .q-vote-list,
+.portal .q-vote-answer,
+.portal .q-vote-detail {
+  border-radius: 12px;
+}
+
+/* 帖子列表项、详情里的回复卡：跟着卡片圆角走 */
+.portal .q-item {
+  border-radius: 12px;
+}
+.portal .ans-item,
+.portal .reply-item,
+.portal .p-head,
+.portal .p-panel {
+  border-radius: 14px;
+}
+
+/* 标签、胶囊：本来就该是全圆，统一一次免得有的 6px 有的 999px */
+.portal .tag,
+.portal .cloud-pill,
+.portal .badge,
+.portal .level-badge {
+  border-radius: 999px;
+}
+
+/* 输入框、下拉：跟着按钮一起圆 */
+.portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.portal textarea,
+.portal select {
+  border-radius: 10px;
+}
+
+/* ---------- 十一、事件档案正文的配色 ----------
+   app.js 里事件详情那段正文把颜色写死了：color:#D6DEFA。
+   那是"深色底上用浅蓝白"的老写法，在浅色 / 日间主题的白卡片上
+   基本就成了隐形字。这里不改 JS，直接用主题自己的正文色盖掉，
+   深色主题下仍然取到浅色值，两边都正常。 */
+.portal p[style*="D6DEFA"] {
+  color: var(--pt-text) !important;
 }
 
 
