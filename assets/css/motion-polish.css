@@ -481,78 +481,151 @@ button:focus-visible,
 }
 
 /* ============================================================
-   十三、新增第八套皮肤：暖橙（theme-orange）
+   十三、新增第八套皮肤：白橙（theme-orange）
    ------------------------------------------------------------
-   这套皮肤整体是"炭火"基调：近黑的深棕底 + 明橙强调。
-   现有七套里深色只有默认深蓝、赛博霓虹、极光星河，都是冷色；
-   冷色之外补一个暖色深调，切过去能明显换一种气氛。
+   白底 + 橙强调的浅色暖调。和"日间"同属浅色系，但偏暖、偏亮，
+   第一眼是"白和橙"，切过去比日间更活泼。
 
    注意 --blue / --blue-2 / --blue-deep / --blue-ink 这组旧变量：
    站内还有 35 处组件在用它们（主按钮底色、侧栏选中项、logo 徽标、
-   各种小图标）。这套皮肤里把这四个一并改成橙色，
-   那些组件就跟着变暖，不需要逐条写覆盖规则。
-   作用域只有 .portal.theme-orange，首页和其它皮肤不受影响。
+   各类小图标）。这套皮肤里把这四个一并改成橙，那些老组件自动变暖，
+   不必逐条写覆盖规则。作用域只有 .portal.theme-orange。
    ============================================================ */
 
-.portal.theme-orange{
+/* 选择器为什么这么长：
+   main.css 第 1843 行有一条"默认深蓝主题"的兜底规则 ——
+     .portal:not(.theme-day):not(.theme-classic):not(.theme-cyber)
+            :not(.theme-rose):not(.theme-aurora):not(.theme-wechat){ --pt-bg:#0D1740; ... }
+   它把"不认识的主题"一律套成深蓝，特异性是 0,7,0，远高于单纯的
+   .portal.theme-orange（0,2,0）。于是暖橙的 --pt-bg / --pt-accent 全被它压掉，
+   只有不在它清单里的 --blue 系列生效 —— 表现就是"按钮文字变橙了，
+   页面还是深蓝"。这里照抄那串 :not() 再叠上 .theme-orange，特异性到 0,8,0，
+   且本文件最后加载，就能稳定盖回来。
+   不直接改 main.css，是为了这套增删始终只涉及一个文件。 */
+.portal.theme-orange:not(.theme-day):not(.theme-classic):not(.theme-cyber):not(.theme-rose):not(.theme-aurora):not(.theme-wechat){
   /* 品牌色系列 → 橙 */
-  --blue:#E06E10;--blue-2:#F5821F;--blue-deep:#A84E05;--blue-ink:#4A2306;
+  --blue:#C9560A;--blue-2:#E8620A;--blue-deep:#A34407;--blue-ink:#5C2A05;
+  /* 高亮橙与强调橙分成两档：分类 chip、金色标签用前者，按钮和选中态用后者 */
+  --orange:#F0821E;--orange-deep:#B54A06;
 
-  /* 底色：越靠外围越暗，形成一点炭火的层次 */
-  --pt-bg:#170E08;--pt-topbar:#120A05;--pt-sidebar:#150C06;
-  --pt-panel:#22160C;--pt-panel-2:#2C1D10;--pt-input:#1A1007;
-  --pt-border:#4B2D14;--pt-border-soft:#38200E;
+  /* 底色：暖白，越外围越暖一档，和纯白面板拉开层次 */
+  --pt-bg:#FFF8F1;--pt-topbar:#FFFFFF;--pt-sidebar:#FFF4E8;
+  --pt-panel:#FFFFFF;--pt-panel-2:#FFF1E3;--pt-input:#FFF7EE;
+  --pt-border:#F1D8BE;--pt-border-soft:#F7E7D5;
 
-  /* 文字 */
-  --pt-text:#FFF3E6;--pt-text-soft:#F2DCC4;--pt-muted:#C79C78;
+  /* 文字：深棕压在暖白上，比纯黑柔和，也更像"烘焙"的调子 */
+  --pt-text:#3A2413;--pt-text-soft:#6B4A2E;--pt-muted:#9C7856;
 
-  /* 强调色：亮橙压深字，用于主题按钮选中态、聚焦边框 */
-  --pt-accent:#F5821F;--pt-accent-text:#1A0A01;
-  --pt-highlight:#FFB35C;--pt-highlight-bg:rgba(245,130,31,.14);--pt-highlight-text:#FFE8CC;
-  --pt-link:#FFB067;--pt-hover:#3A2312;
+  /* 强调色：橙底白字，用于主题按钮选中态、主按钮、聚焦边框 */
+  --pt-accent:#E05F08;--pt-accent-text:#FFFFFF;
+  --pt-highlight:#F28C28;--pt-highlight-bg:rgba(224,95,8,.10);--pt-highlight-text:#8A3D05;
+  --pt-link:#C9560A;--pt-hover:#FFE9D6;
 
-  --pt-cover-a:#7E3A06;--pt-cover-b:#F5821F;
-  --pt-shadow:0 10px 28px rgba(0,0,0,.38);
-  --pt-glow:rgba(245,130,31,.22);
+  --pt-cover-a:#FFB267;--pt-cover-b:#E05F08;
+  --pt-shadow:0 8px 26px rgba(150,80,20,.10);
+  --pt-glow:rgba(224,95,8,.10);
 
-  --pt-bubble-them:#2C1D10;--pt-bubble-them-text:#FFE2C4;
+  --pt-bubble-them:#FFF1E3;--pt-bubble-them-text:#5C3A1E;
 
-  --pt-ok:#3FA76F;--pt-warn:#FFB35C;--pt-danger:#E5533F;
-  --badge:#FF7A45;--badge-glow:rgba(255,122,69,.4);
+  --pt-ok:#2E9E6B;--pt-warn:#F28C28;--pt-danger:#DC4A3E;
+  --badge:#E05F08;--badge-glow:rgba(224,95,8,.32);
 }
 
-/* 内容区：两层暖光，让整页不是一块死板的深棕 */
+/* 内容区：白底上铺一层极淡的橙光，页头不再是一片死白 */
 .portal.theme-orange .p-main{
   background:
-    radial-gradient(1100px 420px at 78% -120px,rgba(245,130,31,.16),transparent 62%),
-    radial-gradient(900px 520px at -10% 110%,rgba(224,110,16,.09),transparent 60%),
+    radial-gradient(1100px 420px at 78% -120px,rgba(224,95,8,.09),transparent 62%),
+    radial-gradient(900px 520px at -10% 110%,rgba(224,95,8,.05),transparent 60%),
     var(--pt-bg);
 }
 
-/* 顶栏下沿一道极淡的橙线，和内容区拉开层次 */
+/* 顶栏：白底 + 一道极淡橙线收口 */
 .portal.theme-orange .portal-top{
-  border-bottom-color:rgba(245,130,31,.26);
-  box-shadow:0 1px 0 rgba(245,130,31,.1);
+  border-bottom-color:rgba(224,95,8,.22);
+  box-shadow:0 1px 0 rgba(224,95,8,.10);
 }
 
-/* logo 徽标：橙色渐变 + 自发光，比纯色实底更像一枚"火漆印" */
+/* logo 徽标：橙色渐变 + 暖投影，白图标压在上面 */
 .portal.theme-orange .p-logo .mk{
-  background:linear-gradient(140deg,#FF9A3D,#E06E10);
-  box-shadow:0 4px 14px rgba(245,130,31,.35);
+  background:linear-gradient(140deg,#FF9A3D,#E05F08);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(224,95,8,.26);
 }
 
-/* 侧栏当前项：亮橙底压深字（白字压在亮橙上对比不够） */
+/* 侧栏当前项：橙底白字 */
 .portal.theme-orange .side-item.on{
   background:var(--pt-accent);
   color:var(--pt-accent-text);
 }
 
-/* 帖子标签的基类原来是 #EAF0FF 浅蓝底，在炭火色调里会跳成一排冷色块。
-   改成半透明橙底；tag-orange / tag-red / tag-green / tag-gray 这些带语义的
-   变体保持原样，免得把"警告/成功"的含义一起吃掉。 */
+/* 帖子标签基类原来是 #EAF0FF 浅蓝底，在白橙皮肤里会跳成一排冷色块。
+   改成淡橙底 + 深橙字；tag-orange / tag-red / tag-green / tag-gray 这些
+   带语义的变体保持原样，免得把警告、成功的含义一起吃掉。 */
 .portal.theme-orange .tag:not(.tag-orange):not(.tag-red):not(.tag-green):not(.tag-gray){
-  background:rgba(245,130,31,.14);
-  color:var(--pt-highlight);
+  background:var(--pt-highlight-bg);
+  color:var(--pt-highlight-text);
+}
+
+/* 塔罗模块自带一套"夜空紫"主色（divination-polish.css 第 12 行
+   .portal--tarot .tarot-module{--yj-accent:#6B5BD2}）。在深色皮肤下
+   那点紫是神秘感，在这套白橙里就是一块和整体暖调打架的冷色。
+   这里把它并回主题橙 —— 模块内的 TAROT 标签、选中牌阵的边框、
+   hover 描边都读 --yj-accent，改这一个变量就一起跟着变。
+   六爻（赭红）和黄大仙（朱砂）本身是暖色，留在原样更有辨识度。 */
+.portal.theme-orange.portal--tarot .tarot-module{
+  --yj-accent:var(--pt-accent);
+}
+
+/* ============================================================
+   十三之二、手机端顶部主题栏
+   ------------------------------------------------------------
+   主题到 8 个之后，横向排一行在手机上必然放不下。main.css 里有三处
+   媒体查询分别给它设过 order / flex / overflow-x:auto，彼此覆盖，
+   最后落地的是"横向滚动 + 滚动条隐藏" —— 用户只能看到前四五个，
+   暖橙和微信绿要盲划才找得到，等于没有入口。
+   这里统一改成 4 列 2 行的等宽网格，8 个主题一屏看全，不用滑动。
+   放在本文件里是因为它最后加载，能稳定盖住前面那三条。
+   ============================================================ */
+/* 顺带修掉一个连带错位：
+   responsive-v2.css 第 121–122 行把 .portal-body 的上内边距和 .nav-wrap 的
+   sticky top 都写死成 84px 并加了 !important —— 那是"顶栏只有一行"时的旧高度。
+   现在主题栏在手机上要占两行，顶栏实际高 121px，于是 84–121 这一段
+   （侧栏那条横向导航）被顶栏压住，露出一截橙色 tab。
+   页面里 JS 其实已经测准了：--topbar-h:121px、--mobile-chrome-h:172px，
+   main.css 本来也用了这两个变量，只是被 responsive-v2 的 !important 盖掉。
+   这里换回测量值，顶栏再高也不会错位。 */
+@media(max-width:900px){
+  .portal-body{
+    padding-top:calc(var(--topbar-h,92px) + env(safe-area-inset-top,0px)) !important;
+  }
+  .portal.is-top-hidden .portal-body{
+    padding-top:env(safe-area-inset-top,0px) !important;
+  }
+  .nav-wrap{
+    top:calc(var(--topbar-h,92px) + env(safe-area-inset-top,0px)) !important;
+  }
+}
+
+@media(max-width:680px){
+  .portal-top .theme-switch{
+    flex:1 0 100%;
+    order:4;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:5px;
+    overflow:visible;
+    padding:1px 0 5px;
+  }
+  .portal-top .theme-switch button{
+    padding:7px 2px;
+    font-size:11px;
+    line-height:1.2;
+    white-space:nowrap;
+    text-align:center;
+  }
+}
+@media(max-width:360px){
+  .portal-top .theme-switch button{font-size:10px;padding:6px 1px}
 }
 
 /* ============================================================
