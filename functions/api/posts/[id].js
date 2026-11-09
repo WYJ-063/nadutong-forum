@@ -60,9 +60,14 @@ export async function onRequestDelete({request,env,params}){
   if(post.author_id!==me.id && !isAdmin(me))
     return json({error:'无权删除该帖子（仅作者本人或管理员）'},403);
 
-  /* 该帖所有回复的点赞 */
-  const rep=await env.DB.prepare('SELECT id FROM replies WHERE post_id=?').bind(id).all();
+  /* 该帖所有回复（删帖会连回复一起删，所以要顺手把回复者的积分扣回来） */
+  const rep=await env.DB.prepare(
+    'SELECT id,author_id FROM replies WHERE post_id=?').bind(id).all();
   const rids=(rep.results||[]).map(r=>r.id);
+  const replyAuthorCount={};
+  (rep.results||[]).forEach(r=>{
+    if(r.author_id)replyAuthorCount[r.author_id]=(replyAuthorCount[r.author_id]||0)+1;
+  });
   if(rids.length){
     const ph=rids.map(()=>'?').join(',');
     await env.DB.prepare(
@@ -92,5 +97,8 @@ export async function onRequestDelete({request,env,params}){
   await env.DB.prepare('DELETE FROM posts WHERE id=?').bind(id).run();
   /* 扣回作者发帖所得基础积分（不低于 0） */
   if(post.author_id)await addPointsClamped(env,post.author_id,-POINTS_RULE.post);
+  /* 回复者当初 +2 的积分按条数扣回：否则「发帖 → 回复 → 删帖」能把回复积分永久留在账上 */
+  for(const [uid,cnt] of Object.entries(replyAuthorCount))
+    await addPointsClamped(env,uid,-POINTS_RULE.reply*cnt);
   return json({ok:true,deletedReplyCount:rids.length});
 }

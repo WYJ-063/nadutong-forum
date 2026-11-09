@@ -22,6 +22,9 @@ export async function onRequestPost({request,env,params}){
   const content=String(b.content==null?'':b.content);
   if(!title)return json({error:'标题不能为空'},400);
   if(!content.trim())return json({error:'正文不能为空'},400);
+  /* 与发帖接口保持同一套上限，避免编辑时绕过长度限制把超长内容写进 D1 */
+  if([...title].length>100)return json({error:'标题最多 100 个字'},400);
+  if([...content].length>20000)return json({error:'正文最多 20000 个字（含图片标记）'},400);
   const oldTitle=String(post.title||'');
   const oldContent=String(post.content||'');
   /* 内容无变化：不写历史、不更新 */

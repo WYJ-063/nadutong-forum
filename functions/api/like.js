@@ -49,9 +49,15 @@ export async function onRequestPost({request,env}){
 
   if(!target)return json({error:'目标不存在'},404);
 
-  await env.DB.prepare(
-    'INSERT INTO likes (user_id,target_type,target_id,created_at) VALUES (?,?,?,?)')
+  /* 联合主键 (user_id,target_type,target_id) 决定了一条赞只能存在一次。
+     旧实现直接 INSERT：双击点赞时两个并发请求都可能读到 existing=null，
+     第二条撞主键抛异常，前端拿到 500。改成 INSERT OR IGNORE 再看 changes：
+     没有真正插入就说明是重复请求，按「已点赞」返回，且不重复给作者加分。 */
+  const ins=await env.DB.prepare(
+    'INSERT OR IGNORE INTO likes (user_id,target_type,target_id,created_at) VALUES (?,?,?,?)')
     .bind(me.id,type,id,nowStr()).run();
+  const inserted=Number(ins&&ins.meta&&ins.meta.changes)||0;
+  if(!inserted)return json({liked:true});
 
   /* 被点赞的作者获得积分 + 通知（不给自己刷） */
   if(target.author_id&&target.author_id!==me.id){

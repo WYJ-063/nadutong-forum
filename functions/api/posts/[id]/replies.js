@@ -14,6 +14,9 @@ export async function onRequestPost({request,env,params}){
   const b=await readBody(request);
   const content=String(b.content||'').trim();
   if(!content)return json({error:'回复内容不能为空'},400);
+  /* 上限保护：D1 单行约 1MB，回复里还允许嵌图片标记，不挡住超长内容会写失败变 500 */
+  if([...content].length>5000)
+    return json({error:'回复最多 5000 个字'},400);
   /* 封禁 / 禁言校验 */
   const block=moderationBlock(me);
   if(block)return json({error:block},403);

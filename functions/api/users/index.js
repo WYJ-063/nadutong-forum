@@ -1,8 +1,6 @@
 import {
-  json,preflight,ensureSchema,getAuthUser,isAdmin,publicUser
+  json,preflight,ensureSchema,getAuthUser,isAdmin,publicUser,normEffect
 } from '../_lib.js';
-
-const EFFECTS=['0','1','2','3','4','5'];
 
 export async function onRequestOptions(){ return preflight(); }
 
@@ -26,9 +24,10 @@ export async function onRequestGet({request,env}){
      WHERE ub.equipped=1`).all();
   (badgeRes.results||[]).forEach(r=>{
     if(badgeMap[r.user_id])return;
-    const eff=String(r.effect==null?'0':r.effect);
+    /* 用共享的 normEffect（0~15）而不是本地写死的 0~5：
+       否则 6~15 号炫彩在成员管理页会被降级成「无特效」，与管理端看到的徽章不一致。 */
     badgeMap[r.user_id]={id:r.id,name:r.name,icon:r.icon||'',desc:r.desc,
-      effect:EFFECTS.includes(eff)?eff:'0'};
+      effect:normEffect(r.effect)};
   });
 
   /* 批量取异人档案 */

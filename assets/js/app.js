@@ -653,7 +653,7 @@ const MentionPicker={
     }else{
       el.innerHTML=this.items.map((u,i)=>`
         <div class="mp-item ${i===this.index?'on':''}" data-midx="${i}">
-          <span class="mp-av">${u.avatar?`<img src="${u.avatar}" alt="">`:`<span>${esc(String(u.name).slice(0,1))}</span>`}</span>
+          <span class="mp-av">${u.avatar?`<img src="${esc(u.avatar)}" alt="">`:`<span>${esc(String(u.name).slice(0,1))}</span>`}</span>
           <span class="mp-name">${esc(u.name)}</span>
           <span class="mp-lv">${esc(u.levelName||('Lv'+u.level))}</span>
         </div>`).join('');
@@ -766,7 +766,7 @@ function cloudFormsHtml(mode){
 }
 function cloudAccountHtml(u){
   const av=u.avatar&&(u.avatar.startsWith('data')||u.avatar.startsWith('http'))
-    ?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover">`
+    ?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover">`
     :esc(avText(u.name));
   return `<div class="cloud-account">
     <div class="cloud-account-head">
@@ -1097,7 +1097,12 @@ async function cloudRerender(){
   }else{
     const board=seg[0]==='forum'&&seg[1]?decodeURIComponent(seg[1]):'全部';
     const sort=query.sort||'latest';
-    const posts=await Cloud.listPosts(board,sort);
+    /* listPosts 返回的是 {posts,total,hasMore,...} 而不是数组。旧代码把它直接传给
+       sortForumPosts，后者第一步就调 list.sort()，于是点赞/发帖/删帖后的静默刷新
+       会抛 "list.sort is not a function"，页面弹红条。patch-fixes.js 的兼容包裹
+       只是兜底，根因在这里：先把数组取出来再排序。 */
+    const data=await Cloud.listPosts(board,sort);
+    const posts=(data&&data.posts)||[];
     const el=document.getElementById('cloud-forum-list');
     if(el)el.innerHTML=forumListHtml(sortForumPosts(posts,sort),Cloud.user.id);
   }
@@ -3526,7 +3531,7 @@ function viewSpace(id){
   const c=`<div class="p-panel" style="padding:0;overflow:hidden">
       <div class="space-cover" style="${cover};--tpl-a:${tpl.a||'#1A2C78'};--tpl-b:${tpl.b||'#2E47B8'}"></div>
       <div class="space-head">
-        <div class="av" style="border-width:${t.avatarBorder==='thick'?'6px':t.avatarBorder==='thin'?'2px':'0'};border-color:var(--pt-panel)">${t.avatar&&t.avatar.startsWith('data')?`<img src="${t.avatar}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(t.name))}</div>
+        <div class="av" style="border-width:${t.avatarBorder==='thick'?'6px':t.avatarBorder==='thin'?'2px':'0'};border-color:var(--pt-panel)">${t.avatar&&t.avatar.startsWith('data')?`<img src="${esc(t.avatar)}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(t.name))}</div>
         <div class="sh-info">
           <h2 style="color:${t.nameColor||'var(--pt-text)'}">${esc(t.name)}</h2>
           <div class="sh-badges">${gradeBadge(t,{mini:true})}</div>
@@ -3604,8 +3609,8 @@ function viewDecorate(){
     <h3 style="font-size:14px;margin:22px 0 10px">昵称颜色</h3><select class="field" id="d-name-color"><option value="var(--pt-text)">跟随主题</option><option value="var(--pt-accent)" ${u.nameColor==='var(--pt-accent)'?'selected':''}>主题强调色</option><option value="var(--pt-highlight)" ${u.nameColor==='var(--pt-highlight)'?'selected':''}>主题重点色</option><option value="#FFFFFF" ${u.nameColor==='#FFFFFF'?'selected':''}>白色</option><option value="#111827" ${u.nameColor==='#111827'?'selected':''}>深色</option></select>
     <h3 style="font-size:14px;margin:22px 0 10px">头像</h3>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-      <div class="av" style="width:64px;height:64px;background:var(--blue-2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden">${u.avatar&&u.avatar.startsWith('data')?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(u.name))}</div>
-      <input class="field" id="d-av-url" style="flex:1;min-width:200px" placeholder="头像图片 URL（可选）" value="${u.avatar&&u.avatar.startsWith('http')?u.avatar:''}">
+      <div class="av" style="width:64px;height:64px;background:var(--blue-2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden">${u.avatar&&u.avatar.startsWith('data')?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(u.name))}</div>
+      <input class="field" id="d-av-url" style="flex:1;min-width:200px" placeholder="头像图片 URL（可选）" value="${u.avatar&&u.avatar.startsWith('http')?esc(u.avatar):''}">
       <label class="btn btn-ghost btn-sm" style="margin:0">上传本地图片<input type="file" id="d-av-file" accept="image/*" class="hide"></label>
     </div>
     <h3 style="font-size:14px;margin:22px 0 10px">个人简介</h3>
@@ -3827,7 +3832,7 @@ function viewFriends(){
   const c=`<div class="p-panel">
     <h2>我的好友</h2><div class="ph-sub">本机注册的用户都可以加为好友并访问其空间</div>
     ${friends.map(f=>`<div class="friend-card">
-      <span class="av">${f.avatar&&f.avatar.startsWith('data')?`<img src="${f.avatar}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(f.name))}</span>
+      <span class="av">${f.avatar&&f.avatar.startsWith('data')?`<img src="${esc(f.avatar)}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(f.name))}</span>
       <div><h4>${esc(f.name)}</h4><p>${esc(f.bio||'').slice(0,30)}</p></div>
       <div class="fc-actions"><a class="btn btn-sm btn-ghost" href="#/space/${f.id}">访问空间</a><button class="btn btn-sm" data-rm="${f.id}">删除</button></div>
     </div>`).join('')||'<div class="empty">还没有好友，从下面添加吧</div>'}
@@ -3927,7 +3932,7 @@ function quoteInner(q){
 function bubbleContent(m){
   if(m.type==='redpacket'||m.type==='transfer')return moneyBubbleHtml(m);
   const q=m.quote?quoteInner(m.quote):'';
-  const ph=m.photo?`<img class="msg-photo" src="${m.photo}" alt="照片">`:'';
+  const ph=m.photo?`<img class="msg-photo" src="${esc(m.photo)}" alt="照片">`:'';
   const body=m.type==='voice'?voiceInner(m):(m.text?`<span>${esc(m.text)}</span>`:'');
   return q+ph+body;
 }
@@ -4661,7 +4666,7 @@ function editMsg(data){
   const isVoice=m.type==='voice';
   const name=msgSenderName(data.kind,data.key,m);
   modal(`<h3>编辑消息 · ${esc(name)}</h3><div class="m-body">
-    ${m.photo?`<img src="${m.photo}" style="max-width:100%;border-radius:8px;margin-bottom:10px"><label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px"><input type="checkbox" id="m-rm-photo"> 删除这张照片</label>`:''}
+    ${m.photo?`<img src="${esc(m.photo)}" style="max-width:100%;border-radius:8px;margin-bottom:10px"><label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px"><input type="checkbox" id="m-rm-photo"> 删除这张照片</label>`:''}
     ${isVoice?`<label style="font-size:13px;color:var(--muted)">语音时长（秒）</label>
       <input class="field" id="m-len" type="number" min="1" value="${m.len||1}" style="margin-bottom:10px">
       <label style="font-size:13px;color:var(--muted)">语音转文字内容</label>
@@ -4945,7 +4950,7 @@ function cardManager(personId){
   const norm=t=>(t||'').trim();
   const dupText=t=>u.cards.some(c=>!c.photo&&norm(c.text)===t);
   const listHtml=()=>u.cards.map((c,i)=>`<div class="card-item" data-card-index="${i}">
-      ${c.photo?`<img src="${c.photo}" alt="图片字卡预览">`:(c.text&&[...c.text].length<=2?`<span class="ci-emoji">${esc(c.text)}</span>`:'')}
+      ${c.photo?`<img src="${esc(c.photo)}" alt="图片字卡预览">`:(c.text&&[...c.text].length<=2?`<span class="ci-emoji">${esc(c.text)}</span>`:'')}
       <div class="ci-body"><p>${c.photo?`<span class="ci-type">图片</span> ${esc(c.text||'图片字卡')}`:esc(c.text||'（空白字卡）')}</p>
         <div class="ci-meta">${c.photo?'图片卡':`文字卡 · ${[...(c.text||'')].length} 字`}${c.combo&&c.combo.length?` · 组合 ${c.combo.length} 条`:''}</div>
         ${c.combo&&c.combo.length?`<div class="ci-combo">${esc(c.combo.map(x=>x.text||'[图]').join(' / ').slice(0,72))}</div>`:''}
@@ -7918,7 +7923,7 @@ function viewWorkgroup(){
 function groupMembers(box,groupName){
   const me=DB.user;
   const elig=DB.data.users.filter(u=>u.level>=2&&u.id!==me.id);
-  const mask=openMask(`<h3>${groupName}成员</h3><div class="m-body">
+  const mask=openMask(`<h3>${esc(groupName)}成员</h3><div class="m-body">
     <label class="mem-row" style="border-bottom:1px solid #2A3A7E;margin-bottom:4px">
       <input type="checkbox" checked disabled>
       <span class="av" style="width:30px;height:30px;font-size:12px">${avatarHtml32(me)}</span>
@@ -8339,7 +8344,7 @@ function drawRadarChart(canvas,labels,values,opts={}){
 function viewAbility(){
   if(!DB.user)return viewGate();
   const u=DB.user;const a=abilityOf(u);const g=forumLevelOf(u);
-  const av=`<div class="ability-avatar">${u.avatar&&u.avatar.startsWith('data')?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(u.name))}</div>`;
+  const av=`<div class="ability-avatar">${u.avatar&&u.avatar.startsWith('data')?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover">`:esc(avText(u.name))}</div>`;
   const cell=v=>esc(v==null?'':v);
   const tableRows=a.rows.map((r,ri)=>`<tr>${a.fields.map((f,fi)=>`<td>${cell(r&&r.v?r.v[fi]:'')}</td>`).join('')}</tr>`).join('');
   const preview=`<section class="ability-card">

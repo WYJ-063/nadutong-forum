@@ -2,7 +2,7 @@
    注意：正式发布新版本时，把下面的 v1 改成 v2、v3……
    旧缓存会被自动清掉，用户下次打开就是新文件。
    index.html 与 /api 一律不缓存，所以发布后立刻能感知到新版本。 */
-const ASSET_CACHE = 'ndt-assets-v2';
+const ASSET_CACHE = 'ndt-assets-v3';
 
 self.addEventListener('install',event=>{self.skipWaiting();});
 self.addEventListener('activate',event=>{

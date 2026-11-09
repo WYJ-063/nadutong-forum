@@ -47,10 +47,16 @@ export async function findInviterByCode(env,code){
   const target=String(code||'').trim().toUpperCase();
   if(!target||target.length>16)return null;
   const {results}=await env.DB.prepare('SELECT id,name FROM users').all();
+  /* 邀请码是 6 位 36 进制、由用户 ID 哈希而来，理论上会碰撞。
+     旧实现命中第一个就直接返回，等于把积分送给一个不相干的用户；
+     这里改成「只有一个候选才算数，命中多个一律作废」，宁可让邀请码失效也不发错人。 */
+  let hit=null,ambiguous=false;
   for(const u of (results||[])){
-    if(inviteCodeOf(u.id)===target)return u;
+    if(inviteCodeOf(u.id)!==target)continue;
+    if(hit){ambiguous=true;break;}
+    hit=u;
   }
-  return null;
+  return ambiguous?null:hit;
 }
 
 /* 确保里程碑徽章在 badges 表里存在（只补缺失的，已存在不写库，避免无谓写配额） */

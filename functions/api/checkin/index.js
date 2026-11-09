@@ -54,13 +54,21 @@ export async function onRequestPost({request,env}){
   if(streak%7===0)bonus=CHECKIN_WEEK_BONUS;
   gained+=bonus;
 
-  await env.DB.prepare(
+  /* 并发保护：WHERE 让「库里记录的 last_date 还不是今天」成为真正落库的条件。
+     两个请求同时签到，只有一个能拿到 changes=1 和积分，另一个按已签到返回，
+     避免同一秒连点两次刷出双倍积分。 */
+  const up=await env.DB.prepare(
     `INSERT INTO checkins (user_id,last_date,streak,total_days,updated_at)
        VALUES (?,?,?,?,?)
      ON CONFLICT(user_id) DO UPDATE SET
        last_date=excluded.last_date,streak=excluded.streak,
-       total_days=excluded.total_days,updated_at=excluded.updated_at`)
+       total_days=excluded.total_days,updated_at=excluded.updated_at
+     WHERE checkins.last_date<>excluded.last_date`)
     .bind(me.id,today,streak,totalDays,nowStr()).run();
+  const changed=Number(up&&up.meta&&up.meta.changes)||0;
+  if(!changed)
+    return json({checkedToday:true,streak:prevStreak,
+      totalDays:Number(row&&row.total_days)||0,gained:0,message:'今天已签到，明天再来'});
   if(gained)await addPoints(env,me.id,gained);
 
   return json({checkedToday:true,streak,totalDays,gained,bonus,

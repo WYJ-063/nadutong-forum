@@ -325,7 +325,8 @@ async function getEquippedBadge(env,userId){
     .bind(userId).first();
   return row?{id:row.id,name:row.name,icon:row.icon,desc:row.desc,effect:normEffect(row.effect)}:null;
 }
-/* 炫彩效果取值范围：0~5，非法值统一回退为 0 */
+/* 炫彩效果取值范围：0~15（0=无特效），非法值统一回退为 0。
+   这里是唯一事实源：后端各接口和前端展示都以它为准，不要再另写一份 0~5 的白名单。 */
 const BADGE_EFFECTS=['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
 function normEffect(v){
   const s=String(v==null?'0':v);
@@ -443,16 +444,22 @@ async function ensureSchema(env){
 }
 
 /* ---------- 服务器密钥（首次运行生成并持久化） ---------- */
+/* 密钥在同一 Worker 实例的生命周期内不会变，缓存到模块作用域即可。
+   之前每次鉴权（getAuthUser → getSecret）都要多打一次 meta 表查询，
+   相当于每个需要登录的请求都白付一次 D1 往返。 */
+let secretCache=null;
 async function getSecret(env){
+  if(secretCache)return secretCache;
   await ensureSchema(env);
   const row=await env.DB.prepare('SELECT value FROM meta WHERE key=?').bind('secret').first();
-  if(row&&row.value)return row.value;
+  if(row&&row.value){secretCache=row.value;return secretCache;}
   const secret=crypto.randomUUID().replace(/-/g,'')+crypto.randomUUID().replace(/-/g,'');
   /* INSERT OR IGNORE：并发首次请求时只有一个写入成功，其余复用已生成的值，
      避免 UNIQUE 冲突把注册/登录打成 500。 */
   await env.DB.prepare('INSERT OR IGNORE INTO meta (key,value) VALUES (?,?)').bind('secret',secret).run();
   const saved=await env.DB.prepare('SELECT value FROM meta WHERE key=?').bind('secret').first();
-  return (saved&&saved.value)||secret;
+  secretCache=(saved&&saved.value)||secret;
+  return secretCache;
 }
 
 /* ---------- 密码哈希（PBKDF2 / SHA-256） ---------- */
@@ -947,5 +954,5 @@ export {
   getVapidKeys,dispatchWebPush,
   grantBadge,grantActivityBadge,getUserBadges,equipBadge,
   getEquippedBadge,getBadgeCatalog,createBadge,updateBadge,
-  getUserProfile,saveUserProfile
+  getUserProfile,saveUserProfile,normEffect
 };

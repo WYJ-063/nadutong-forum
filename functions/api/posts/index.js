@@ -2,12 +2,13 @@ import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
   addPoints,POINTS_RULE,nowStr,processMentions,
   isAdmin,ANNOUNCEMENT_BOARD,moderationBlock,shapePostRow,shapePostList,
-  grantActivityBadge
+  grantActivityBadge,userInfoMap
 } from '../_lib.js';
 /* 为帖子创建投票（含选项） */
 async function createPoll(env,postId,poll,createdAt){
   const pollId=genId('pl');
-  const question=String(poll.question||'').trim();
+  /* 截断而不是报错：投票是发帖的附属功能，标题稍长不该连带让整帖发不出去 */
+  const question=String(poll.question||'').trim().slice(0,100);
   const multi=poll.multi?1:0;
   const options=Array.isArray(poll.options)?poll.options.slice(0,8):[];
   if(options.length<2)return null;
@@ -21,7 +22,7 @@ async function createPoll(env,postId,poll,createdAt){
     const oid=genId('po');
     return env.DB.prepare(
       `INSERT INTO poll_options (id,poll_id,text,pos) VALUES (?,?,?,?)`)
-      .bind(oid,pollId,String(t),i).run();
+      .bind(oid,pollId,String(t).slice(0,60),i).run();
   }));
   return pollId;
 }
@@ -113,6 +114,10 @@ export async function onRequestPost({request,env}){
   const content=String(b.content||'').trim();
   if(!title)return json({error:'请填写标题'},400);
   if(!content)return json({error:'请填写内容'},400);
+  /* 长度上限：D1 单行约 1MB，正文允许嵌 base64 图片标记，
+     不挡住超长内容就会写库失败直接返回 500，而不是给出可读提示。 */
+  if([...title].length>100)return json({error:'标题最多 100 个字'},400);
+  if([...content].length>20000)return json({error:'正文最多 20000 个字（含图片标记）'},400);
   /* 公告分类仅管理员可发帖 */
   if(board===ANNOUNCEMENT_BOARD&&!isAdmin(me))
     return json({error:'「公告」分类仅管理员可发布'},403);
@@ -140,5 +145,8 @@ export async function onRequestPost({request,env}){
     });
   }catch(e){ /* 提及失败不阻断发帖主流程 */ }
   const row=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
-  return json({post:shapePostRow(row,[],0)});
+  /* 补上作者等级/头像/佩戴徽章：旧实现传空 authorInfo，新帖一发布就显示 Lv0、没有称号，
+     要等重新拉一次列表才恢复正常。这里与列表接口保持同一口径。 */
+  const info=await userInfoMap(env,[me.id]);
+  return json({post:shapePostRow(row,[],0,row.created_at,info[me.id]||{})});
 }
