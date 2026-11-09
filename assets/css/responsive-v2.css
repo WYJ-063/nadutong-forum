@@ -162,10 +162,15 @@
   }
   .sb-more:active { transform: translateY(-50%) scale(.96); }
 
-  /* 给按钮让出位置，别压住最后一个侧栏项 */
-  .sidebar { padding-right: 64px; }
+  /* 「更多」按钮独占右侧一条，别压住横滑里的最后几项 */
+  .sb-more { right: 4px; }
+  .sidebar {
+    width: calc(100% - 58px);
+    padding-right: 14px;
+  }
 
   /* 展开态：从底部弹出的一张面板，按分组三列铺开 */
+  .nav-wrap.sb-open { z-index: 130; }
   .sidebar.sb-open {
     position: fixed;
     left: 10px;
@@ -266,14 +271,39 @@
     cursor: pointer;
   }
 
-  /* 面板背后的遮罩，点一下收起 */
+  /* 面板背后的遮罩：只压暗。
+     之前这里加了 backdrop-filter: blur(2px)，手机上一压上去整页就糊成
+     一片灰雾，看起来像插件崩了，所以把模糊去掉了。 */
   .sb-mask {
     position: fixed;
     inset: 0;
     z-index: 119;
-    background: rgba(10, 14, 30, .45);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+    background: rgba(10, 14, 30, .5);
+  }
+
+  /* 从底部轻轻推上来，让人能明确看到"面板开了"（只动位置，不动透明度） */
+  .sidebar.sb-open {
+    animation: sbSheetIn .22s cubic-bezier(.2, .8, .3, 1) both;
+  }
+  @keyframes sbSheetIn {
+    from { transform: translateY(16px); }
+    to { transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar.sb-open { animation: none; }
+  }
+}
+
+/* 窄屏（≤430px）：三列太挤，改两列，名字不用靠省略号 */
+@media (max-width: 430px) {
+  .sidebar.sb-open .side-item {
+    flex: 0 0 calc(50% - 4px);
+    font-size: 12px;
+  }
+  .sidebar.sb-open .side-item svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
   }
 }
 

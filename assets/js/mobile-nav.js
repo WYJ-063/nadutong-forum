@@ -2,10 +2,9 @@
    手机端导航：一行横滑 + 「更多」→ 底部半屏面板
    ------------------------------------------------------------
    手机上 .sidebar 是一条横滑条，28 个侧栏项加起来三千多像素宽，
-   想找「个人空间」得横着划好几屏。
-   这里保留一行横滑，只在右侧固定一个「更多」按钮；
-   点开是一张底部面板：按原分组（论坛 / 业务系统 / 个人）
-   三列铺开，点任意一项或点遮罩就收起。
+   想找「个人空间」得横着划好几屏。这里保留一行横滑，右侧固定一颗
+   「更多」按钮；点开是一张底部面板：按原分组（论坛 / 业务系统 / 个人）
+   铺开，点任意一项、点遮罩或点「关闭」就收起。
    桌面端（>900px）完全不介入。
    ============================================================ */
 (function () {
@@ -51,12 +50,12 @@
         document.body.appendChild(mask);
       }
     } else if (mask) {
-      mask.parentElement.removeChild(mask);
+      if (mask.parentElement) mask.parentElement.removeChild(mask);
       mask = null;
     }
   }
 
-  function hide(scrollToo) {
+  function hide() {
     if (bar) bar.classList.remove('sb-open');
     if (wrap) wrap.classList.remove('sb-open');
     if (btn) btn.textContent = '更多';
@@ -80,7 +79,7 @@
     wrap = document.querySelector('.nav-wrap');
     bar = document.querySelector('.sidebar');
     if (!wrap || !bar) return;
-    /* 桌上不动手：清掉手机上留下的按钮、面板和遮罩 */
+
     if (!isMobile()) {
       const old = wrap.querySelector('.sb-more');
       if (old) old.parentElement.removeChild(old);
@@ -88,6 +87,7 @@
       btn = null;
       return;
     }
+
     btn = wrap.querySelector('.sb-more');
     if (!btn) {
       btn = document.createElement('button');
@@ -98,12 +98,12 @@
       btn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (bar.classList.contains('sb-open')) hide();
+        if (bar && bar.classList.contains('sb-open')) hide();
         else show();
       });
       wrap.appendChild(btn);
     }
-    /* 点侧栏任一项就收起（等路由切换的渲染过去再收，避免闪） */
+
     if (!bar.dataset.sbBound) {
       bar.dataset.sbBound = '1';
       bar.addEventListener('click', function (e) {
