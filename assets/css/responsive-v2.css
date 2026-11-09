@@ -173,10 +173,13 @@
     margin-top: 1px;
   }
 
-  /* 箭头独占右侧一小条，别压住横滑里的最后几项 */
+  /* 箭头占的那一小条改用右侧内边距让出来，而不是把 .sidebar 缩窄。
+     缩窄会把横滑条自己的 border-bottom（那条分隔线）一起截断，
+     右边 42px 就没有线了，看着像半根断在箭头前面。
+     用 padding-right 让位，线还是画满整条；滑动到底时最后一项也刚好停在箭头左边。 */
   .sidebar {
-    width: calc(100% - 42px);
-    padding-right: 8px;
+    width: 100%;
+    padding-right: 46px !important;
   }
 
 
@@ -357,6 +360,75 @@
     border-radius: 999px;
   }
   body::-webkit-scrollbar-track { background: transparent; }
+
+  /* 侧栏条目：hover 除了平移，再垫一层淡底色，浅色深色主题都看得出来 */
+  .sidebar .side-item:hover {
+    background: rgba(110, 130, 190, .10);
+    border-radius: 8px;
+  }
+
+  /* 顶部主题按钮：hover 提亮 + 1px 上浮，点起来有反应 */
+  .portal-top .theme-switch > button:hover {
+    background: rgba(110, 130, 190, .12);
+    transform: translateY(-1px);
+  }
+  .portal-top .theme-switch > button {
+    transition: background-color .18s ease, color .18s ease,
+                border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  /* 帖子列表项：hover 时左侧浮出一条 3px 的主色引导条 */
+  .q-item {
+    position: relative;
+  }
+  .q-item:hover::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12%;
+    bottom: 12%;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--pt-accent, #2f6fed);
+    opacity: .85;
+  }
+}
+
+/* ---------- 九、手感补充层（纯视觉，不碰任何布局尺寸） ---------- */
+@media (max-width: 900px) {
+  /* 分类横滑条右缘：别把最后一个按钮切掉半个 */
+  .forum-tabs {
+    padding-right: 14px;
+  }
+
+  /* 手机上统一给「按下去」一点回应。
+     只做 transform，不改变布局，所以不会把列表顶得上下跳。 */
+  .side-item,
+  .sb-sheet-i,
+  .q-item {
+    transition: transform .12s ease, background-color .18s ease, box-shadow .18s ease;
+  }
+  .side-item:active,
+  .sb-sheet-i:active,
+  .q-item:active {
+    transform: scale(.98);
+  }
+
+  /* 右侧箭头：换成白底 + 加深描边。原来用的是侧栏底色，
+     浅色主题下和白条糊在一起，看不出是个能点的按钮。 */
+  .sb-toggle {
+    background: var(--pt-panel, #fff);
+    border-color: var(--pt-border, #cfd6e4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .16);
+  }
+  .sb-toggle:active {
+    transform: translateY(-50%) scale(.9);
+  }
+
+  /* 面板卡片：按下时给一点亮度变化，配合缩放 */
+  .sb-sheet-i:active {
+    background: rgba(110, 130, 190, .16);
+  }
 }
 
 
