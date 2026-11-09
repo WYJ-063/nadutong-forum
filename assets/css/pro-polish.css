@@ -1,0 +1,136 @@
+/* ============================================================
+   深度适配补丁 v46
+   分三块：手机端交互增强 / 全局图片查看器 / 桌面端宽屏与可读性。
+   原则：不改 main.css、不改 app.js；桌面端只在 1680px 以上生效，
+        1440 及以下看到的和原来完全一样。
+   ============================================================ */
+
+/* ---------- 1. 图片查看器（手机、桌面都生效） ---------- */
+#ndp-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: rgba(4, 8, 20, .94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+#ndp-viewer.on { opacity: 1; }
+#ndp-viewer .ndp-img {
+  max-width: min(96vw, 1600px);
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: zoom-out;
+  transition: transform .18s ease;
+  will-change: transform;
+}
+#ndp-viewer .ndp-img.zoomed { transform: scale(1.8); cursor: zoom-in; }
+#ndp-viewer .ndp-hint {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .5px;
+  color: rgba(255, 255, 255, .6);
+  pointer-events: none;
+}
+/* 正文/聊天里的图片给个明确的可点提示 */
+.inline-img, .msg-photo { cursor: zoom-in; }
+
+/* ---------- 2. 手机端：回到顶部悬浮球 ---------- */
+@media (max-width: 680px) {
+  #ndp-top {
+    position: fixed;
+    right: 14px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--pt-border);
+    background: var(--pt-panel, #fff);
+    color: var(--pt-text, #17213B);
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    line-height: 1;
+    box-shadow: 0 6px 18px rgba(6, 12, 40, .3);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+    z-index: 900;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #ndp-top.on { opacity: 1; transform: none; pointer-events: auto; }
+  #ndp-top:active { transform: scale(.94); }
+  /* 聊天页底部有输入栏，球要抬高，别压在发送按钮上 */
+  #ndp-top.lift { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- 3. 手机端：内容很高的弹窗改成全屏抽屉 ---------- */
+@media (max-width: 680px) {
+  /* 徽章管理、编辑资料这类长表单，原来挤在 88vh 的底部卡片里，
+     里面还要再滚一层；改成接近全屏，滚动只发生在卡片内部。 */
+  .modal.ndp-full {
+    height: 92dvh;
+    max-height: 92dvh;
+    border-radius: 14px 14px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- 4. 手机横屏：顶栏与导航压扁，把高度让给内容 ---------- */
+@media (max-width: 900px) and (max-height: 520px) {
+  .portal-top { min-height: 46px !important; padding: 4px 10px !important; }
+  .portal-top .p-logo small { display: none; }
+  .portal-top .user-chip .un small { display: none; }
+  .nav { padding-top: 2px !important; padding-bottom: 3px !important; }
+  .nav a { padding: 6px 10px !important; font-size: 12.5px !important; }
+}
+
+/* ---------- 5. 桌面端：宽屏内容不再无限拉长 ---------- */
+@media (min-width: 1680px) {
+  /* 1680 以上的屏，正文一行能到 1800px 宽，眼睛要来回扫。
+     把文字类容器限制在 1240px 居中，背景仍铺满，留白左右对称。 */
+  .p-main > .p-crumb,
+  .p-main > .p-panel,
+  .p-main > .room-tabs-bar,
+  .p-main > .wx-im {
+    max-width: 1240px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .p-main { padding: 30px 44px; }
+}
+
+/* ---------- 6. 桌面端：滚动条与键盘焦点 ---------- */
+* { scrollbar-width: thin; scrollbar-color: rgba(120, 136, 180, .5) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 136, 180, .45);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(120, 136, 180, .7); background-clip: padding-box; }
+
+/* Tab 键在页面上走的时候给个清楚的焦点框；
+   只管可点击元素，输入框有自己的边框，再套一圈反而笨重 */
+a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
+.side-item:focus-visible, .nav a:focus-visible, .tab:focus-visible {
+  outline: 2px solid var(--blue, #243B9B);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- 7. 减少动画偏好下，新加的东西也不动 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #ndp-viewer, #ndp-viewer .ndp-img, #ndp-top { transition: none !important; }
+  #ndp-viewer .ndp-img.zoomed { transform: none; }
+}
