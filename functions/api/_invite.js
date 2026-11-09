@@ -1,7 +1,19 @@
-import {genId,nowStr,addPoints} from './_lib.js';
+import {genId,nowStr,addPoints,grantBadge} from './_lib.js';
 
 /* 邀请好友：100 积分/人 */
 export const INVITE_POINTS=100;
+
+/* 邀请里程碑徽章。
+   这两枚徽章原先只存在于数据库（inviter_1 / inviter_5，kind='auto'），
+   但代码里从来没有发放逻辑——邀请流程只加积分，所以「拉 1 人得接引人、
+   拉 5 人得哪都通 HR」一直没生效。这里把阈值和自动发放补上。
+   effect 与线上已有记录保持一致（接引人=5 银辉、HR=10 靛蓝）。 */
+export const INVITE_BADGES=[
+  {id:'inviter_1',name:'接引人',icon:'🤝',
+   desc:'邀请第一位好友注册成功，双方各得100积分',effect:'5',need:1},
+  {id:'inviter_5',name:'哪都通HR',icon:'💼',
+   desc:'成功邀请5位好友注册，公司正式编外招聘官',effect:'10',need:5}
+];
 
 /* 邀请关系表。旧版 invite.js 直接读写 users.invite_code 和 invitations，
    但两者在 schema 里都不存在，导致 /api/invite 必定 500。
@@ -41,6 +53,36 @@ export async function findInviterByCode(env,code){
   return null;
 }
 
+/* 确保里程碑徽章在 badges 表里存在（只补缺失的，已存在不写库，避免无谓写配额） */
+async function ensureInviteBadges(env){
+  const {results}=await env.DB.prepare(
+    "SELECT id FROM badges WHERE id IN ('inviter_1','inviter_5')").all();
+  const have=new Set((results||[]).map(r=>r.id));
+  for(const b of INVITE_BADGES){
+    if(have.has(b.id))continue;
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO badges (id,name,icon,desc,kind,effect,created_at) VALUES (?,?,?,?,?,?,?)')
+      .bind(b.id,b.name,b.icon,b.desc,'auto',b.effect,nowStr()).run();
+  }
+}
+
+/* 按当前邀请人数补发里程碑徽章（幂等：grantBadge 已拥有会跳过）。
+   既用于新人注册结算，也用于老用户打开邀请面板时补发历史漏掉的徽章。 */
+export async function syncInviteBadges(env,inviterId){
+  if(!inviterId)return {count:0,granted:[]};
+  await ensureInviteBadges(env);
+  const row=await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM invitations WHERE inviter_id=?').bind(inviterId).first();
+  const count=Number(row&&row.n)||0;
+  const granted=[];
+  for(const b of INVITE_BADGES){
+    if(count<b.need)continue;
+    const r=await grantBadge(env,inviterId,b.id,null);
+    if(r&&r.granted)granted.push(r.badge);
+  }
+  return {count,granted};
+}
+
 /* 记录邀请关系并给双方加分；返回实际发放的积分（重复邀请返回 0） */
 export async function recordInvite(env,inviterId,inviteeId,code){
   if(!inviterId||!inviteeId||inviterId===inviteeId)return 0;
@@ -52,5 +94,7 @@ export async function recordInvite(env,inviterId,inviteeId,code){
     .bind(genId('iv'),inviterId,inviteeId,String(code||'').toUpperCase(),nowStr()).run();
   await addPoints(env,inviterId,INVITE_POINTS);
   await addPoints(env,inviteeId,INVITE_POINTS);
+  /* 邀请达成里程碑时发徽章（失败不阻断注册，徽章会在下次打开邀请面板时补发） */
+  try{ await syncInviteBadges(env,inviterId); }catch(e){}
   return INVITE_POINTS;
 }

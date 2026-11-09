@@ -1,10 +1,10 @@
 import {json,preflight,ensureSchema,getAuthUser} from './_lib.js';
-import {ensureInviteTable,inviteCodeOf,INVITE_POINTS} from './_invite.js';
+import {ensureInviteTable,inviteCodeOf,INVITE_POINTS,INVITE_BADGES,syncInviteBadges} from './_invite.js';
 
 export async function onRequestOptions(){ return preflight(); }
 
-/* GET /api/invite —— 返回我的邀请码、已邀请人数与最近邀请的成员
-   旧实现读 users.invite_code（无此列）并写 invitations（无此表），必定 500。 */
+/* GET /api/invite —— 返回我的邀请码、已邀请人数与最近邀请的成员。
+   顺带补发里程碑徽章：老用户之前拉过人但没拿到「接引人/哪都通HR」，打开这个面板就会补上。 */
 export async function onRequestGet({request,env}){
  try{
   await ensureSchema(env);
@@ -22,14 +22,24 @@ export async function onRequestGet({request,env}){
      WHERE i.inviter_id=?
      ORDER BY i.created_at DESC LIMIT 10`).bind(uid).all();
   const invited=results||[];
-  const cnt=await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM invitations WHERE inviter_id=?').bind(uid).first();
+
+  /* 以 invitations 实际行数为准，并在此处补发漏发的邀请徽章 */
+  let synced={count:0,granted:[]};
+  try{ synced=await syncInviteBadges(env,uid); }catch(e){}
+  const count=Number(synced.count)||0;
+
+  const badges=INVITE_BADGES.map(b=>({
+    id:b.id,name:b.name,icon:b.icon,effect:b.effect,need:b.need,
+    got:count>=b.need
+  }));
 
   return json({
     code,
-    count:Number(cnt&&cnt.n)||invited.length,
+    count,
     invited,
-    reward:INVITE_POINTS
+    reward:INVITE_POINTS,
+    badges,
+    justGranted:(synced.granted||[]).map(b=>({id:b.id,name:b.name,icon:b.icon}))
   });
  }catch(e){
   return json({error:String((e&&e.message)||e)},500);
