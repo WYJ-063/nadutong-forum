@@ -1,0 +1,169 @@
+/* 哪都通 · 论坛小工具（v47）
+   收藏 / 草稿自动保存 / 楼层直达 / 消息合并
+   只做增量样式，不覆盖 main.css 已有规则。 */
+
+/* ---------- 收藏按钮（帖子详情操作行内） ---------- */
+.ndf-fav {
+  border: 1px solid var(--pt-border, #DCE3F5);
+  background: transparent;
+  color: var(--pt-muted, #66719B);
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  white-space: nowrap;
+}
+.ndf-fav:hover { color: var(--orange, #E8874A); border-color: var(--orange, #E8874A); }
+.ndf-fav.on {
+  color: var(--orange, #E8874A);
+  border-color: var(--orange, #E8874A);
+  background: rgba(232, 135, 74, .1);
+}
+
+/* ---------- 我的收藏：入口与列表 ---------- */
+.ndf-fav-entry { cursor: pointer; }
+.ndf-fav-entry .ndf-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; font-size: 15px; line-height: 1;
+  color: var(--orange, #E8874A);
+}
+.ndf-fav-entry .ndf-fav-count {
+  margin-left: auto;
+}
+@media (max-width: 768px) {
+  /* 手机端侧栏变成横向滚动条，只留图标与文字即可 */
+  .ndf-fav-entry .ndf-fav-count { display: none; }
+}
+
+.ndf-panel { max-width: 560px; }
+.ndf-panel-head {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+.ndf-panel-head strong { font-size: 18px; }
+.ndf-panel-head span { font-size: 12px; color: var(--pt-muted, #66719B); }
+.ndf-fav-list { margin: 14px 0 4px; max-height: 58vh; overflow: auto; }
+.ndf-fav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px; border-radius: 10px;
+  border: 1px solid var(--pt-border, #DCE3F5);
+  margin-bottom: 8px;
+  background: var(--pt-panel-2, #F7F9FF);
+}
+.ndf-fav-item:hover { border-color: var(--orange, #E8874A); }
+.ndf-fav-item .ndf-fav-main { flex: 1; min-width: 0; }
+.ndf-fav-item .ndf-fav-title {
+  display: block; font-weight: 700; font-size: 15px;
+  color: var(--pt-text, #17213B);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ndf-fav-item .ndf-fav-meta {
+  display: block; margin-top: 3px; font-size: 12px;
+  color: var(--pt-muted, #66719B);
+}
+.ndf-fav-item .ndf-fav-del {
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--pt-muted, #66719B); font-size: 13px; padding: 4px 6px;
+  border-radius: 8px;
+}
+.ndf-fav-item .ndf-fav-del:hover { color: #E5484D; background: rgba(229, 72, 77, .1); }
+.ndf-fav-empty {
+  padding: 26px 10px; text-align: center;
+  color: var(--pt-muted, #66719B); font-size: 14px; line-height: 1.9;
+}
+.ndf-fav-empty .big { display: block; font-size: 26px; color: var(--orange, #E8874A); margin-bottom: 6px; }
+
+/* ---------- 草稿提示条 ---------- */
+.ndf-draft-hint {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 6px 0 0; font-size: 12px; color: var(--pt-muted, #66719B);
+}
+.ndf-draft-hint .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #3DA35D; flex: none;
+}
+.ndf-draft-hint .ndf-draft-clear {
+  border: 0; background: transparent; padding: 2px 6px;
+  color: var(--blue, #243B9B); cursor: pointer; font-size: 12px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.ndf-draft-hint.is-saving .dot { background: var(--orange, #E8874A); }
+
+/* ---------- 楼层直达 ---------- */
+.ndf-jump {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 2px 0 14px; padding: 9px 12px;
+  border: 1px dashed var(--pt-border, #DCE3F5);
+  border-radius: 10px;
+  font-size: 13px; color: var(--pt-muted, #66719B);
+  background: var(--pt-panel-2, #F7F9FF);
+}
+.ndf-jump input {
+  width: 62px; padding: 5px 8px; text-align: center;
+  border: 1px solid var(--pt-border, #DCE3F5); border-radius: 8px;
+  background: #fff; color: var(--pt-text, #17213B); font-size: 14px;
+  font-family: inherit;
+}
+.ndf-jump input:focus { outline: none; border-color: var(--orange, #E8874A); }
+.ndf-jump button {
+  border: 1px solid var(--orange, #E8874A); background: transparent;
+  color: var(--orange, #E8874A); border-radius: 8px;
+  padding: 5px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.ndf-jump button:hover { background: var(--orange, #E8874A); color: #fff; }
+.ndf-jump .ndf-jump-total { margin-left: auto; font-size: 12px; }
+
+/* 楼号小标 */
+.ndf-floor {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  border-radius: 6px; font-size: 11px; line-height: 1.6;
+  color: var(--pt-muted, #66719B);
+  background: var(--pt-panel-2, #EEF2FB);
+  font-variant-numeric: tabular-nums;
+}
+/* 跳转命中后闪一下（复用 replyFlash 的节奏，颜色换成靛蓝） */
+.ndf-hl { border-radius: 10px; animation: ndfFlash 1s ease 0s 2; }
+@keyframes ndfFlash {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(36, 59, 155, .18); }
+}
+
+/* 手机：楼层条整行铺开 */
+@media (max-width: 560px) {
+  .ndf-jump { font-size: 12px; padding: 8px 10px; }
+  .ndf-jump .ndf-jump-total { margin-left: 0; width: 100%; }
+}
+
+/* ---------- 消息中心：同类合并 ---------- */
+.fnc-merge-switch {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--pt-muted, #66719B);
+  border: 1px solid var(--pt-border, #DCE3F5); border-radius: 8px;
+  padding: 4px 9px; background: transparent; cursor: pointer;
+  font-family: inherit;
+}
+.fnc-merge-switch.on { color: var(--orange, #E8874A); border-color: var(--orange, #E8874A); }
+.fnc-merge-switch i {
+  width: 8px; height: 8px; border-radius: 50%; background: #C7CEE4; flex: none;
+}
+.fnc-merge-switch.on i { background: var(--orange, #E8874A); }
+.fnc-merged {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border-radius: 6px; font-size: 11px; font-weight: 400;
+  color: #fff; background: rgba(232, 135, 74, .85);
+  vertical-align: middle; white-space: nowrap;
+}
+.fnc-actor-names { font-weight: 800; }
+
+/* ---------- 轻提示 ---------- */
+.ndf-toast {
+  position: fixed; left: 50%; bottom: 96px; transform: translate(-50%, 12px);
+  z-index: 400; padding: 9px 16px; border-radius: 999px;
+  background: rgba(16, 22, 44, .92); color: #fff;
+  font-size: 13px; line-height: 1.5; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s ease, transform .22s ease;
+  max-width: 82vw; overflow: hidden; text-overflow: ellipsis;
+}
+.ndf-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ndf-toast { transition: none; }
+  .ndf-hl { animation: none; }
+}
