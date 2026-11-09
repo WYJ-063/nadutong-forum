@@ -637,7 +637,156 @@ button:focus-visible,
 }
 
 /* ============================================================
-   十四、尊重系统设置
+   十五、视觉深化（纯样式，不动 DOM 结构、不改 app.js）
+   ============================================================ */
+
+/* ---------- 15.1 帖子列表：从"行"变"卡" ----------
+   原来是连续的行，靠一条 border-bottom 分隔、hover 变色区分彼此。
+   改成独立卡片：圆角 12、四周细边、比面板略深一度的底、卡间距 10。
+   只动 padding / margin / 圆角 / 边框 / 阴影，DOM 没变，
+   所以个人主页里复用的同一套列表会一起变。 */
+.portal .q-item{
+  padding:16px 18px;
+  margin:0 0 10px;
+  border:1px solid var(--pt-border);
+  border-radius:12px;
+  background:var(--pt-panel-2);
+  transition:
+    background-color var(--mz-base) ease,
+    border-color var(--mz-base) ease,
+    box-shadow var(--mz-base) ease,
+    transform var(--mz-fast) var(--mz-out);
+}
+.portal .q-item:last-child{margin-bottom:0;}
+.portal .q-item:hover{
+  background:color-mix(in srgb,var(--pt-accent) 6%,var(--pt-panel-2));
+  border-color:color-mix(in srgb,var(--pt-accent) 28%,var(--pt-border-soft));
+  box-shadow:0 6px 18px color-mix(in srgb,var(--pt-accent) 12%,transparent);
+}
+@media (hover:hover){
+  .portal .q-item:hover{transform:translateY(-1px);}
+}
+/* 卡片自带边框了，左边那条 3px 强调竖条显得多余，而且会在圆角处探出来 */
+.portal .q-item::before{display:none;}
+/* 卡片底色比面板深一档，投票块要是同色就糊在一起了，所以统一提亮到面板色。
+   各主题原本给 .vt 写过底色（日间是白色渐变、古风是米黄、赛博是深蓝），
+   这里取值和它们基本同一个色阶，替换后看不出来，只是重新获得了和卡片的层次。 */
+.portal .q-item .q-vote .vt{background:var(--pt-panel);}
+
+/* ---------- 15.2 顶栏：磨砂玻璃 ----------
+   真磨砂玻璃要四样东西凑齐，缺一样都会变成"半透白板"：
+   ① 底色不能太实（62%就够了，再高就看不到下面的形状）
+   ② 模糊半径要够大（22px 才把形状糊成色块，16 以下还能认出字）
+   ③ 透出的颜色要提饱和度和亮度（水果系统的玻璃之所以通透就是这个）
+   ④ 一层极淡噪点 —— 这才是"磨砂"里那个"砂"，纯模糊只会显得油腻
+   sticky 定位所以内容滚过时会从下面穿过去，效果才成立。 */
+.portal-top{
+  background-color:var(--pt-topbar);                  /* 兜底：不支持 color-mix 时保持实底 */
+  background-color:color-mix(in srgb,var(--pt-topbar) 54%,transparent);
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  background-size:120px 120px;
+  background-blend-mode:overlay;
+  -webkit-backdrop-filter:blur(22px) saturate(2.1) brightness(1.06);
+  backdrop-filter:blur(22px) saturate(2.1) brightness(1.06);
+  /* 顶沿一道 1px 内高光 —— 玻璃切边的反光，少了会显得像塑料 */
+  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--pt-text) 13%,transparent);
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .portal-top{
+    background-color:var(--pt-topbar);
+    background-image:none;
+    box-shadow:none;
+  }
+}
+
+/* ---------- 15.3 页头主视觉 ----------
+   论坛首页那个"异人论坛"原来只是 19px 一行字，右边一片空白。
+   这里做三件事：标题放大加字距、下面压一道主题色渐隐短线、
+   面板顶部叠一片很淡的主题色光晕，让首屏有"页头"的层次。
+   不改结构，所以不影响任何按位置取元素的代码。 */
+.portal--forum .p-main > .p-panel:first-child{
+  background:
+    radial-gradient(560px 132px at 6% -10%,
+      color-mix(in srgb,var(--pt-accent) 10%,transparent),transparent 72%),
+    var(--pt-panel);
+}
+.portal--forum .p-main > .p-panel:first-child > div:first-child h2{
+  font-size:25px;
+  letter-spacing:.5px;
+  line-height:1.25;
+  padding-bottom:7px;
+  position:relative;
+}
+.portal--forum .p-main > .p-panel:first-child > div:first-child h2::after{
+  content:"";
+  position:absolute;
+  left:0;bottom:0;
+  width:34px;height:3px;
+  border-radius:2px;
+  background:linear-gradient(90deg,var(--pt-accent),transparent);
+}
+
+/* ---------- 15.4 排版细节 ---------- */
+/* 浏览数、回复数、积分这类计数全部等宽，纵向对齐不会跳 */
+.portal{font-variant-numeric:tabular-nums;}
+
+/* 侧栏分组标题（论坛 / 业务系统 / 个人）左边加一道小竖线 */
+@media(min-width:681px){
+  .sidebar .sd-group{
+    padding-left:17px;
+    position:relative;
+  }
+  .sidebar .sd-group::before{
+    content:"";
+    position:absolute;
+    left:5px;top:50%;
+    width:2px;height:11px;
+    margin-top:-5.5px;
+    border-radius:1px;
+    background:var(--pt-accent);
+    opacity:.5;
+  }
+}
+
+/* 桌面 681–1080 之间主题栏偏挤，把按钮收窄一点（只缩字号，不换行，
+   避免顶栏高度变化引出 --topbar-h 的连锁错位） */
+@media(min-width:681px) and (max-width:1080px){
+  .portal-top .theme-switch button{padding:5px 7px;font-size:11px;}
+}
+
+/* ---------- 15.5 空状态徽章化 ----------
+   原来是一个 40px 的 emoji 或图标孤零零飘在中间。现在装进一个
+   74px 的圆环里，底色和描边都取主题强调色 —— 和徽章体系是同一套语言。 */
+.portal .empty{padding:54px 20px;}
+.portal .empty .es{
+  width:74px;height:74px;
+  margin:0 auto 14px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--pt-accent) 7%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pt-accent) 18%,transparent);
+  font-size:30px;
+  line-height:1;
+  opacity:1;
+}
+.portal .empty .es.is-ic{
+  display:flex;
+  justify-content:center;
+  opacity:1;
+}
+.portal .empty .es.is-ic .ic,
+.portal .empty .es.is-ic .ic svg{
+  width:30px;height:30px;
+}
+/* 注入脚本补上去的线稿图标（visual-polish.js），用主题强调色着淡淡一层 */
+.portal .empty .es.is-ic .vp-ic{
+  width:28px;height:28px;
+  color:color-mix(in srgb,var(--pt-accent) 68%,var(--pt-muted));
+  opacity:.92;
+}
+
+/* ============================================================
+   十六、尊重系统设置
    ------------------------------------------------------------
    用户在系统里开了"减少动态效果"（前庭功能敏感 / 单纯嫌晃），
    这里把本文件新增的所有动画和过渡降到最少，不做任何位移。
@@ -662,4 +811,5 @@ button:focus-visible,
   .portal .btn::after{display:none;}
   .portal-top .p-logo:hover .mk{transform:none;}
   .sidebar .side-item:hover svg{transform:none;}
+  .portal .q-item:hover{transform:none;}
 }
