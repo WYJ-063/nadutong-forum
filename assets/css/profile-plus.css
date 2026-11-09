@@ -1,0 +1,535 @@
+/* profile-plus.css —— 云端个人主页美化层的样式
+ *
+ * 这套样式只作用于 profile-plus.js 叠上去的那几块（.pp-*），
+ * 以及由它打标记的头像框 / 主页背景。
+ * 全部用主题变量，所以八个主题下都跟着变色，不用逐主题再写一遍。
+ */
+
+/* ---------- 容器：插在 .space-head 后面 ---------- */
+.pp-host {
+  padding: 0 26px 20px;
+}
+
+.pp-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+/* ---------- 称号 / 名牌 / 展示徽章 ---------- */
+.pp-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pp-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--ppc, var(--pt-accent, #3D7BF0));
+  box-shadow: 0 2px 8px rgba(20, 30, 60, .14);
+}
+
+.pp-plate {
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pt-border, #d7dce8);
+  background: var(--pt-panel-2, #f3f5fa);
+  color: var(--pt-text-soft, #8b93a5);
+  box-shadow: inset 3px 0 0 var(--ppc, transparent);
+}
+
+.pp-bds {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* 以前是 margin-left:auto，把徽章顶到最右边，中间空一大条。跟着称号走更紧凑。 */
+  margin-left: 2px;
+}
+.pp-bd {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pt-text, #1b2440);
+  background: var(--pt-panel-2, #f3f5fa);
+  border: 1px solid var(--pt-border, #d7dce8);
+}
+
+/* ---------- 数据条 ---------- */
+.pp-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.pp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 4px;
+  border-radius: 12px;
+  background: var(--pt-panel-2, #f3f5fa);
+  border: 1px solid var(--pt-border, #d7dce8);
+}
+.pp-cell b {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--pt-text, #1b2440);
+  line-height: 1.2;
+}
+.pp-cell span {
+  font-size: 11px;
+  color: var(--pt-muted, #8b93a5);
+  line-height: 1;
+}
+
+/* ---------- 能力简介 ---------- */
+.pp-cap h4,
+.pp-ach h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pt-text, #1b2440);
+}
+.pp-cap p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--pt-text-soft, #56617a);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pp-empty {
+  color: var(--pt-muted, #8b93a5);
+  font-size: 12.5px;
+}
+
+/* ---------- 成就面板 ---------- */
+.pp-ach {
+  border-top: 1px solid var(--pt-border, #d7dce8);
+  padding-top: 14px;
+}
+.pp-ach-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.pp-ach-top h4 { margin: 0; }
+.pp-ach-top b {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--pt-accent, #3D7BF0);
+}
+.pp-ach-top b i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--pt-muted, #8b93a5);
+}
+.pp-ach-hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--pt-muted, #8b93a5);
+}
+
+/* 折叠：默认高度 0，点标题后放开 */
+.pp-ach-body {
+  overflow: hidden;
+  transition: max-height .28s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pp-ach-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: var(--pt-panel-2, #f3f5fa);
+  border: 1px solid var(--pt-border, #d7dce8);
+  opacity: .62;
+}
+.pp-ach-row.on {
+  opacity: 1;
+  border-color: var(--ppc, var(--pt-accent, #3D7BF0));
+}
+
+.pp-ach-ico {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--pt-accent, #3D7BF0);
+  opacity: .85;
+}
+
+.pp-ach-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.pp-ach-main b {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pt-text, #1b2440);
+  line-height: 1.3;
+}
+.pp-ach-main em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--pt-muted, #8b93a5);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.pp-bar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--pt-border, #dfe3ee);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.pp-bar u {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pt-accent, #3D7BF0);
+  text-decoration: none;
+}
+
+.pp-ach-r {
+  font-size: 11px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.pp-ach-row > i {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--pt-muted, #8b93a5);
+  flex: 0 0 auto;
+}
+.pp-ok {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--pt-accent, #3D7BF0);
+  border-radius: 999px;
+  padding: 3px 8px;
+  flex: 0 0 auto;
+}
+
+/* ---------- 装扮按钮 ---------- */
+.pp-tools { display: flex; }
+.pp-btn {
+  border: 1px solid var(--pt-accent, #3D7BF0);
+  background: var(--pt-accent, #3D7BF0);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease;
+}
+.pp-btn:hover { filter: brightness(1.06); }
+.pp-btn:active { transform: scale(.97); }
+
+/* ---------- 装扮面板 ---------- */
+.pp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background: rgba(10, 14, 30, .52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.pp-mbox {
+  width: min(520px, 100%);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--pt-panel, #fff);
+  box-shadow: 0 24px 60px rgba(10, 18, 40, .28);
+  overflow: hidden;
+}
+.pp-mhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--pt-border, #e4e8f2);
+}
+.pp-mhead b { font-size: 15px; color: var(--pt-text, #1b2440); }
+.pp-x {
+  border: 0;
+  background: transparent;
+  color: var(--pt-muted, #8b93a5);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pp-mbody {
+  padding: 14px 18px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pp-row label {
+  display: block;
+  font-size: 12px;
+  color: var(--pt-muted, #8b93a5);
+  margin-bottom: 7px;
+}
+.pp-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.pp-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  border-radius: 999px;
+  border: 1px solid var(--pt-border, #d7dce8);
+  background: var(--pt-panel-2, #f3f5fa);
+  color: var(--pt-text-soft, #56617a);
+  cursor: pointer;
+}
+.pp-pick i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.pp-pick.on {
+  border-color: var(--pt-accent, #3D7BF0);
+  background: var(--pt-accent, #3D7BF0);
+  color: #fff;
+}
+.pp-pick.on i { background: #fff !important; }
+
+.pp-cap-input {
+  width: 100%;
+  min-height: 88px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--pt-border, #d7dce8);
+  background: var(--pt-panel-2, #f3f5fa);
+  color: var(--pt-text, #1b2440);
+  font-size: 13px;
+  line-height: 1.7;
+  resize: vertical;
+}
+.pp-none {
+  font-size: 12.5px;
+  color: var(--pt-muted, #8b93a5);
+  padding: 10px 0;
+}
+
+.pp-mfoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--pt-border, #e4e8f2);
+}
+.pp-msg { font-size: 12px; color: var(--pt-muted, #8b93a5); }
+.pp-msg.ok { color: #2FB57C; }
+.pp-msg.err { color: #B93B3E; }
+.pp-mfoot .pp-btn { margin-left: auto; }
+
+/* ---------- 头像框 / 主页背景 ---------- */
+
+/* 封面兜底：main.css 里写的是
+     linear-gradient(120deg, var(--tpl-a,var(--pt-cover-a)), var(--tpl-b,var(--pt-cover-b)))
+   但部分主题没定义 --pt-cover-a/b，var() 又没有兜底值，整条属性直接失效，
+   封面就变成一块白。这里补上默认色，同时保留用户自己的模板变量。 */
+.portal .space-cover {
+  background: linear-gradient(120deg,
+    var(--tpl-a, var(--pt-cover-a, #3E64C7)),
+    var(--tpl-b, var(--pt-cover-b, #7FA8F0)));
+}
+
+/* 封面质感：模板色是用户自己选的，不动颜色，只叠一层斜纹 + 两处光斑。
+   浅色模板（白到浅灰）叠完之后也不会像一块空白。 */
+.portal .space-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(150% 130% at 6% -20%, rgba(255, 255, 255, .50), transparent 55%),
+    radial-gradient(90% 100% at 100% 120%, rgba(18, 28, 56, .16), transparent 62%),
+    repeating-linear-gradient(118deg,
+      rgba(255, 255, 255, .055) 0 2px,
+      transparent 2px 11px);
+}
+
+/* 头像框用一圈环带，不改尺寸，避免撑破 .space-head 的叠盖负边距。
+   .av 原本是 overflow:hidden（为了把头像裁成圆），环画在外面会被裁掉，
+   所以这里放开 overflow，再把裁圆的责任交给里面的 img。 */
+.space-head .av[data-ppframe] {
+  overflow: visible;
+  position: relative;
+}
+.space-head .av[data-ppframe] > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* 环带的公用骨架：外扩后用 mask 把中间挖空，环宽由 --fw 控制。
+   六款靠"环的粗细 + 层数 + 外发光"区分，不再用虚线、断环、缺口那种几何花样
+   —— 那些远看像加载中，不像奖赏。 */
+.space-head .av[data-ppframe]::after {
+  content: "";
+  position: absolute;
+  inset: var(--fi, -12px);
+  border-radius: 999px;
+  pointer-events: none;
+  background: var(--ppf);
+  -webkit-mask: radial-gradient(farthest-side,
+      transparent calc(100% - var(--fw, 6px)),
+      #000 calc(100% - var(--fw, 6px) + 1px));
+          mask: radial-gradient(farthest-side,
+      transparent calc(100% - var(--fw, 6px)),
+      #000 calc(100% - var(--fw, 6px) + 1px));
+}
+
+/* 1 新人证 —— 单细环，最朴素 */
+.space-head .av[data-ppframe="frame_rookie"]::after {
+  --fw: 5px;
+}
+
+/* 2 落笔 —— 中环 + 一圈暖光 */
+.space-head .av[data-ppframe="frame_pen"]::after {
+  --fw: 8px;
+}
+.space-head .av[data-ppframe="frame_pen"] {
+  box-shadow: 0 6px 20px rgba(20, 30, 60, .18), 0 0 16px var(--ppf);
+}
+
+/* 3 稿纸 —— 双环：贴边一圈细的，外面再一圈 */
+.space-head .av[data-ppframe="frame_paper"]::after {
+  --fw: 4px;
+  --fi: -17px;
+}
+.space-head .av[data-ppframe="frame_paper"] {
+  box-shadow: 0 0 0 2px var(--ppf), 0 6px 20px rgba(20, 30, 60, .18);
+}
+
+/* 4 话痨 —— 渐变环，主色过渡到浅一点 */
+.space-head .av[data-ppframe="frame_talk"]::after {
+  --fw: 7px;
+  background: conic-gradient(from 210deg, var(--ppf), #9FE3CE, var(--ppf));
+}
+
+/* 5 校对 —— 粗环 + 窄光 */
+.space-head .av[data-ppframe="frame_proof"]::after {
+  --fw: 10px;
+}
+.space-head .av[data-ppframe="frame_proof"] {
+  box-shadow: 0 6px 20px rgba(20, 30, 60, .18), 0 0 10px var(--ppf);
+}
+
+/* 6 捧场 —— 厚环 + 重光，六件里最隆重的那件 */
+.space-head .av[data-ppframe="frame_praise"]::after {
+  --fw: 11px;
+  --fi: -14px;
+}
+.space-head .av[data-ppframe="frame_praise"] {
+  box-shadow: 0 6px 22px rgba(20, 30, 60, .2), 0 0 22px var(--ppf);
+}
+
+/* ---- 后加的四件，沿用同一套环：只调粗细和光，不换花样 ---- */
+
+/* 长篇 —— 稀有档，环偏厚，双色渐变（蓝紫过渡） */
+.space-head .av[data-ppframe="frame_long"]::after {
+  --fw: 9px;
+  background: linear-gradient(150deg, var(--ppf), #C9D4F5);
+}
+.space-head .av[data-ppframe="frame_long"] {
+  box-shadow: 0 6px 20px rgba(20, 30, 60, .18), 0 0 12px var(--ppf);
+}
+
+/* 起卦 —— 普通档，中细环 + 一层柔光 */
+.space-head .av[data-ppframe="frame_divine"]::after { --fw: 6px; }
+.space-head .av[data-ppframe="frame_divine"] {
+  box-shadow: 0 6px 18px rgba(20, 30, 60, .16), 0 0 12px var(--ppf);
+}
+
+/* 夜聊 —— 普通档，最细的一圈，不发光，六件里最素 */
+.space-head .av[data-ppframe="frame_night_chat"]::after { --fw: 5px; }
+
+/* 搭话 —— 普通档，细环 + 淡光 */
+.space-head .av[data-ppframe="frame_dm"]::after { --fw: 6px; }
+.space-head .av[data-ppframe="frame_dm"] {
+  box-shadow: 0 6px 18px rgba(20, 30, 60, .16), 0 0 10px var(--ppf);
+}
+
+
+/* 主页背景只是叠一层薄光，不覆盖原来的渐变模板 */
+.space-cover[data-ppbg]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 140% at 12% 0%, var(--ppb, #3D7BF0), transparent 62%);
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* ---------- 手机端 ---------- */
+@media (max-width: 900px) {
+  /* 桌面上 82px 的头像在 390 宽里会把名字挤出去，手机上缩到 62 */
+  .space-head .av { width: 62px; height: 62px; }
+  .space-head .av[data-ppframe]::after { --fw: 4px; --fi: -7px; }
+  .space-head .av[data-ppframe="frame_pen"]::after { --fw: 6px; }
+  .space-head .av[data-ppframe="frame_talk"]::after { --fw: 5px; }
+  .space-head .av[data-ppframe="frame_proof"]::after { --fw: 7px; }
+  .space-head .av[data-ppframe="frame_praise"]::after { --fw: 8px; --fi: -9px; }
+  .space-head .av[data-ppframe="frame_paper"]::after { --fi: -11px; }
+
+  .pp-host { padding: 0 12px 16px; }
+  .pp-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pp-cell { padding: 8px 3px; }
+  .pp-cell b { font-size: 13.5px; }
+  .pp-wrap { gap: 11px; padding-top: 11px; }
+  .pp-ach-row { padding: 8px 9px; gap: 7px; }
+  .pp-ach-ico { width: 22px; height: 22px; flex-basis: 22px; font-size: 11px; }
+  .pp-ach-main b { font-size: 12.5px; }
+  .pp-ach-main em { font-size: 11px; }
+  .pp-modal { padding: 0; align-items: flex-end; }
+  .pp-mbox { width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; }
+}
