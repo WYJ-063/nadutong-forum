@@ -1,0 +1,119 @@
+/* ============================================================
+   古风卷宗 · 质感层
+   ------------------------------------------------------------
+   只在 .theme-classic 皮肤下生效，整份文件删掉即完全回退，
+   不动 main.css 一行。
+
+   设计语言：米白绢面、赭褐装裱、朱红点睛。
+
+   【收边为什么不再画纹样】
+   装裱的语言是"色块分区 + 一条极细界线"，不是往边上叠纹样。
+   试过三种收边都不成立：
+     - inset 阴影压边  → 看着是浮雕，有立体感；
+     - 实心小半圆平铺  → 密集后是锯齿，发糙；
+     - 描边卷云带平铺  → 云头放大能看，但贴边铺开仍然抢戏，
+                          视线被一条纹样带拽着走。
+   所以两处收边都退回到 1px 赭褐界线：分界干净，质感交给
+   配色、字体和实色块去承担。全层零 box-shadow、零渐变、
+   零纹理平铺。
+   ============================================================ */
+
+.portal.theme-classic{
+  --gf-bronze:#6B5442;
+
+  /* 底色维持"纸"，不要漂白：太淡会退化成日间主题 */
+  --pt-bg:#F1E8D2;
+  --pt-topbar:#F7EFDC;
+  --pt-sidebar:#ECE1C8;
+  --pt-panel:#FBF5E6;
+  --pt-panel-2:#F1E7D0;
+  --pt-input:#FFFDF6;
+  --pt-border:#D2BF9A;
+  --pt-border-soft:#E1D3B4;
+}
+
+/* ---------- 全局去投影：这一层不做任何"凸起" ----------
+   实测主内容面板自带 box-shadow: 0 6px 18px rgba(77,52,23,.09)，
+   那 18px 的模糊量投在左侧 18px 的内边距上，正好在侧栏和面板之间
+   堆出一条"中间亮、两边暗"的竖带——看着就是一道隆起。
+   比例按钮、tab、选中块也都各带自己的投影，一个一个清容易漏，
+   所以在古风皮肤下统一清空。层次改由 1px 界线、色块深浅和留白区分，
+   这也是这套皮肤要的扁平语言。
+   伪元素一起清：15.x 里有几处用阴影做光晕/发光，同属立体语言。 */
+.portal.theme-classic *,
+.portal.theme-classic *::before,
+.portal.theme-classic *::after{
+  box-shadow:none !important;
+}
+
+/* ---------- 顶栏：绢面 + 一条极细界线 ----------
+   15.2 给全站顶栏上了 backdrop-filter 和噪点，那是玻璃语言，
+   古风这里关掉——纸不会透出后面的东西。
+   全球 *{box-sizing:border-box}，所以这 1px 不会把顶栏撑高。 */
+.portal.theme-classic .portal-top{
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  background-color:var(--pt-topbar);
+  background-image:none;
+  border-bottom:1px solid rgba(122,97,74,.42);
+  box-shadow:none;
+}
+
+/* ---------- 侧栏：绢面 + 一条极细界线 ---------- */
+.portal.theme-classic .sidebar{
+  background-color:var(--pt-sidebar);
+  background-image:none;
+  border-right:1px solid rgba(122,97,74,.42);
+  box-shadow:none;
+}
+
+/* ---------- 侧栏选中项：一整块赭褐，纯色，无任何内描线 ----------
+   淡朱红底在米白侧栏上会泛粉，看着像"没点亮的灰态"，位置反而认不出来。
+   所以直接用赭褐实底配米白字：一笔浓墨，和顶栏主题栏的枣红一深一浅。 */
+.portal.theme-classic .sidebar .side-item.on{
+  background:var(--gf-bronze);
+  color:#FBF3E1;
+  font-weight:600;
+  box-shadow:none;
+}
+
+/* ---------- 标题换宋体 ----------
+   只改 h2 和侧栏分组标题：h2 独占一行，不会像顶栏那样因为字宽变化
+   把旁边的元素挤折行。 */
+.portal.theme-classic .p-main .p-panel:first-child h2{
+  font-family:"Songti SC","STSong","SimSun","Songti TC","Noto Serif SC",serif;
+  letter-spacing:.02em;
+}
+.portal.theme-classic .sidebar .sd-group{
+  font-family:"Songti SC","STSong","SimSun","Songti TC","Noto Serif SC",serif;
+  color:#8A6E4E;
+}
+
+/* ---------- 帖子卡：一道扁平细边，不加内金线 ---------- */
+.portal.theme-classic .q-item{
+  border-color:rgba(122,97,74,.24);
+  background-color:var(--pt-panel);
+  box-shadow:none;
+}
+
+/* ---------- 主题栏选中项：纯色块，无内描边 ---------- */
+.portal.theme-classic .theme-switch button.on{
+  box-shadow:none;
+}
+
+/* ---------- 补掉残留的写死蓝 ----------
+   main.css 里几个 tab 的选中态用的是 var(--blue-2)（写死的主题蓝），
+   .forum-tabs .ft.on / .room-tab.on / .oa-tabs button.on 三处。别的
+   皮肤上有各自的覆盖，古风这套漏了，会在米白纸底上冒出与主题无关的
+   深蓝方块。这里统一并回朱红。 */
+.portal.theme-classic .forum-tabs .ft.on,
+.portal.theme-classic .room-tab.on,
+.portal.theme-classic .oa-tabs button.on{
+  background:var(--pt-accent);
+  border-color:var(--pt-accent);
+  color:var(--pt-accent-text);
+}
+.portal.theme-classic .mention-link{
+  color:var(--pt-accent);
+  background:color-mix(in srgb,var(--pt-accent) 8%,transparent);
+}

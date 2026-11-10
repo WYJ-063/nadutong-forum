@@ -646,11 +646,13 @@ button:focus-visible,
    只动 padding / margin / 圆角 / 边框 / 阴影，DOM 没变，
    所以个人主页里复用的同一套列表会一起变。 */
 .portal .q-item{
-  padding:16px 18px;
+  position:relative;
+  overflow:hidden;                    /* 让左侧竖条跟着圆角被裁掉，不会在四角探出来 */
+  padding:16px 18px 16px 22px;
   margin:0 0 10px;
   border:1px solid var(--pt-border);
   border-radius:12px;
-  background:var(--pt-panel-2);
+  background:var(--pt-panel);
   transition:
     background-color var(--mz-base) ease,
     border-color var(--mz-base) ease,
@@ -659,19 +661,37 @@ button:focus-visible,
 }
 .portal .q-item:last-child{margin-bottom:0;}
 .portal .q-item:hover{
-  background:color-mix(in srgb,var(--pt-accent) 6%,var(--pt-panel-2));
-  border-color:color-mix(in srgb,var(--pt-accent) 28%,var(--pt-border-soft));
+  background:color-mix(in srgb,var(--pt-accent) 5%,var(--pt-panel));
+  border-color:color-mix(in srgb,var(--pt-accent) 26%,var(--pt-border));
   box-shadow:0 6px 18px color-mix(in srgb,var(--pt-accent) 12%,transparent);
 }
 @media (hover:hover){
   .portal .q-item:hover{transform:translateY(-1px);}
 }
-/* 卡片自带边框了，左边那条 3px 强调竖条显得多余，而且会在圆角处探出来 */
-.portal .q-item::before{display:none;}
-/* 卡片底色比面板深一档，投票块要是同色就糊在一起了，所以统一提亮到面板色。
-   各主题原本给 .vt 写过底色（日间是白色渐变、古风是米黄、赛博是深蓝），
-   这里取值和它们基本同一个色阶，替换后看不出来，只是重新获得了和卡片的层次。 */
-.portal .q-item .q-vote .vt{background:var(--pt-panel);}
+/* 左侧那道强调竖条：白卡负责干净，竖条负责给颜色锚点，两者是一套。
+   原实现是划过才长出来、还缩在行外面（left:-14px），卡片化后那样会在圆角处探出方角；
+   这里改成常驻、贴边框内侧、贯穿全高，靠上面的 overflow:hidden 跟着圆角裁。 */
+.portal .q-item::before{
+  left:0;
+  top:0;
+  bottom:0;
+  width:4px;
+  border-radius:0;
+  opacity:1;
+  transform:none;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--pt-accent) 88%,transparent),
+    color-mix(in srgb,var(--pt-accent) 42%,transparent));
+}
+.portal .q-item:hover::before{
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--pt-accent) 100%,transparent),
+    color-mix(in srgb,var(--pt-accent) 60%,transparent));
+}
+/* 卡片底色回到面板白之后，投票块要反过来比卡片深一档才不会糊成一片。
+   各主题原本给 .vt 写过底色（日间白色渐变、古风米黄、赛博深蓝），
+   --pt-panel-2 正好是同一个色阶，换过来看不出差别。 */
+.portal .q-item .q-vote .vt{background:var(--pt-panel-2);}
 
 /* ---------- 15.2 顶栏：磨砂玻璃 ----------
    真磨砂玻璃要四样东西凑齐，缺一样都会变成"半透白板"：
@@ -785,6 +805,40 @@ button:focus-visible,
   opacity:.92;
 }
 
+/* ---------- 15.6 主题栏选中态：扁平实色 ----------
+   扁平化的要点就是"只留形状和颜色"，所有光影一律去掉：
+     选中 = 一块实色 + 反白字，零阴影、零渐变、零内高光
+     未选中 = 完全透明、无边框，只剩文字，鼠标移上去才浮一层极淡底
+   实色不用原样的主题色 —— 原值是给大面积按钮调的高饱和色，
+   铺在顶栏这种小面积上会发艳。这里把主题色混 18% 的深墨压一档，
+   饱和度降下来、颜色沉下去，同样扁平但不像色卡。
+   反白字直接用各主题配好的 --pt-accent-text，极光星河那种亮底会
+   自动走深字，不会出现白字压亮青。
+   注意：两份声明的字重和字距必须完全一致。顶栏这行在 1000px 上下的
+   宽度余量几乎为零，只要选中态比未选中态宽出十几像素，logo 就会被
+   挤成两行、右侧按钮跟着折行 —— 而且每次切主题都要重排一次。 */
+.portal .portal-top .theme-switch button{
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:6px;
+  color:var(--pt-muted);
+  font-weight:500;
+  letter-spacing:normal;
+  box-shadow:none;
+}
+.portal .portal-top .theme-switch button.on{
+  background:color-mix(in srgb,var(--pt-accent) 82%,#0B0E18);
+  border-color:transparent;
+  color:var(--pt-accent-text);
+  box-shadow:none;
+}
+@media (hover:hover){
+  .portal .portal-top .theme-switch button:not(.on):hover{
+    background:color-mix(in srgb,var(--pt-text) 9%,transparent);
+    color:var(--pt-text);
+  }
+}
+
 /* ============================================================
    十六、尊重系统设置
    ------------------------------------------------------------
@@ -797,7 +851,8 @@ button:focus-visible,
     --mz-base:.01s;
     --mz-slow:.01s;
   }
-  .q-item::before,.answer::before{display:none;}
+  /* 只是不播动画，静态的强调竖条留着 —— 它不占时间也不晃眼 */
+  .answer::before{display:none;}
   .toast{animation:none;}
   .empty .es{animation:none;}
   .svc-card:hover .svc-ico,
