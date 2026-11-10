@@ -1,0 +1,227 @@
+/* ============================================================
+   首屏加载遮罩 · 全屏磨砂玻璃
+   ------------------------------------------------------------
+   形态：一层真正有厚度的雾面玻璃盖住整屏，底下的页面内容
+   被揉成柔焦透出来；退出时整体渐隐、blur 同步递减，把雾化开，
+   而不是"啪"地消失。
+
+   内网另铺一层全屏坐标网格 + 一条纵向扫描线 + 四角对位，
+   表面站不加，两边一眼就分得开。
+
+   扁平语言：单色半透明底、1px 细线、纯色方块，没有渐变、
+   没有阴影、没有描边卡片，只有极淡的颗粒。
+   ============================================================ */
+
+#page-preloader{display:none !important}
+
+#pl-veil{
+  position:fixed;left:0;top:0;right:0;bottom:0;
+  z-index:2147483000;
+  display:flex;align-items:center;justify-content:center;
+  opacity:1;
+  -webkit-user-select:none;user-select:none;
+  transition:
+    opacity .56s ease,
+    -webkit-backdrop-filter .56s ease,
+    backdrop-filter .56s ease,
+    background-color .56s ease;
+}
+
+/* 淡出：整体透明度递减，同时雾面逐渐透亮 */
+#pl-veil.is-out{
+  opacity:0;
+  -webkit-backdrop-filter:blur(0) brightness(1) saturate(1);
+  backdrop-filter:blur(0) brightness(1) saturate(1);
+  background-color:transparent;
+}
+
+/* ---------- 内网：深夜蓝雾面 ---------- */
+#pl-veil.is-intranet{
+  background-color:rgba(8,12,26,.93);
+  -webkit-backdrop-filter:blur(34px) brightness(.45) saturate(1);
+  backdrop-filter:blur(34px) brightness(.45) saturate(1);
+  color:#E6EEFB;
+}
+#pl-veil.is-intranet .pv-tag{color:#7E92B8}
+#pl-veil.is-intranet .pv-note{color:#7E92B8}
+#pl-veil.is-intranet .pv-line{background-color:rgba(109,140,255,.22)}
+#pl-veil.is-intranet .pv-line i{background-color:#6D8CFF}
+#pl-veil.is-intranet .pv-line i::after{background-color:#6D8CFF}
+
+/* ---------- 表面站：暖白雾面 ---------- */
+#pl-veil.is-surface{
+  background-color:rgba(248,245,239,.92);
+  -webkit-backdrop-filter:blur(34px) brightness(1.12) saturate(.88);
+  backdrop-filter:blur(34px) brightness(1.12) saturate(.88);
+  color:#2A2018;
+}
+#pl-veil.is-surface .pv-tag{color:#A08E77}
+#pl-veil.is-surface .pv-note{color:#8A7B68}
+#pl-veil.is-surface .pv-line{background-color:rgba(196,85,30,.2)}
+#pl-veil.is-surface .pv-line i{background-color:#C4551E}
+#pl-veil.is-surface .pv-line i::after{background-color:#C4551E}
+
+/* ---------- 极淡颗粒，给雾面一点手感 ---------- */
+#pl-veil .pv-grain{
+  position:absolute;left:-20%;top:-20%;right:-20%;bottom:-20%;
+  pointer-events:none;
+  opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  background-size:160px 160px;
+  animation:pv-grain 6s linear infinite;
+}
+
+/* ---------- 中间：一枚字标 + 一条细线 ---------- */
+#pl-veil .pv-center{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;
+}
+#pl-veil .pv-tag{
+  font-size:10px;
+  letter-spacing:.3em;
+  text-indent:.3em;
+  text-transform:uppercase;
+}
+#pl-veil .pv-name{
+  margin-top:12px;
+  font-size:18px;
+  font-weight:600;
+  letter-spacing:.3em;
+  text-indent:.3em;
+}
+#pl-veil .pv-line{
+  position:relative;
+  margin:26px 0 16px;
+  width:148px;height:1px;
+  overflow:visible;
+}
+#pl-veil .pv-line i{
+  position:relative;
+  display:block;
+  height:1px;width:0;
+  animation:pv-bar var(--pv-bar-dur,800ms) cubic-bezier(.25,.6,.2,1) forwards;
+}
+#pl-veil .pv-line i::after{
+  content:"";
+  position:absolute;
+  right:-2px;top:-2px;
+  width:5px;height:5px;
+}
+#pl-veil .pv-note{
+  font-size:11px;
+  letter-spacing:.18em;
+  text-indent:.18em;
+}
+
+/* ---------- 字体：一套衬线，一套无衬线 ---------- */
+#pl-veil.is-intranet .pv-tag{
+  font-family:"Songti SC","STSong","SimSun","Songti TC","Noto Serif SC",serif;
+}
+#pl-veil.is-intranet .pv-name{
+  font-family:"Songti SC","STSong","SimSun","Songti TC","Noto Serif SC",serif;
+  font-size:21px;
+  letter-spacing:.34em;
+  text-indent:.34em;
+}
+#pl-veil.is-intranet .pv-note{
+  font-family:"Songti SC","STSong","SimSun","Songti TC","Noto Serif SC",serif;
+}
+#pl-veil.is-surface .pv-tag,
+#pl-veil.is-surface .pv-name,
+#pl-veil.is-surface .pv-note{
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+
+@keyframes pv-bar{
+  from{width:0}
+  to{width:100%}
+}
+@keyframes pv-grain{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-160px,-160px,0)}
+}
+
+/* ============================================================
+   内网专属：整屏坐标网格 + 纵向扫描线 + 四角对位
+   表面站不加这些，两边一眼分开：
+   一边是"一张干净的纸"，一边是"在跑的机房"。
+   全部 1px 细线与纯色块，无渐变、无光晕。
+   ============================================================ */
+#pl-veil.is-intranet::before{
+  content:"";
+  position:absolute;left:-70px;top:-70px;right:-70px;bottom:-70px;
+  pointer-events:none;
+  background-image:
+    linear-gradient(to right, rgba(109,140,255,.085) 0 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(109,140,255,.085) 0 1px, transparent 1px);
+  background-size:60px 60px,60px 60px;
+  animation:pv-grid 9s linear infinite;
+}
+#pl-veil.is-intranet::after{
+  content:"";
+  position:absolute;left:0;right:0;height:1px;
+  pointer-events:none;
+  background-color:rgba(109,140,255,.3);
+  animation:pv-scan 2.6s linear infinite;
+}
+/* 四角对位：入场从外往里收，落定后不晃 */
+#pl-veil .pv-frame{
+  position:absolute;inset:26px;
+  pointer-events:none;
+  animation:pv-frame-in 1s cubic-bezier(.25,.7,.25,1) both;
+}
+#pl-veil.is-surface .pv-frame{display:none}
+#pl-veil .pv-frame span{
+  position:absolute;width:26px;height:26px;
+}
+#pl-veil .pv-frame .c1{left:0;top:0;border-top:1px solid rgba(109,140,255,.5);border-left:1px solid rgba(109,140,255,.5)}
+#pl-veil .pv-frame .c2{right:0;top:0;border-top:1px solid rgba(109,140,255,.5);border-right:1px solid rgba(109,140,255,.5)}
+#pl-veil .pv-frame .c3{right:0;bottom:0;border-bottom:1px solid rgba(109,140,255,.5);border-right:1px solid rgba(109,140,255,.5)}
+#pl-veil .pv-frame .c4{left:0;bottom:0;border-bottom:1px solid rgba(109,140,255,.5);border-left:1px solid rgba(109,140,255,.5)}
+
+@keyframes pv-grid{
+  from{background-position:0 0,0 0}
+  to{background-position:60px 60px,60px 60px}
+}
+@keyframes pv-scan{
+  from{top:-2%;opacity:0}
+  12%{opacity:1}
+  88%{opacity:1}
+  to{top:102%;opacity:0}
+}
+@keyframes pv-frame-in{
+  from{opacity:0;transform:scale(1.045)}
+  to{opacity:1;transform:scale(1)}
+}
+
+/* 系统要求减少动态：不抖、不扫、不生长，直接透亮 */
+@media (prefers-reduced-motion: reduce){
+  #pl-veil{animation:none;transition:opacity .3s ease}
+  #pl-veil .pv-grain{animation:none}
+  #pl-veil .pv-frame{animation:none}
+  #pl-veil.is-intranet::before{animation:none}
+  #pl-veil.is-intranet::after{display:none}
+  #pl-veil .pv-line i{animation:none;width:100%}
+}
+
+/* ---------- 窄屏：格子收小、字收一档、对位角贴边更近 ---------- */
+@media (max-width:520px){
+  #pl-veil .pv-tag{font-size:9px;letter-spacing:.24em;text-indent:.24em}
+  #pl-veil .pv-name{font-size:16px;letter-spacing:.24em;text-indent:.24em;margin-top:10px}
+  #pl-veil.is-intranet .pv-name{font-size:18px;letter-spacing:.28em;text-indent:.28em}
+  #pl-veil .pv-line{width:112px;margin:20px 0 13px}
+  #pl-veil .pv-note{font-size:10px;letter-spacing:.16em;text-indent:.16em}
+  #pl-veil .pv-frame{inset:16px}
+  #pl-veil .pv-frame span{width:18px;height:18px}
+  #pl-veil.is-intranet::before{background-size:44px 44px,44px 44px}
+  /* 手机端把 blur 收一半：观感基本一致，光栅化面积小很多，低端机不掉帧 */
+  #pl-veil.is-intranet{
+    -webkit-backdrop-filter:blur(18px) brightness(.45) saturate(1);
+    backdrop-filter:blur(18px) brightness(.45) saturate(1);
+  }
+  #pl-veil.is-surface{
+    -webkit-backdrop-filter:blur(18px) brightness(1.1) saturate(.9);
+    backdrop-filter:blur(18px) brightness(1.1) saturate(.9);
+    background-color:rgba(248,245,239,.9);
+  }
+}

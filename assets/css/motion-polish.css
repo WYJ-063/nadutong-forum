@@ -868,3 +868,81 @@ button:focus-visible,
   .sidebar .side-item:hover svg{transform:none;}
   .portal .q-item:hover{transform:none;}
 }
+
+/* ============================================================
+   15.7 赞同按钮：点赞态全线扁平化
+   ------------------------------------------------------------
+   反馈"点赞之后的样子"在几套主题里长得不一样。翻 main.css 发现
+   同一个按钮的点赞态被写成了三种语言：
+     · 兜底规则（day / classic / cyber / wechat 都落在这）挂
+       box-shadow:0 0 0 3px var(--pt-glow),0 4px 12px —— 一圈光环加投影；
+     · cyber 上面再叠 0 0 16px 霓虹发光；
+     · rose 用 linear-gradient(135deg,#D9917F,#C07A6D)，aurora 是三色渐变。
+   于是同一件事在不同皮肤下是实色、是渐变、是发光，三种都不属于
+   已经定下来的扁平语言。这里统一成"主题色实底 + 反白字 + 零投影"，
+   和 15.6 主题栏选中态保持同一套说法。
+
+   【为什么逐个主题枚举选择器】
+   rose / aurora 那两条自带 !important，特异性 0,5,0；只写
+   .portal .q-vote .vt.on（0,4,0）压不住。所以把七套主题名各写一遍，
+   把特异性顶到 0,5,0，靠"本文件后加载"取胜。
+   ============================================================ */
+
+/* 未点赞：清掉 0 2px 5px 那层，hover 也不上浮 */
+.portal .q-vote .vt{
+  box-shadow:none !important;
+}
+.portal .q-vote .vt:hover{
+  transform:none;
+}
+
+/* 点赞后：主题色实底 + 反白字，无渐变、无光环、无投影 */
+.portal.theme-day .q-vote .vt.on,
+.portal.theme-day .q-vote .vt[data-voted="1"],
+.portal.theme-classic .q-vote .vt.on,
+.portal.theme-classic .q-vote .vt[data-voted="1"],
+.portal.theme-cyber .q-vote .vt.on,
+.portal.theme-cyber .q-vote .vt[data-voted="1"],
+.portal.theme-rose .q-vote .vt.on,
+.portal.theme-rose .q-vote .vt[data-voted="1"],
+.portal.theme-aurora .q-vote .vt.on,
+.portal.theme-aurora .q-vote .vt[data-voted="1"],
+.portal.theme-wechat .q-vote .vt.on,
+.portal.theme-wechat .q-vote .vt[data-voted="1"],
+.portal.theme-orange .q-vote .vt.on,
+.portal.theme-orange .q-vote .vt[data-voted="1"],
+.portal .q-vote .vt.on,
+.portal .q-vote .vt[data-voted="1"]{
+  background:var(--pt-accent) !important;
+  background-image:none !important;
+  border-color:var(--pt-accent) !important;
+  color:var(--pt-accent-text) !important;
+  box-shadow:none !important;
+  transform:none;
+}
+
+/* 点赞后再悬停：同色压暗一档，不再跳成写死的橙 */
+@media (hover:hover){
+  .portal .q-vote .vt.on:hover,
+  .portal .q-vote .vt[data-voted="1"]:hover{
+    background:color-mix(in srgb,var(--pt-accent) 86%,#000) !important;
+    border-color:color-mix(in srgb,var(--pt-accent) 86%,#000) !important;
+    color:var(--pt-accent-text) !important;
+  }
+}
+
+/* 【为什么"赞同"两个字看不清】
+   按钮本身已经是主题色实底了，但里面的"赞同"仍是灰扑扑的深色。
+   原因不在按钮：main.css 里有一条按组件类枚举的大规则
+   （.portal.theme-x :is(.arc-card,.q-vote,...) :is(h1,span,...)），
+   把 .q-vote 后代的 span 统统染成 --pt-text / --pt-muted。
+   子元素自己带 color，父元素的 color 继承不到它，所以 vt 上的
+   反白字只作用于按钮空白处，字自己还是旧色。
+   这里把点赞态内部的文字显式改回继承父级。带 !important 是因为
+   那条大规则的选择器很长，靠特异性压不住它。 */
+.portal .q-vote .vt.on :is(.vote-arrow,.vote-label,span,b,em,i),
+.portal .q-vote .vt[data-voted="1"] :is(.vote-arrow,.vote-label,span,b,em,i){
+  color:inherit !important;
+}
+
+
