@@ -1,0 +1,251 @@
+/* 哪都通 · 快递查询页视觉（独立文件，删掉 index.html 里这一行引用即回退）
+   白底为主、橙色只做点缀；无渐变、无光晕，全部扁平。 */
+
+/* ---------- 状态卡 ---------- */
+.trk-hero {
+  background: #fff;
+  border: 1px solid #EDF0F8;
+  border-left: 3px solid var(--orange);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.trk-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.trk-status {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: .5px;
+  color: var(--ink);
+}
+
+.trk-status.on { color: var(--orange-deep); }
+
+.trk-eta {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.6;
+  padding-top: 2px;
+}
+
+.trk-eta b { color: var(--ink); font-weight: 600; }
+
+.trk-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.trk-code {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: .6px;
+  color: var(--ink);
+}
+
+.trk-dot {
+  width: 1px;
+  height: 11px;
+  background: var(--line);
+}
+
+.trk-route {
+  display: flex;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.trk-city {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.trk-city b {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.trk-city i {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: .3px;
+}
+
+.trk-city.r { text-align: right; }
+
+.trk-line {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  margin: 0 16px;
+  align-self: center;
+  background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 13px);
+}
+
+.trk-line::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid var(--orange);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  opacity: .8;
+}
+
+/* ---------- 卡片 ---------- */
+.trk-card {
+  background: #fff;
+  border: 1px solid #EDF0F8;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.trk-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.trk-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  color: var(--ink);
+}
+
+.trk-sublabel {
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: .4px;
+}
+
+/* 轨迹：当前节点实心橙、已过节点空心，去掉原来的橙色光晕 */
+.trk-card .tl { margin-top: 0; }
+
+.trk-card .tl-item { padding-bottom: 22px; }
+.trk-card .tl-item:last-child { padding-bottom: 0; }
+
+.trk-card .tl-item.cur::before {
+  border-color: var(--orange);
+  background: var(--orange);
+  box-shadow: none !important;
+}
+
+.trk-card .tl-item.cur h4 { color: var(--orange-deep); }
+.trk-card .tl-item.cur .t { color: var(--orange-deep); opacity: .9; }
+
+.trk-card .tl-item.done::before {
+  border-color: #C6CFE6;
+  background: #fff;
+}
+
+/* ---------- 面单信息 ---------- */
+.trk-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+.trk-fields > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.trk-fields span {
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: .5px;
+}
+
+.trk-fields b {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+/* ---------- 空状态 ---------- */
+.trk-empty { text-align: center; padding: 40px 24px; }
+
+.trk-empty-ico {
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 12px;
+  opacity: .8;
+}
+
+.trk-empty p { color: var(--muted); font-size: 13.5px; }
+
+.trk-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.trk-sample {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: #FDF1E8;
+  border: 1px solid #F3DCCB;
+  color: var(--orange-deep);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: .5px;
+}
+
+.trk-sample:hover {
+  background: #FBE6D7;
+  color: var(--orange-deep);
+}
+
+.trk-tip {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #9AA1B2;
+}
+
+/* ---------- 手机端 ---------- */
+@media (max-width: 640px) {
+  .trk-hero { padding: 18px 16px; }
+  .trk-card { padding: 18px 16px; }
+  .trk-status { font-size: 19px; }
+  .trk-route { margin-top: 14px; padding-top: 14px; }
+  .trk-city b { font-size: 15px; }
+  .trk-card .tl-item { padding-bottom: 18px; }
+  .trk-fields { gap: 14px 16px; }
+}

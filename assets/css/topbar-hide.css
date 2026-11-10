@@ -1,0 +1,138 @@
+/* ============================================================
+   手机端顶栏「永久收起」
+   ------------------------------------------------------------
+   收起的只是顶栏那一行：logo、主题按钮、账号、退出论坛。
+   它下面那条横滑导航（论坛首页 · 帖子消息 · 我的收藏）保留在原来的位置，
+   只在最顶上多出一条 16px 的窄带，带子里一个下拉箭头。
+   点箭头把顶栏拉回来，点别处或往下滚就收回去。
+   关掉开关即恢复原来的滚动隐藏。
+   独立文件，删掉 index.html 里两行引用就完全回退。
+   ============================================================ */
+
+/* 顶栏里那个很小的开关按钮（放在"退出论坛"左边） */
+@media (max-width: 900px) {
+  .portal-top .tvh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    margin: 0 0 0 2px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--pt-muted, #7A8394);
+    opacity: .8;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .portal-top .tvh-btn:active {
+    opacity: 1;
+    background: color-mix(in srgb, var(--pt-text, #111) 9%, transparent);
+  }
+  .portal-top .tvh-btn.tv-on {
+    color: var(--pt-accent, #2E47B8);
+    opacity: 1;
+  }
+}
+
+/* 桌面端完全不出现 */
+@media (min-width: 901px) {
+  .portal-top .tvh-btn { display: none !important; }
+  #tvh-peek { display: none !important; }
+}
+
+/* 最顶上那条窄带：跟横滑导航同一个底色，看上去像导航条上面多了一指宽，
+   箭头正好坐在这条带子里。整条都能点，点它就拉出顶栏。 */
+#tvh-peek {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: calc(env(safe-area-inset-top, 0px) + 18px);
+  box-sizing: border-box;
+  margin: 0;
+  padding: env(safe-area-inset-top, 0px) 0 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--pt-sidebar, #fff);
+  color: var(--pt-accent, #2E47B8);
+  z-index: 150;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 顶上那点提示：就一根 40×4 的圆角胶囊，像可下拉的把手，别的不画 */
+#tvh-peek .tvh-arrow {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border: 0;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: .42;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+#tvh-peek:active .tvh-arrow {
+  opacity: .64;
+  transform: translateY(1px);
+}
+
+body.tvh-on #tvh-peek { display: flex; }
+
+/* 顶栏拉下来时这条窄带就让开：顶上留给顶栏自己 */
+body.tvh-on.tvh-peek #tvh-peek { display: none; }
+
+@media (max-width: 900px) {
+  /* ---- 收起状态：顶栏上移走人，导航条顶上来 ---- */
+  body.tvh-on:not(.tvh-peek) .portal-top {
+    transform: translateY(-104%) !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+  }
+
+  /* 导航条贴到窄带下面；同时压掉页面自己滚动隐藏时给它套的上移量 */
+  body.tvh-on:not(.tvh-peek) .nav-wrap {
+    top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
+    transform: none !important;
+  }
+
+  /* 正文顶上只让出那条窄带（导航条本身在流里，会自己占住位置） */
+  body.tvh-on:not(.tvh-peek) .portal-body,
+  body.tvh-on:not(.tvh-peek) .portal.is-top-hidden .portal-body {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
+  }
+
+  /* 聊天窗的高度也跟着按"窄带 + 导航"重算，避免顶栏藏起来后还空一截 */
+  body.tvh-on:not(.tvh-peek) .portal {
+    --mobile-chrome-h: calc(var(--nav-h, 52px) + 18px) !important;
+  }
+
+  body.tvh-on .portal-top {
+    transition: transform .26s cubic-bezier(.32, .72, 0, 1), box-shadow .26s ease;
+  }
+
+  /* ---- 拉下来的时候：顶栏压在最上面，导航与正文退回原高度 ---- */
+  body.tvh-on.tvh-peek .portal-top {
+    z-index: 140 !important;
+    box-shadow: 0 10px 26px rgba(8, 12, 26, .18);
+  }
+
+  body.tvh-on.tvh-peek .nav-wrap {
+    top: calc(var(--topbar-h, 92px) + env(safe-area-inset-top, 0px)) !important;
+    transform: none !important;
+  }
+
+  body.tvh-on.tvh-peek .portal-body {
+    padding-top: calc(var(--topbar-h, 92px) + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body.tvh-on.tvh-peek .portal {
+    --mobile-chrome-h: var(--chrome-measured, 141px) !important;
+  }
+}
