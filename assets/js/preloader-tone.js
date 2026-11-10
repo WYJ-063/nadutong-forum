@@ -34,9 +34,9 @@
   var first = segs[0] || "";
   var isSurface = SURFACE[first] === 1;
 
-  var MIN  = isSurface ? 850  : 1900;   /* 最短停留 */
+  var MIN  = isSurface ? 3000 : 5000;   /* 最短停留 */
   var FADE = isSurface ? 560  : 700;    /* 渐隐时长 */
-  var CAP  = isSurface ? 1650 : 2900;   /* 最长停留 */
+  var CAP  = isSurface ? 3800 : 5800;   /* 最长停留 */
 
   var t0 = Date.now();
   var done = false;
