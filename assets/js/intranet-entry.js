@@ -119,21 +119,33 @@
     }, HOLD);
   }
 
-  var prev = location.hash;
+  /* 判断"现在是不是在门户里"：portalShell 渲染出来才会有 .portal，
+     表层站（快递站）和 #/gate 登录门都没有。这个判据比路由白名单准，
+     因为内网里也存在 #/author/… 这类与表层站同名的路段。 */
+  function isPortal() { return !!document.querySelector(".portal"); }
+
+  /* 首屏遮罩 #pl-veil 已经在播的时候别再叠一层 */
+  var bootAt = Date.now();
+
+  /* 初始状态不能只看 .portal 在不在：这个脚本比首屏渲染更早执行，
+     那时门户骨架还没进 DOM，会把"一进来就在内网"误判成"从外面进来"，
+     结果进论坛后第一次切页又播一遍动画。
+     所以：当前 hash 本身就是内网路由的，直接认定为「已经在门户里」。 */
+  var prevPortal = isPortal() || SURFACE[firstSeg(location.hash)] !== 1;
+
   window.addEventListener("hashchange", function () {
-    var from = prev, to = location.hash;
-    prev = to;
+    var to = location.hash;
 
-    var fromIsSurface = isSurface(from);
-    var toIsSurface = isSurface(to);
+    /* 目标是表层站页面 → 不是"进内网"，顺带把状态归零 */
+    if (SURFACE[firstSeg(to)] === 1) { prevPortal = false; return; }
 
-    /* 两种情况要过渡：
-       1) 公开站 → 内网（跨站，最典型的「进内网」）
-       2) 云端账号页 → 论坛（在 #/cloud 登录完云端账号再进论坛，
-          app.js 那边只 router() 不播动画，这条就补上） */
-    var crossSite = fromIsSurface && !toIsSurface;
-    var afterCloud = firstSeg(from) === "cloud" && firstSeg(to) === "forum";
-    if (!crossSite && !afterCloud) return;
+    /* 上一次就已经在门户里 → 这是内网板块之间的切换，不打扰 */
+    if (prevPortal) return;
+
+    /* 首屏遮罩还在，或者刚播完 —— 那一层已经把"进内网"表达了，
+       不再叠第二层 */
+    if (document.getElementById("pl-veil")) return;
+    if (Date.now() - bootAt < 4000) return;
 
     /* 先同步挂上遮罩：这一步跟 router 渲染是同一个事件循环，
        所以底下刚渲染出来的论坛页不会被看见，也就不会出现
@@ -142,10 +154,11 @@
     var ov = build();
     if (!ov) return;
 
-    /* 再复查一次：没登录时 app.js 会立刻把内网地址改回 #/gate，
-       那种情况把遮罩撤掉，免得白闪 */
+    /* 再复查一次：落地后其实不是门户（比如没登录被 app.js 弹回 #/gate），
+       就把遮罩撤掉，免得白闪 */
     setTimeout(function () {
-      if (isSurface(location.hash)) { drop(ov); return; }
+      if (!isPortal()) { drop(ov); return; }
+      prevPortal = true;
       animate(ov);
     }, 120);
   });
