@@ -579,24 +579,26 @@
 
   /* ---------------- 汇总执行 ---------------- */
   var busy = false;
+  function warn(e) {
+    if (window.console && console.warn) console.warn('[pro-tools]', e);
+  }
+  /* 合并这一趟单独抽出来：run() 和兜底轮询都调它 */
+  function mergePass() {
+    var actions = document.querySelector('.fnc-actions');
+    /* 只有云端消息中心（每条点赞一个条目）需要合并；离线版本来就带计数 */
+    if (!actions || !document.querySelector('[data-cn-item]')) return;
+    ensureMergeSwitch(actions);
+    applyMerge();
+  }
   function run() {
     if (busy) return;
     busy = true;
-    try {
-      injectSideEntry(true);
-      injectFavBtn();
-      injectFloorNav();
-      restoreDrafts();
-      var actions = document.querySelector('.fnc-actions');
-      /* 只有云端消息中心（每条点赞一个条目）需要合并；离线版本来就带计数 */
-      if (actions && document.querySelector('[data-cn-item]')) {
-        ensureMergeSwitch(actions);
-        applyMerge();
-      }
-    } catch (e) {
-      /* 任一功能出错都不影响页面其它部分 */
-      if (window.console && console.warn) console.warn('[pro-tools]', e);
-    }
+    /* 每个功能各自兜错：一个坏了不该把后面的一起挡掉（尤其别把合并挡掉） */
+    try { injectSideEntry(true); } catch (e) { warn(e); }
+    try { injectFavBtn(); } catch (e) { warn(e); }
+    try { injectFloorNav(); } catch (e) { warn(e); }
+    try { restoreDrafts(); } catch (e) { warn(e); }
+    try { mergePass(); } catch (e) { warn(e); }
     busy = false;
   }
 
@@ -636,8 +638,14 @@
   /* DOM 变化后重建注入（app.js 每次路由都会重写 #app） */
   var timer = null;
   function schedule(ms) {
-    clearTimeout(timer);
-    timer = setTimeout(run, ms || 90);
+    /* 不重置已在等待的定时器：app.js 渲染消息中心时会连续改动 #app，
+       每变一次就 clearTimeout 重置，90ms 的定时器永远等不到点，
+       run() 就一直不执行 —— 合并开关和分组都因此不出现。 */
+    if (timer) return;
+    timer = setTimeout(function () {
+      timer = null;
+      run();
+    }, ms || 90);
   }
   /* 侧栏在切换板块时会被整体重建，注入的"我的收藏"跟着消失。
      MutationObserver 的回调在浏览器绘制之前跑，所以这里是"当场"补回去，
@@ -654,6 +662,26 @@
       });
     } catch (e) {}
   }
+  /* 云端消息中心是两段式异步渲染：先给一段 loading，fetch 回来后再整体替换 #app。
+     MutationObserver 的触发时机不可靠（替换与重排交错时容易错过那一拍），
+     这里加一条 500ms 的低频兜底，只在消息中心（有 .fnc-actions 与 [data-cn-item]）
+     才动手，其它页面直接空转，开销可忽略。 */
+  var lastSig = '';
+  function sweep() {
+    var actions = document.querySelector('.fnc-actions');
+    var list = document.querySelector('.fnc-list');
+    if (!actions || !list) return;
+    var items = list.querySelectorAll('[data-cn-item]');
+    if (!items.length) return;
+    try { ensureMergeSwitch(actions); } catch (e) { warn(e); }
+    /* 用条目 id 串与未读数做签名：条目真的变了才重算，避免每 500ms 白跑一趟 */
+    var sig = items.length + ':';
+    for (var i = 0; i < items.length; i++) sig += (items[i].getAttribute('data-cn-item') || '') + ',';
+    sig += ':' + list.querySelectorAll('.is-unread').length;
+    if (sig === lastSig) return;
+    lastSig = sig;
+    try { mergePass(); } catch (e) { warn(e); }
+  }
   function boot() {
     run();
     var app = document.getElementById('app');
@@ -665,6 +693,7 @@
       }).observe(app, { childList: true, subtree: true });
     }
     setTimeout(run, 600);
+    setInterval(sweep, 500);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
