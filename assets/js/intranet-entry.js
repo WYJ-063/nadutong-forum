@@ -153,27 +153,34 @@
   }
 
   function check() {
+    /* 高频路径的快速出口：已经放过（或判定为不需要放）就立刻返回。
+       表层站的轮播、聊天流会不停触发 MutationObserver，靠这一行把它们压成一次布尔判断。 */
+    if (played) return;
+
     /* app.js 的 enterPortal 一被点就挂 #portal-entry（比 .portal 出现还早），
        它出现就说明这一段进入的过渡已经有人负责了，直接认作已放，
        免得它 620ms 后收起、我这边又补一层。 */
-    if (!played && document.getElementById("portal-entry")) played = true;
+    if (document.getElementById("portal-entry")) { played = true; return; }
 
     var now = isPortal();
     if (now === hadPortal) return;
     hadPortal = now;
     if (!now) return;            /* 离开门户：played 不重置，回来也不放 */
-    if (played) return;          /* 已经放过（或首屏放过） */
 
     /* 别人手里的遮罩正在播，认作已放 */
     played = true;
     if (document.getElementById("pl-veil")
-      || document.getElementById("portal-entry")
       || document.getElementById("iv-entry")) return;
 
     play();
   }
 
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  /* 必须同步挂、不能节流：
+     MutationObserver 的回调在浏览器绘制之前执行，这里直接插入遮罩，
+     遮罩和刚渲染出来的内网页面就落在同一帧，用户看不到中间那一下。
+     早先这里套了 setTimeout 120ms 做节流，那 120ms 正好就是真机上
+     「先闪一下内网页面、再出加载动画」。 */
+  new MutationObserver(check).observe(document.body, { childList: true, subtree: true });
 
   /* 兜底：个别入口可能是先设 hash、门户几拍之后才出现，
      这里只在还没放过的时候补看一眼，不影响幂等 */
