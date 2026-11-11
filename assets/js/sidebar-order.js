@@ -34,6 +34,18 @@
 
   var EXTRA_NAME = "其他";
 
+  /* 跨节点记住用户最后的滚动位置。
+     portalShell 切板块是新建一个 .sidebar 节点，在新节点上读 scrollTop
+     永远是 0，所以恢复时不能就地读，只能记住「上一次的真实位置」。 */
+  var lastTop = 0;
+  var lastLeft = 0;
+
+  function noteScroll(sd) {
+    if (!sd) return;
+    lastTop = sd.scrollTop;
+    lastLeft = sd.scrollLeft;
+  }
+
   function sideEl() {
     return document.querySelector(".nav-wrap .sidebar") || document.querySelector(".sidebar");
   }
@@ -89,11 +101,19 @@
     });
     extras.forEach(function (el) { want.push("I:" + labelOf(el)); });
 
-    if (currentSig(sd).join("\u0001") === want.join("\u0001")) return;  /* 已经对了 */
-
-    /* 手机横滑时记住位置，排完按当前高亮项重新居中 */
+    /* 保存滚动位置再动 DOM。
+        portalShell 每次切板块都会新建一个 .sidebar 节点，新节点的
+       scrollTop / scrollLeft 都是 0 —— 不接住的话，PC 上侧栏会先跳回顶部、
+       手机上横滑条会先跳回最左，看起来就是「闪出以前的位置再闪回去」。 */
     var horizontal = sd.scrollWidth > sd.clientWidth + 2;
-    var oldLeft = sd.scrollLeft;
+    var oldTop = lastTop;
+    var oldLeft = lastLeft;
+
+    if (currentSig(sd).join("\u0001") === want.join("\u0001")) {
+      keepScroll(sd, horizontal, oldTop, oldLeft);
+      noteScroll(sd);
+      return;                                                            /* 已经对了 */
+    }
 
     while (sd.firstChild) sd.removeChild(sd.firstChild);
 
@@ -115,6 +135,14 @@
       extras.forEach(function (el) { sd.appendChild(el); });
     }
 
+    keepScroll(sd, horizontal, oldTop, oldLeft);
+    noteScroll(sd);
+  }
+
+  /* 排完之后把视口放回该在的地方：
+     竖向（PC）保持用户刚才滚到的位置；横向（手机）把当前高亮项滚到中间。
+     这些都紧跟 DOM 改动，同一帧内完成，不会看到中间态。 */
+  function keepScroll(sd, horizontal, oldTop, oldLeft) {
     if (horizontal) {
       var on = sd.querySelector(".side-item.on");
       if (on) {
@@ -124,6 +152,8 @@
       }
       /* 通知 app.js 那条 scroll 监听重算「右边还有更多」的渐隐提示 */
       try { sd.dispatchEvent(new Event("scroll", { bubbles: true })); } catch (e) {}
+    } else {
+      sd.scrollTop = oldTop;
     }
   }
 
@@ -143,28 +173,38 @@
     if (!sd) return;
     innerObserver = new MutationObserver(refresh);
     innerObserver.observe(sd, { childList: true });
+
+    /* 侧栏自己的滚动也要记下来，否则用户滚到中段再切板块，
+       新节点会从 0 开始、看起来像跳回顶部 */
+    if (!sd.__soScroll) {
+      sd.__soScroll = 1;
+      sd.addEventListener("scroll", function () { noteScroll(sd); }, { passive: true });
+    }
   }
 
   var lastSide = null;
-  var pending = null;
 
-  /* portalShell 重建后 .sidebar 是全新节点，这里换挂新的观察者；
-     同一个节点内部的变化（比如 pro-tools 插「我的收藏」）由内层观察者管 */
-  new MutationObserver(function () {
-    if (pending) return;
-    pending = setTimeout(function () {
-      pending = null;
-      var sd = sideEl();
-      if (!sd) return;
-      if (sd !== lastSide) {
-        lastSide = sd;
-        apply();
-        watch(sd);
-      }
-    }, 120);
-  }).observe(document.body, { childList: true, subtree: true });
+  /* portalShell 重建后 .sidebar 是一个全新节点，里的内容是 app.js 原本的三组
+     顺序。这里必须「同步」重排：MutationObserver 的回调在浏览器绘制之前执行，
+     所以重排和渲染落在同一帧，用户看不到旧的排列闪一下。
+     早先这里是 setTimeout 120ms 节流 —— 中间那七帧左右恰恰就是真机上看到的
+     「先闪出原来位置、再跳回来」。 */
+  var mo = new MutationObserver(function () {
+    var sd = sideEl();
+    if (!sd) return;
+    if (sd === lastSide) return;      /* 侧栏没换节点，内部变动交给内层观察者 */
 
-  window.addEventListener("hashchange", function () { setTimeout(refresh, 300); });
+    lastSide = sd;
+    apply();
+    watch(sd);
+
+    /* 后备：万一 app.js 是分几笔把侧栏拼进 DOM 的，第一笔之后节点还不完整，
+       下一帧（仍在绘制前）再对一次，幂等短路不会重排第二次。 */
+    refresh();
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  window.addEventListener("hashchange", function () { refresh(); });
 
   function boot() {
     var sd = sideEl();
