@@ -128,14 +128,16 @@
   function refresh() {
     if (queued) return;
     queued = true;
-    var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
-    raf(function () {
+    /* 用 setTimeout 而不是 requestAnimationFrame：
+       页面在后台、或宿在 iframe 里不可见时 rAF 整段不跑，
+       收起状态就永远补不上（手机端切出去再进来必现）。 */
+    setTimeout(function () {
       queued = false;
       repin();
       /* 路由切换会整块换掉页面（表层站 ↔ 内网），激活条件要重新判一遍 */
       applyMode();
       enforce();
-    });
+    }, 0);
   }
 
   new MutationObserver(function (list) {

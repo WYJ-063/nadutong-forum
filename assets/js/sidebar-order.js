@@ -161,10 +161,12 @@
   function refresh() {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(function () {
+    /* setTimeout 而非 rAF：页面在后台/宿主 iframe 不可见时 rAF 不跑，
+       这条兜底就永远不触发。主路径仍是 MutationObserver 里同步 apply()。 */
+    setTimeout(function () {
       queued = false;
       apply();
-    });
+    }, 0);
   }
 
   var innerObserver = null;
