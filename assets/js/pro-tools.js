@@ -476,8 +476,6 @@
       ev.preventDefault();
       storeSet(MERGE_KEY, mergePref() ? '0' : '1');
       btn.classList.toggle('on', mergePref());
-      var list = document.querySelector('.fnc-list');
-      if (list) list.removeAttribute('data-ndf-merging');
       applyMerge();
     });
     actions.insertBefore(btn, actions.firstChild);
@@ -500,7 +498,6 @@
     for (var k = 0; k < extra.length; k++) {
       if (extra[k].parentNode) extra[k].parentNode.removeChild(extra[k]);
     }
-    list.setAttribute('data-ndf-merging', '0');
   }
 
   function applyMerge() {
@@ -512,7 +509,10 @@
       return;
     }
     if (!mergePref()) { unmerge(list); return; }
-    if (list.getAttribute('data-ndf-merging') === '1') return;
+    /* 每次都先还原再重算：列表被 app.js 刷新后条目变了也要跟上。
+       原先这里有一道“已合并就跳过”的锁，但锁是打在 .fnc-list 元素上的，
+       app.js 刷新列表只换 innerHTML、元素本身不变，锁一直挂着自己不会松开，
+       结果新来的同类点赞就再也不合并了。去掉这道锁，靠 unmerge + 重算保证幂等。 */
     unmerge(list); /* 先还原，保证重复执行不叠加 */
 
     var groups = [];
@@ -575,7 +575,6 @@
       });
       actions.appendChild(all);
     });
-    list.setAttribute('data-ndf-merging', '1');
   }
 
   /* ---------------- 汇总执行 ---------------- */
