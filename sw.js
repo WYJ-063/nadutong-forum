@@ -1,11 +1,13 @@
 /* 静态资源缓存版本号。
    注意：正式发布新版本时，把下面的 v1 改成 v2、v3……
    旧缓存会被自动清掉，用户下次打开就是新文件。
-   index.html 与 /api 一律不缓存，所以发布后立刻能感知到新版本。 */
-const ASSET_CACHE = 'ndt-assets-v3';
-/* 页面本身也留一份：国内直连 Cloudflare 经常要等很久甚至超时，
-   先给缓存能让站点立刻打开，新版本在后台更新、下次打开生效。 */
+   index.html 走"网络优先"，所以新部署能被立刻感知，不会卡在旧版本。 */
+const ASSET_CACHE = 'ndt-assets-v4';
+/* 页面留一份缓存只作兜底：网络不通 / 超时才用它，正常有网一律取最新的。
+   （早先写成"缓存优先、后台更新"，结果是不会清缓存的用户永远停在上一个版本，
+     这条路是错的，改回网络优先。） */
 const PAGE_CACHE = 'ndt-pages-v1';
+const PAGE_NET_TIMEOUT = 3500;
 
 self.addEventListener('install',event=>{self.skipWaiting();});
 self.addEventListener('activate',event=>{
@@ -15,6 +17,12 @@ self.addEventListener('activate',event=>{
       .filter(k=>k.indexOf('ndt-assets-')===0&&k!==ASSET_CACHE)
       .map(k=>caches.delete(k)));
     await self.clients.claim();
+    /* 新版本接管后，让还开着旧页面的标签重新加载一次，
+       这样用户不用懂什么叫强制刷新也能直接看到新版。 */
+    try{
+      const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+      for(const c of list){ try{ await c.navigate(c.url); }catch(e){} }
+    }catch(e){}
   })());
 });
 
@@ -28,16 +36,27 @@ self.addEventListener('fetch',event=>{
   try{ url=new URL(req.url); }catch(e){ return; }
   if(url.origin!==self.location.origin)return;
 
-  /* 首页：缓存优先、后台更新。网络抖的时候至少能进站，而不是白屏干等 */
+  /* 首页：网络优先，超时才用缓存。
+     有网时一定拿最新的 index.html——新部署立刻生效，不用清缓存；
+     国内网络抖动或没网时才退回缓存那份，至少能进站、不白屏。 */
   if(url.pathname==='/'||url.pathname==='/index.html'){
     event.respondWith((async()=>{
       const cache=await caches.open(PAGE_CACHE);
+      let net=null;
+      try{
+        net=await Promise.race([
+          fetch(req,{cache:'no-store'}),
+          new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),PAGE_NET_TIMEOUT))
+        ]);
+      }catch(e){ net=null; }
+      if(net&&net.ok){
+        try{ cache.put('/index.html',net.clone()); }catch(e){}
+        return net;
+      }
       const hit=await cache.match('/index.html');
-      const net=fetch(req).then(res=>{
-        if(res&&res.ok){ try{ cache.put('/index.html',res.clone()); }catch(e){} }
-        return res;
-      }).catch(()=>null);
-      return hit||net||new Response('页面暂时打不开，请稍后重试',
+      if(hit)return hit;
+      if(net)return net;
+      return new Response('页面暂时打不开，请稍后重试',
         {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
     })());
     return;
