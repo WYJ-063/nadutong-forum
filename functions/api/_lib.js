@@ -48,6 +48,16 @@ function preflight(){
 
 /* ---------- 建表（幂等） ---------- */
 const SCHEMA=[
+/* 访问统计：每个访客每天一行，pv 累计当天打开次数。
+   (day,vid) 做主键，同一天同一个人再来只累加 pv，不会长出一堆行。 */
+`CREATE TABLE IF NOT EXISTS visits (
+  day TEXT NOT NULL,
+  vid TEXT NOT NULL,
+  pv INTEGER NOT NULL DEFAULT 0,
+  first_at TEXT,
+  last_at TEXT,
+  PRIMARY KEY (day,vid)
+)`,
 `CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   login TEXT UNIQUE,
