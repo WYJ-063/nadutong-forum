@@ -401,7 +401,9 @@ const MIGRATIONS=[
   `ALTER TABLE posts ADD COLUMN essence INTEGER DEFAULT 0`,
   `ALTER TABLE posts ADD COLUMN edited_at TEXT`,
   `ALTER TABLE posts ADD COLUMN edit_count INTEGER DEFAULT 0`,
-  `ALTER TABLE badges ADD COLUMN effect TEXT DEFAULT '0'`
+  `ALTER TABLE badges ADD COLUMN effect TEXT DEFAULT '0'`,
+  /* 管理员限制观看：1 = 该帖仅作者与管理员可见 */
+  `ALTER TABLE posts ADD COLUMN hidden INTEGER DEFAULT 0`
 ];
 /* 全文搜索：posts_fts（FTS5 trigram 分词，对中文子串友好，需 SQLite 3.34+）。
    触发器自动同步增删改；首次对历史帖子回填。任何失败都静默降级（搜索接口回退 LIKE）。 */
@@ -840,7 +842,9 @@ function shapePostRow(row,votes,replyCount,lastActivityAt,authorInfo){
     votes:votes||[],
     replyCount:replyCount||0,
     editedAt:row.edited_at||null,
-    editCount:Number(row.edit_count)||0
+    editCount:Number(row.edit_count)||0,
+    /* 管理员已限制观看：列表里保留标题，但正文不下发，详情对非作者/非管理员返回 403 */
+    hidden:!!Number(row.hidden)
   };
 }
 /* 批量把原始 post 行补齐点赞/回复/作者信息并归一化 */
@@ -861,7 +865,13 @@ async function shapePostList(env,rows){
   const repMap={},lastMap={};
   (repRes.results||[]).forEach(r=>{repMap[r.post_id]=r.n;lastMap[r.post_id]=r.last_at;});
   const uMap=await userInfoMap(env,rows.map(p=>p.author_id));
-  return rows.map(p=>shapePostRow(p,votesMap[p.id],repMap[p.id],lastMap[p.id],uMap[p.author_id]));
+  return rows.map(p=>{
+    const s=shapePostRow(p,votesMap[p.id],repMap[p.id],lastMap[p.id],uMap[p.author_id]);
+    /* 被限制观看的帖子：列表/搜索里保留标题（便于识别这条被处理过），
+       但正文一律不下发，避免绕过详情接口直接拿全文。 */
+    if(s.hidden)s.content='';
+    return s;
+  });
 }
 /* 批量把原始 reply 行补齐点赞/作者信息并归一化 */
 async function shapeReplyList(env,rows){

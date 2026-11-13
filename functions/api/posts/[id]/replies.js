@@ -1,7 +1,7 @@
 import {
   json,readBody,preflight,ensureSchema,getAuthUser,genId,
   addPoints,addNotification,processMentions,POINTS_RULE,nowStr,moderationBlock,
-  grantActivityBadge
+  grantActivityBadge,isAdmin
 } from '../../_lib.js';
 
 export async function onRequestOptions(){ return preflight(); }
@@ -21,8 +21,12 @@ export async function onRequestPost({request,env,params}){
   const block=moderationBlock(me);
   if(block)return json({error:block},403);
   await ensureSchema(env);
-  const post=await env.DB.prepare('SELECT id,author_id,title FROM posts WHERE id=?').bind(params.id).first();
+  const post=await env.DB.prepare('SELECT id,author_id,title,hidden FROM posts WHERE id=?').bind(params.id).first();
   if(!post)return json({error:'帖子不存在'},404);
+  /* 被限制观看的帖子不再接受新回复（作者本人与管理员除外） */
+  if(Number(post.hidden)&&post.author_id!==me.id&&!isAdmin(me)){
+    return json({error:'本帖违反云端论坛守则已被禁止观看，请遵守云端论坛守则',hidden:true},403);
+  }
 
   /* 楼中楼：若指定父回复，校验其属于本帖 */
   let parentId=null, parent=null;

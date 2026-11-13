@@ -13,6 +13,15 @@ export async function onRequestGet({request,env,params}){
   const post=await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
   if(!post)return json({error:'帖子不存在或已被删除'},404);
 
+  /* 被管理员限制观看：作者本人与管理员仍可正常浏览，
+     其他访客一律挡在浏览量 +1 之前，正文与回复都不下发。 */
+  if(Number(post.hidden)&&!(me&&me.id===post.author_id)&&!isAdmin(me)){
+    return json({
+      error:'本帖违反云端论坛守则已被禁止观看，请遵守云端论坛守则',
+      hidden:true
+    },403);
+  }
+
   /* 浏览量 +1：作者本人反复打开自己的帖子不计数，避免浏览数虚高 */
   if(!(me&&me.id===post.author_id)){
     await env.DB.prepare('UPDATE posts SET views=views+1 WHERE id=?').bind(id).run();
