@@ -235,6 +235,13 @@
       sheet = null;
       sheetBody = null;
     }
+
+    /* 面板此刻没开着却还挂着遮罩，说明上次收起没走完；这里兜一次，
+       否则那层全屏遮罩会一直盖着，横滑条怎么划都不动。 */
+    if (!sheet || !sheet.classList.contains('on')) {
+      dropMask();
+      document.body.style.overflow = '';
+    }
   }
 
   /* 切换板块时整个 portal 会重建，箭头会跟着丢，这里补回来 */
@@ -255,6 +262,14 @@
   function start() {
     cleanSidebar();
     purgeAll();
+    /* 上一次会话若在面板打开时被打断（刷新 / 切后台 / 切板块重建），
+       遮罩和 body 的 overflow 会原封不动留在这个新页面里：
+       .sb-mask 是全屏 fixed 的，会把整条横滑导航的手势全部吃掉，
+       表现就是「顶上一排划不动」。所以启动时先无条件清干净。 */
+    try {
+      dropMask();
+      if (document.body) document.body.style.overflow = '';
+    } catch (e) { }
     boot();
     try {
       var target = document.getElementById('app') || document.body;
