@@ -76,7 +76,9 @@
   }
   function load(box){
     if(!box)return;
-    if(!(window.Cloud&&Cloud.request)){
+    /* Cloud 是 app.js 顶层脚本作用域里的变量，不会挂在 window 上，
+       所以不能写成 window.Cloud，那样永远是 undefined。 */
+    if(typeof Cloud==='undefined'||!Cloud||typeof Cloud.request!=='function'){
       box.textContent='云端未连接，暂时读不到数据。';
       return;
     }
