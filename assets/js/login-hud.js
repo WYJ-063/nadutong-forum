@@ -100,6 +100,31 @@
     }, ok ? 1600 : 3200);
   }
 
+  /* 超时与自动重试：国内直连 Cloudflare 常见"请求发出去了但一直不返回"，
+     以前只会在进度条上干转，用户只能刷新重来。现在 15 秒没结果就判这次没成，
+     自动再试，最多三次；重试期间进度条一直转着，不会显得卡死。 */
+  var TIMEOUT = 15000;
+  var RETRY_MAX = 2;
+  var RETRY_GAP = 1200;
+
+  function soft(msg) {
+    try {
+      ensure();
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      tip.textContent = msg;
+      tip.style.background = GREY;
+      tip.style.display = 'block';
+      tip.style.opacity = '1';
+      tip.style.transform = 'translateX(-50%) translateY(0)';
+    } catch (e) {}
+  }
+
+  /* 业务性错误（账号密码错、被拉黑、字段不合法）不该重试，重试只会更慢 */
+  function permanent(err) {
+    var msg = String((err && err.message) || '');
+    return /账号或密码错误|已被拉黑|已被禁言|不能为空|最多|请输入/.test(msg);
+  }
+
   var orig = window.fetch;
 
   window.fetch = function (input, init) {
@@ -113,34 +138,62 @@
 
     var op = m[1] || 'login';
     var verb = NAME[op] || '登录';
+    var self = this;
 
     try { start(); } catch (e) {}
 
-    var p = orig.apply(this, arguments);
+    function tick(n) {
+      if (n > 0) { soft('网络不太稳 · 正在重试 ' + n + '/' + RETRY_MAX); }
 
-    /* 旁路观察：只挂在原 promise 上，不替换它的返回值，网页拿到的还是原始结果 */
-    try {
-      p.then(function (res) {
-        if (res && res.ok) {
-          try { finish(true, '', verb); } catch (e) {}
-          return;
-        }
-        var st = (res && res.status) || 0;
-        var fallback = '网络不太稳 · ' + verb + '没成功';
+      var opts = init;
+      var ctrl = null, timer = null;
+      /* 给这一层加超时；调用方自己带了 signal 就不动它 */
+      var canAbort = (typeof AbortController === 'function') &&
+        opts && typeof opts === 'object' && !opts.signal;
+      if (canAbort) {
         try {
-          res.clone().json().then(function (d) {
-            try { finish(false, (d && d.error) || fallback, verb); } catch (e) {}
-          }).catch(function () {
-            try { finish(false, fallback, verb); } catch (e) {}
-          });
-        } catch (e2) {
-          try { finish(false, fallback, verb); } catch (e3) {}
-        }
-      }, function () {
-        try { finish(false, '网络没接上 · 请检查网络后重试', verb); } catch (e) {}
-      });
-    } catch (e) {}
+          ctrl = new AbortController();
+          opts = Object.assign({}, opts, { signal: ctrl.signal });
+        } catch (e) { ctrl = null; }
+      }
+      if (ctrl) {
+        timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, TIMEOUT);
+      }
 
-    return p;
+      var req;
+      try { req = orig.call(self, input, opts); }
+      catch (e) { req = Promise.reject(e); }
+
+      return req.then(function (res) {
+        if (timer) { clearTimeout(timer); }
+        return res;
+      }, function (err) {
+        if (timer) { clearTimeout(timer); }
+        if (n < RETRY_MAX && !permanent(err)) {
+          return new Promise(function (resolve) { setTimeout(resolve, RETRY_GAP * (n + 1)); })
+            .then(function () { return tick(n + 1); });
+        }
+        throw err;
+      });
+    }
+
+    return tick(0).then(function (res) {
+      if (res && res.ok) { try { finish(true, '', verb); } catch (e) {} return res; }
+      /* 服务端明确拒绝：透出服务端 error 原文，例如"账号或密码错误" */
+      var fallback = '网络不太稳 · ' + verb + '没成功';
+      try {
+        res.clone().json().then(function (d) {
+          try { finish(false, (d && d.error) || fallback, verb); } catch (e) {}
+        }).catch(function () {
+          try { finish(false, fallback, verb); } catch (e) {}
+        });
+      } catch (e2) {
+        try { finish(false, fallback, verb); } catch (e3) {}
+      }
+      return res;
+    }, function (err) {
+      try { finish(false, '网络没接上 · 已试 ' + (RETRY_MAX + 1) + ' 次，换个时间再试试', verb); } catch (e) {}
+      throw err;
+    });
   };
 })();
