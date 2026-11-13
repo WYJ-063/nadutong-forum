@@ -577,6 +577,41 @@
     });
   }
 
+  /* ---------------- 消息中心时间戳 ----------------
+     云端返回的是 ISO 原始串（2026-11-10T17:54:28.800Z），直接摆在列表右侧
+     很干扰阅读。这里只把文本换成相对时间，不动 DOM 结构，也不碰 app.js。 */
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function relTime(iso) {
+    var d = new Date(iso);
+    if (!d || isNaN(d.getTime())) return '';
+    var now = new Date();
+    var diff = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diff < 0) diff = 0;
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+    if (diff < 172800) return '昨天 ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    if (diff < 604800) return Math.floor(diff / 86400) + ' 天前';
+    if (d.getFullYear() === now.getFullYear()) return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function formatTimes() {
+    var list = document.querySelector('.fnc-list');
+    if (!list) return;
+    var items = list.querySelectorAll('.fnc-item');
+    for (var i = 0; i < items.length; i++) {
+      var t = items[i].querySelector('.fnc-title-row time');
+      if (!t) continue;
+      var raw = (t.textContent || '').trim();
+      if (!raw || t.getAttribute('data-ndf-raw') === raw) continue;
+      var rel = relTime(raw);
+      if (!rel) continue;
+      t.setAttribute('data-ndf-raw', raw);  /* 记住原始值，重复执行不再换算 */
+      t.textContent = rel;
+      t.setAttribute('title', raw);         /* 悬停仍能看到精确时间 */
+    }
+  }
+
   /* ---------------- 汇总执行 ---------------- */
   var busy = false;
   function warn(e) {
@@ -599,6 +634,7 @@
     try { injectFloorNav(); } catch (e) { warn(e); }
     try { restoreDrafts(); } catch (e) { warn(e); }
     try { mergePass(); } catch (e) { warn(e); }
+    try { formatTimes(); } catch (e) { warn(e); }
     busy = false;
   }
 
@@ -674,6 +710,8 @@
     var items = list.querySelectorAll('[data-cn-item]');
     if (!items.length) return;
     try { ensureMergeSwitch(actions); } catch (e) { warn(e); }
+    /* 时间戳放在签名判断之前：列表一重渲染就得换一遍 */
+    try { formatTimes(); } catch (e) { warn(e); }
     /* 用条目 id 串与未读数做签名：条目真的变了才重算，避免每 500ms 白跑一趟 */
     var sig = items.length + ':';
     for (var i = 0; i < items.length; i++) sig += (items[i].getAttribute('data-cn-item') || '') + ',';
