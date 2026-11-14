@@ -18,6 +18,14 @@
   var HASH = '#/bazi';
   var ITEM_KEY = 'data-ndt-bazi';
   var STYLE_ID = 'ndt-bazi-style';
+  /* 胎命身开关：与问真结果页右上角那颗开关一致。
+     关＝左列显示「流年 / 大运」，开＝左列显示「身宫 / 命宫 / 胎元」。 */
+  var TMS_KEY = 'ndt-bazi-tms';
+  /* 站点八个主题的类名（与 app.js 里 themeClasses 一一对应；default 不挂类） */
+  var TH_CLS = {
+    day: 'theme-day', classic: 'theme-classic', cyber: 'theme-cyber', rose: 'theme-rose',
+    aurora: 'theme-aurora', wechat: 'theme-wechat', orange: 'theme-orange'
+  };
 
   /* ---------- 工具 ---------- */
 
@@ -88,7 +96,7 @@
       + '#ndt-bazi .bz-date{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;'
       + 'color:#7A8098;flex:1 1 auto;min-width:0}'
       + '#ndt-bazi .bz-go2{display:block;width:100%;margin-top:18px;padding:15px;border:none;border-radius:12px;'
-      + 'background:#1E2030;color:#F3E7CB;font-size:17px;letter-spacing:6px;cursor:pointer;font-family:inherit}'
+      + 'background:#1E2030 !important;color:#F3E7CB !important;font-size:17px;letter-spacing:6px;cursor:pointer;font-family:inherit}'
       + '#ndt-bazi .bz-go2:active{transform:translateY(1px)}'
       /* ---- 四柱表格 ---- */
       + '#ndt-bazi .bz-tbl{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:2px}'
@@ -100,7 +108,7 @@
       + 'text-align:right;padding-right:10px;background:#FCFBF7}'
       + '#ndt-bazi .bz-tbl .gr{font-size:26px;font-weight:600;letter-spacing:2px;line-height:1.3}'
       + '#ndt-bazi .bz-tbl .cg{font-size:12px;color:#6E7590;line-height:1.7}'
-      + '#ndt-bazi .bz-tbl .ln{display:block;line-height:1.6}'
+      + '#ndt-bazi .bz-tbl .ln{display:block;line-height:1.6;white-space:nowrap}'
       + '#ndt-bazi .bz-tbl .ssc{font-size:12px;color:#8A6A2F;line-height:1.85}'
       + '#ndt-bazi .bz-tbl .unk{color:#C4C9D6;letter-spacing:4px;font-size:20px}'
       + '#ndt-bazi .w-mu{color:#3F7D5A}'
@@ -230,6 +238,105 @@
       + '  #ndt-bazi .bz-tbl .unk{font-size:15px;letter-spacing:1px}'
       + '  #ndt-bazi .bz-go2{padding:13px;font-size:15px;letter-spacing:3px}'
       + '  #ndt-bazi .bz-meta{font-size:11px}'
+      + '}'
+      /* ---- 主题适配层：颜色全部取自站点 .portal 的 --pt-* 变量，
+             默认 / 日间 / 古风卷宗 / 赛博霓虹 / 玫瑰金 / 极光星河 / 微信绿 / 暖橙 八个主题都跟着走 ---- */
+      + '#ndt-bazi{--bz-ink:var(--pt-text,#2A2E45);--bz-ink2:var(--pt-text-soft,#4E5674);'
+      + '--bz-mut:var(--pt-muted,#8A90A8);--bz-line:var(--pt-border,#E3E7F0);'
+      + '--bz-line2:var(--pt-border-soft,#EEF1F6);--bz-bg:var(--pt-panel,#fff);'
+      + '--bz-bg2:var(--pt-panel-2,#F8F9FD);--bz-input:var(--pt-input,#fff);'
+      + '--bz-acc:var(--pt-accent,#B98B3E);--bz-hi:var(--pt-highlight,#B98B3E);color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-head h2,#ndt-bazi .bz-card h3{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-sub,#ndt-bazi .bz-tip,#ndt-bazi .bz-meta,#ndt-bazi .bz-empty,#ndt-bazi .bz-ss-count{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-meta b{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-card{background:var(--bz-bg);border-color:var(--bz-line)}'
+      + '#ndt-bazi .bz-card h3::before{background:var(--bz-acc)}'
+      + '#ndt-bazi .bz-field label,#ndt-bazi .bz-rk{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-field input,#ndt-bazi .bz-field select,'
+      + '#ndt-bazi .bz-row input[type=text],#ndt-bazi .bz-row input[type=number],#ndt-bazi .bz-row select{'
+      + 'background:var(--bz-input);border-color:var(--bz-line);color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-field input:focus,#ndt-bazi .bz-field select:focus,'
+      + '#ndt-bazi .bz-row input:focus,#ndt-bazi .bz-row select:focus{border-color:var(--bz-acc)}'
+      + '#ndt-bazi .bz-radios label,#ndt-bazi .bz-checks label{color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-row{border-bottom-color:var(--bz-line2)}'
+      + '#ndt-bazi .bz-tabs{background:var(--bz-bg2);border-color:var(--bz-line)}'
+      + '#ndt-bazi .bz-tabs span{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-tabs span.on{background:var(--bz-acc);color:#fff}'
+      + '#ndt-bazi .bz-date{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-btn{background:var(--bz-acc);color:#fff}'
+      + '#ndt-bazi .bz-btn.ghost{color:var(--bz-acc);border-color:var(--bz-line)}'
+      + '#ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{border-bottom-color:var(--bz-line2);color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-tbl thead th{background:var(--bz-bg2);color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-tbl tbody th{background:var(--bz-bg2);color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-tbl .cg{color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-tbl .ssc{color:var(--bz-hi)}'
+      + '#ndt-bazi .bz-tbl .unk{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-ss-tag{border-color:var(--bz-line);background:var(--bz-bg2);color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-ss-tag:hover{background:var(--bz-input)}'
+      + '#ndt-bazi .bz-ss-why{background:var(--bz-bg2);border-left-color:var(--bz-acc);color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-ss-why .how{background:var(--bz-input);color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-ss-why .hd b{color:var(--bz-hi)}'
+      + '#ndt-bazi .bz-ss-why .src{border-top-color:var(--bz-line2);color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-dt-row{border-bottom-color:var(--bz-line2)}'
+      + '#ndt-bazi .bz-dt-row .k,#ndt-bazi .bz-dt-row .n,#ndt-bazi .bz-dt-sec{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-dt-row .v{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-wx-row .w,#ndt-bazi .bz-hh-k{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-wx-row .bar{background:var(--bz-bg2)}'
+      + '#ndt-bazi .bz-wx-row .bar i{background:linear-gradient(90deg,var(--bz-hi),var(--bz-acc))}'
+      + '#ndt-bazi .bz-wx-row .num,#ndt-bazi .bz-hh-w{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-dy-cell,#ndt-bazi .bz-ly-cell{background:var(--bz-bg2)}'
+      + '#ndt-bazi .bz-dy-cell .g,#ndt-bazi .bz-ly-cell .g{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-dy-cell .a,#ndt-bazi .bz-ly-cell .m{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-dy-cell.now,#ndt-bazi .bz-ln-cell.now{border-color:var(--bz-acc);background:var(--bz-input)}'
+      + '#ndt-bazi .bz-ln-cell{background:var(--bz-bg2);border-color:var(--bz-line)}'
+      + '#ndt-bazi .bz-ln-cell .g{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-ln-cell .y{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-hh-row{border-top-color:var(--bz-line2)}'
+      + '#ndt-bazi .bz-zr-row{border-bottom-color:var(--bz-line2)}'
+      + '#ndt-bazi .bz-zr-row .d,#ndt-bazi .bz-zr-row .gz{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-zr-row .w{color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-case-row{background:var(--bz-bg2)}'
+      + '#ndt-bazi .bz-case-row .n{color:var(--bz-ink)}'
+      + '#ndt-bazi .bz-case-row .f{color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-case-row .d{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-case-open{background:var(--bz-input);border-color:var(--bz-line);color:var(--bz-acc)}'
+      + '#ndt-bazi .bz-case-del{background:var(--bz-input);border-color:var(--bz-line);color:#C0544D}'
+      /* 五行色：深浅主题下都保持可辨（木火土金水不会因为换主题而失去语义） */
+      + '#ndt-bazi .w-mu{color:#2FA36B}'
+      + '#ndt-bazi .w-huo{color:#E0574A}'
+      + '#ndt-bazi .w-tu{color:#C99442}'
+      + '#ndt-bazi .w-jin{color:#96A0BA}'
+      + '#ndt-bazi .w-shui{color:#4189D2}'
+      /* ---- 结果页顶部 banner（照问真结果页：左圆形标 + 姓名 + 阴历阳历两行 + 右侧胎命身开关） ---- */
+      + '#ndt-bazi .bz-banner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;'
+      + 'background:linear-gradient(100deg,#1B1B18,#2C2519 58%,#1F1C16);color:#F4E9CE;'
+      + 'border-radius:14px;padding:13px 16px;margin-bottom:14px}'
+      + '#ndt-bazi .bz-banner .logo{flex:0 0 auto;width:46px;height:46px;border-radius:50%;'
+      + 'background:rgba(240,228,200,.10);border:1px solid rgba(240,228,200,.35);color:#E8CE93;'
+      + 'display:flex;align-items:center;justify-content:center}'
+      + '#ndt-bazi .bz-banner .logo svg{width:26px;height:26px}'
+      + '#ndt-bazi .bz-banner .bn{flex:1 1 240px;min-width:0}'
+      + '#ndt-bazi .bz-banner .bn b{font-size:18px;letter-spacing:2px}'
+      + '#ndt-bazi .bz-banner .bd{font-size:12px;line-height:1.95;color:#CFC3A7;margin-top:3px}'
+      + '#ndt-bazi .bz-banner .bd b{color:#F4E9CE;font-weight:600}'
+      + '#ndt-bazi .bz-banner .bd .zt{color:#A99C7E;margin-left:2px}'
+      + '#ndt-bazi .bz-tms{display:inline-flex;align-items:center;gap:9px;font-size:12px;'
+      + 'color:#CFC3A7;cursor:pointer;user-select:none;flex:0 0 auto}'
+      + '#ndt-bazi .bz-tms input{position:absolute;opacity:0;width:0;height:0}'
+      + '#ndt-bazi .bz-tms .sw{width:38px;height:21px;border-radius:11px;background:rgba(255,255,255,.18);'
+      + 'position:relative;transition:background .18s}'
+      + '#ndt-bazi .bz-tms .sw i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;'
+      + 'background:#F4E9CE;transition:left .18s}'
+      + '#ndt-bazi .bz-tms input:checked + .sw{background:#C9A227}'
+      + '#ndt-bazi .bz-tms input:checked + .sw i{left:19px}'
+      + '#ndt-bazi .bz-tbl thead th.gong{color:var(--bz-hi)}'
+      + '@media(max-width:560px){'
+      + '  #ndt-bazi .bz-banner{padding:11px 12px;gap:10px}'
+      + '  #ndt-bazi .bz-banner .logo{width:38px;height:38px}'
+      + '  #ndt-bazi .bz-banner .logo svg{width:22px;height:22px}'
+      + '  #ndt-bazi .bz-banner .bn b{font-size:16px}'
+      + '  #ndt-bazi .bz-tbl thead th.gong,#ndt-bazi .bz-tbl thead th.zhu{font-size:10px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl .ssc,#ndt-bazi .bz-tbl .cg{font-size:10px;letter-spacing:0}'
       + '}';
     var st = document.createElement('style');
     st.id = STYLE_ID;
@@ -421,9 +528,19 @@
     return '<span class="' + (WX_CLASS[wx] || '') + '">' + esc(ch) + '</span>';
   }
 
-  /* 四柱表格：行 = 项目，列 = 年柱 / 月柱 / 日柱 / 时柱 */
-  function pillarTable(r) {
-    var keys = ['year', 'month', 'day', 'hour'];
+  /* 结果表：照问真的排法 —— 列＝身宫 / 命宫 / 胎元 / 年柱 / 月柱 / 日柱 / 时柱，
+     行＝主星 / 天干 / 地支 / 藏干 / 星运 / 自坐 / 空亡 / 纳音 / 神煞。
+     问真的藏干行里直接带十神（「己伤官」），没有单独的「副星」行。 */
+  /* 胎命身开关：与问真一样记住上次选择，默认关闭 */
+  function tmsOn() {
+    try { return localStorage.getItem(TMS_KEY) === 'on'; } catch (e) { return false; }
+  }
+  function setTms(on) {
+    try { localStorage.setItem(TMS_KEY, on ? 'on' : 'off'); } catch (e) {}
+  }
+
+  function pillarTable(r, opts) {
+    opts = opts || {};
     var e = r.extra || {};
     var ny = e.nayin || {};
     var cgA = r.cangGan || {};
@@ -433,38 +550,120 @@
     var unknown = !!r.hourUnknown;
     var gender = (r.input && r.input.gender) || '男';
     var ssList = r.shensha || [];
+    var gong = e.columns || [];
 
-    function col(k) {
+    function ssOf(list, pillarName) {
+      return list.filter(function (s) { return s.pillar === pillarName; })
+        .map(function (s) { return '<span class="ln">' + esc(s.name) + '</span>'; }).join('');
+    }
+    /* 问真结果表把「藏干」和「副星」拆成上下两行：
+       藏干行只列地支所藏的天干（带五行色），副星行是这些藏干对日主的十神。 */
+    function cangHtml(list) {
+      if (!list || !list.length) { return '—'; }
+      return list.map(function (x) {
+        var wx = BaziCore.GAN_WX[BaziCore.GAN.indexOf(x.gan)];
+        return '<span class="ln ' + (WX_CLASS[wx] || '') + '">' + esc(x.gan) + '</span>';
+      }).join('');
+    }
+    function fuHtml(list) {
+      if (!list || !list.length) { return '—'; }
+      return list.map(function (x) {
+        return '<span class="ln">' + esc(x.god) + '</span>';
+      }).join('');
+    }
+
+    /* 胎命身开关：开＝左三列取身宫/命宫/胎元；关＝左两列取当前的流年、大运
+       （问真结果页就是这两种排列，开关在 banner 右上角） */
+    var mode = opts.mode === 'gong' ? 'gong' : 'yun';
+
+    var dayGanIdx = BaziCore.GAN.indexOf(r.dayMaster.gan);
+    var nowY = new Date().getFullYear();
+    var lnCur = null, dyCur = null;
+    (r.liunian || []).forEach(function (x) { if (x.year === nowY) { lnCur = x; } });
+    var dyList = (r.dayun && r.dayun.list) || [];
+    for (var di = 0; di < dyList.length; di++) { if (nowY >= dyList[di].startYear) { dyCur = dyList[di]; } }
+
+    var yunSs = [];
+    if (mode === 'yun' && (lnCur || dyCur)) {
+      var extraCols = [];
+      if (lnCur) { extraCols.push({ gz: { gan: lnCur.gan, zhi: lnCur.zhi } }); }
+      if (dyCur) { extraCols.push({ gz: { gan: dyCur.gan, zhi: dyCur.zhi } }); }
+      try { yunSs = BaziCore.findShenSha(r.pillars, gender, extraCols, ['流年', '大运', '']); }
+      catch (err) { yunSs = []; }
+    }
+    function yunCol(label, g, z) {
+      var gi = BaziCore.GAN.indexOf(g), zi = BaziCore.ZHI.indexOf(z);
+      var cang = BaziCore.tenGodsOfZhi(dayGanIdx, zi);
+      return {
+        label: label, yun: true,
+        god: esc(BaziCore.tenGod(dayGanIdx, gi)),
+        gan: gzSpan(g, true),
+        zhi: gzSpan(z, false),
+        cang: cangHtml(cang),
+        fu: fuHtml(cang),
+        xy: esc(BaziCore.changShengOf(dayGanIdx, zi)),
+        zz: esc(BaziCore.changShengOf(gi, zi)),
+        xk: esc(BaziCore.xunKongOf(gi, zi).text),
+        ny: esc(BaziCore.nayinOf(gi, zi).name),
+        ss: ssOf(yunSs, label)
+      };
+    }
+
+    var cols = [];
+    if (mode === 'yun') {
+      if (lnCur) { cols.push(yunCol('流年', lnCur.gan, lnCur.zhi)); }
+      if (dyCur) { cols.push(yunCol('大运', dyCur.gan, dyCur.zhi)); }
+    } else {
+      /* 前三列：身宫 / 命宫 / 胎元（时辰未知时前两列不排，问真也只给胎元） */
+      ['身宫', '命宫', '胎元'].forEach(function (lab, i) {
+        var c = gong[i];
+        if (!c) {
+          cols.push({
+            label: lab, gong: true, god: '—', gan: '—', zhi: '—',
+            cang: '—', fu: '—', xy: '—', zz: '—', xk: '—', ny: '—', ss: '—'
+          });
+          return;
+        }
+        cols.push({
+          label: lab, gong: true,
+          god: esc(c.god || ''),
+          gan: gzSpan(c.gan, true),
+          zhi: gzSpan(c.zhi, false),
+          cang: cangHtml(c.cang),
+          fu: fuHtml(c.cang),
+          xy: esc(c.xy || ''),
+          zz: esc(c.zz || ''),
+          xk: esc(c.xk || ''),
+          ny: esc((c.ny && c.ny.name) || ''),
+          ss: ssOf(ssList, lab)
+        });
+      });
+    }
+    /* 后四列：四柱 */
+    ['year', 'month', 'day', 'hour'].forEach(function (k) {
       var p = r.pillars[k] || {};
       if (k === 'hour' && unknown) {
-        return {
-          god: '<span class="unk">未知</span>', gan: '<span class="unk">未知</span>',
+        cols.push({
+          label: PILLAR_LABEL[k], god: '未知', gan: '<span class="unk">未知</span>',
           zhi: '<span class="unk">未知</span>', cang: '—', fu: '—', xy: '—',
           zz: '—', xk: '—', ny: '—', ss: '—'
-        };
+        });
+        return;
       }
-      var cgs = cgA[k] || [];
-      var ss = ssList.filter(function (s) { return s.pillar === PILLAR_SHORT[k]; })
-        .map(function (s) { return '<span class="ln">' + esc(s.name) + '</span>'; }).join('');
-      return {
+      cols.push({
+        label: PILLAR_LABEL[k],
         god: esc(k === 'day' ? (gender === '女' ? '元女' : '元男') : (p.god || '')),
         gan: gzSpan(p.gan, true),
         zhi: gzSpan(p.zhi, false),
-        cang: cgs.map(function (x) {
-          var wx = BaziCore.GAN_WX[BaziCore.GAN.indexOf(x.gan)];
-          return '<span class="ln ' + (WX_CLASS[wx] || '') + '">' + esc(x.gan + (wx || '')) + '</span>';
-        }).join(''),
-        fu: cgs.map(function (x) { return '<span class="ln">' + esc(x.god) + '</span>'; }).join(''),
+        cang: cangHtml(cgA[k]),
+        fu: fuHtml(cgA[k]),
         xy: esc(xyA[k] || ''),
         zz: esc(zzA[k] || ''),
         xk: esc(xkA[k] || ''),
         ny: esc(ny[k] ? ny[k].name : ''),
-        ss: ss || '—'
-      };
-    }
-
-    var data = {};
-    keys.forEach(function (k) { data[k] = col(k); });
+        ss: ssOf(ssList, PILLAR_SHORT[k])
+      });
+    });
 
     var TROWS = [
       ['主星', 'god', ''],
@@ -480,15 +679,16 @@
     ];
 
     var head = '<thead><tr><th class="first">日期</th>'
-      + keys.map(function (k) { return '<th>' + PILLAR_LABEL[k] + '</th>'; }).join('') + '</tr></thead>';
+      + cols.map(function (c) {
+        return '<th class="' + (c.gong ? 'gong' : 'zhu') + '">' + esc(c.label) + '</th>';
+      }).join('') + '</tr></thead>';
     var body = TROWS.map(function (rw) {
       return '<tr data-r="' + rw[1] + '"><th>' + rw[0] + '</th>'
-        + keys.map(function (k) { return '<td class="' + (rw[2] || '') + '">' + data[k][rw[1]] + '</td>'; }).join('')
+        + cols.map(function (c) { return '<td class="' + (rw[2] || '') + '">' + c[rw[1]] + '</td>'; }).join('')
         + '</tr>';
     }).join('');
-    var colg = '';
 
-    return '<div class="bz-tbl-wrap"><table class="bz-tbl">' + colg + head + '<tbody>' + body + '</tbody></table></div>';
+    return '<div class="bz-tbl-wrap"><table class="bz-tbl" data-mode="' + mode + '">' + head + '<tbody>' + body + '</tbody></table></div>';
   }
 
   /* 原文排版清洗：去掉官网文本的缩进空白与多余空行，再转 <br> */
@@ -619,13 +819,20 @@
       + '    <button class="bz-btn" id="bz-save">存入案例</button>'
       + '  </div>'
       + '  <div class="bz-banner">'
-      + '    <div class="bn"><b>' + esc(nm) + '</b></div>'
-      + '    <div class="bd">'
-      + '      <div>' + (lunarLine ? '农历 <b>' + lunarLine + '</b>　' : '') + '阳历 <b>' + esc(birth) + '</b>'
-      + '        <span class="zt">（' + zao + (unk ? ' · 时辰未知' : '') + '）</span></div>'
+      + '    <span class="logo">' + BAZI_ICON + '</span>'
+      + '    <div class="bn"><b>' + esc(nm) + '</b>'
+      + '      <div class="bd">'
+      + '        <div>' + (lunarLine ? '阴历 <b>' + lunarLine + '</b>' : '阴历 <b>—</b>')
+      + '          <span class="zt">（' + zao + (unk ? ' · 时辰未知' : '') + '）</span></div>'
+      + '        <div>阳历 <b>' + esc(birth) + '</b>' + (tst ? '<span class="zt">（已按真太阳时换算）</span>' : '') + '</div>'
+      + '      </div>'
       + '    </div>'
+      + '    <label class="bz-tms" title="打开后左列排身宫 / 命宫 / 胎元；关闭则排流年 / 大运">'
+      + '      <input type="checkbox" id="bz-tms"' + (tmsOn() ? ' checked' : '') + '>'
+      + '      <span class="sw"><i></i></span><span>胎命身</span>'
+      + '    </label>'
       + '  </div>'
-      + pillarTable(r)
+      + '<div id="bz-tbl-host">' + pillarTable(r, { mode: tmsOn() ? 'gong' : 'yun' }) + '</div>'
       + '  <div class="bz-meta">'
       + '    生肖 <b>' + esc(r.shengxiao) + '</b>　日主 <b>' + esc(r.dayMaster.gan + '（' + r.dayMaster.wx + '·' + r.dayMaster.yinyang + '）') + '</b>'
       + (tstLine ? '<br>' + tstLine : '')
@@ -940,6 +1147,9 @@
 
   /* ---------- 交互 ---------- */
 
+  /* 最近一次排盘结果：胎命身开关切换时据此重排左列，不必重新读表单 */
+  var LAST_RESULT = null;
+
   function doPaipan() {
     var y = parseInt(($('#bz-y') || {}).value, 10);
     var m = parseInt(($('#bz-m') || {}).value, 10);
@@ -997,6 +1207,17 @@
       return;
     }
     $('#bz-out').innerHTML = resultHtml(r);
+    LAST_RESULT = r;
+
+    /* 胎命身开关：只换表格那一块，不重排整页 */
+    var tmsBox = $('#bz-tms');
+    if (tmsBox) {
+      tmsBox.addEventListener('change', function () {
+        setTms(tmsBox.checked);
+        var host = $('#bz-tbl-host');
+        if (host) { host.innerHTML = pillarTable(LAST_RESULT, { mode: tmsBox.checked ? 'gong' : 'yun' }); }
+      });
+    }
 
     /* 神煞点开解释 */
     var whyBox = $('#bz-ss-why');
@@ -1064,6 +1285,49 @@
     out.innerHTML = '<div style="margin-top:14px">' + hehunHtml(a, b, res) + '</div>';
   }
 
+  /* ---------- 主题 ---------- */
+
+  /* app.js 处理主题按钮的顺序是：DB.data.theme=值 → DB.save() → router()。
+     router() 没有 #/bazi 这一支，会走 default 渲染官网首页，八字页被整个换掉、
+     再被 watch 顶回来 —— 这就是「一点主题就闪、还像是没切成功」的来源。
+     这里在 capture 阶段把这颗按钮接管下来：只改数据、落盘、换 .portal 上的主题类，
+     页面结构一律不动，主题立刻生效，也没有中间帧。 */
+  function applyTheme(v) {
+    if (!v) { return; }
+    try {
+      if (typeof DB !== 'undefined' && DB && DB.data) {
+        DB.data.theme = v;
+        /* 与 app.js 原逻辑一致：主题变了，当前聊天模板若不在新主题的模板集里就换第一个 */
+        try {
+          if (typeof TEMPLATES !== 'undefined' && DB.user) {
+            var valid = TEMPLATES[v] || TEMPLATES.default;
+            if (valid && !valid.some(function (x) { return x.id === DB.user.tpl; })) { DB.user.tpl = valid[0].id; }
+          }
+        } catch (e2) {}
+        DB.save();
+      }
+    } catch (e) {}
+    var p = document.querySelector('.portal');
+    if (p) {
+      Object.keys(TH_CLS).forEach(function (k) { p.classList.remove(TH_CLS[k]); });
+      if (TH_CLS[v]) { p.classList.add(TH_CLS[v]); }
+    }
+    $$('[data-theme-set]').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-theme-set') === v);
+    });
+    cachePortal();
+  }
+
+  /* 快照恢复回来时可能带着切主题前的类名，按 DB 里的当前值校正一次 */
+  function syncThemeClass() {
+    var v = 'default';
+    try { if (typeof DB !== 'undefined' && DB && DB.data && DB.data.theme) { v = DB.data.theme; } } catch (e) {}
+    var p = document.querySelector('.portal');
+    if (!p) { return; }
+    Object.keys(TH_CLS).forEach(function (k) { p.classList.remove(TH_CLS[k]); });
+    if (TH_CLS[v]) { p.classList.add(TH_CLS[v]); }
+  }
+
   /* ---------- 页面接管 ---------- */
 
   /* app.js 的 switch 里没有 bazi 这一支，命中 #/bazi 会走 default → viewHome()。
@@ -1104,6 +1368,7 @@
         app.innerHTML = PORTAL_SNAPSHOT;
         var restored = $('#app .p-main');
         if (restored) { restored.removeAttribute('data-ndt-bazi-rendered'); }
+        syncThemeClass();
       }
       /* 快照也没有（比如第一次就是直接打开 #/bazi）：先落到内网首页，
          再切回来，拿一次正规门户外壳。 */
@@ -1153,6 +1418,14 @@
      当 hash 已经是 #/bazi 时它还会直接调 router()，那一步就会渲染官网首页。 */
   document.addEventListener('click', function (e) {
     var t = e.target;
+    /* 八字页里点主题按钮：自己接管，不走 app.js 的 router() */
+    var thBtn = (t && t.closest) ? t.closest('[data-theme-set]') : null;
+    if (thBtn && isBaziPage()) {
+      e.preventDefault();
+      e.stopPropagation();
+      applyTheme(thBtn.getAttribute('data-theme-set'));
+      return;
+    }
     var si = (t && t.closest) ? t.closest('[' + ITEM_KEY + ']') : null;
     if (!si) { return; }
     e.preventDefault();

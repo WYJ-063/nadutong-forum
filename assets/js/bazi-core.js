@@ -196,6 +196,10 @@
       var cur = jieOfYear(y);
       next = cur[0];
     }
+    if (!next) {            /* 落在当年大雪之后：下一个节在次年（起运要数到它） */
+      var nl = jieOfYear(y + 1);
+      next = nl[0];
+    }
     /* 节气 → 月支：立春=寅(2)、惊蛰=卯(3)… 每 30° 一支 */
     var lon = prev ? prev.lon : 315;
     var monthZhi = ((((lon - 315) / 30 + 2) % 12) + 12) % 12;
@@ -448,6 +452,7 @@
     { n: "天转日", m: "8", t: "15", d: {"寅":["乙卯"],"卯":["乙卯"],"辰":["乙卯"],"巳":["丙午"],"午":["丙午"],"未":["丙午"],"申":["辛酉"],"酉":["辛酉"],"戌":["辛酉"],"亥":["壬子"],"子":["壬子"],"丑":["壬子"]} },
     { n: "地转日", m: "8", t: "15", d: {"寅":["辛卯"],"卯":["辛卯"],"辰":["辛卯"],"巳":["戊午"],"午":["戊午"],"未":["戊午"],"申":["癸酉"],"酉":["癸酉"],"戌":["癸酉"],"亥":["丙子"],"子":["丙子"],"丑":["丙子"]} },
     { n: "词馆", m: "17", t: "8,9,10,11,12", d: {"金":["申"],"木":["寅"],"水":["亥"],"土":["亥"],"火":["巳"]} },
+    { n: "拱禄", m: "16", t: "0", d: { "癸亥": "癸丑", "癸丑": "癸亥", "丁巳": "丁未", "己未": "己巳", "戊辰": "戊午" } },
     { n: "童子煞", m: "8", t: "9,10", d: {"子":["卯未辰"],"丑":["卯未辰"],"寅":["寅子"],"卯":["寅子"],"辰":["寅子"],"巳":["卯未辰"],"午":["卯未辰"],"未":["卯未辰"],"申":["寅子"],"酉":["寅子"],"戌":["寅子"],"亥":["卯未辰"]} },
     { n: "童子煞", m: "17", t: "9,10", d: {"金":["午、卯"],"木":["午、卯"],"水":["酉、戌"],"火":["酉、戌"],"土":["辰、巳"]} },
     { n: "天赦日", m: "8", t: "15", d: {"寅":["戊寅"],"卯":["戊寅"],"辰":["戊寅"],"巳":["甲午"],"午":["甲午"],"未":["甲午"],"申":["戊申"],"酉":["戊申"],"戌":["戊申"],"亥":["甲子"],"子":["甲子"],"丑":["甲子"]} },
@@ -475,17 +480,32 @@
 
   function zhiOfName(name) { return ZHI.indexOf(name); }
 
-  /* 找出四柱地支里命中的神煞，返回 [{name, pillar, zhi, desc, how, tip, chafa}] */
-  function findShenSha(pillars, gender) {
+  /* 找出各柱地支里命中的神煞，返回 [{name, pillar, zhi, desc, how, tip, chafa}]
+     问真的表格除四柱外还列身宫、命宫、胎元三列，这三列同样参与神煞判定：
+     锚点（年干 / 月支 / 年支 / 日支 / 纳音）仍取四柱，被查的对象扩到七列。 */
+  /* colList：紧跟四柱之后、还要一起参与「查四柱」的额外柱（最多 3 个）。
+     labels：这几根额外柱的显示名，默认是问真表格里的身宫 / 命宫 / 胎元；
+     结果表的「流年 / 大运」两列会传自己的标签进来，复用同一套判据。 */
+  function findShenSha(pillars, gender, colList, labels) {
     var out = [];
     /* 时辰未知时时柱留空，用不可命中的占位符顶上，
        避免空串和任何取值比对成功，把「时」相关的神煞误报出来。 */
     var hourG = pillars.hour.gan || '\u0000';
     var hourZ = pillars.hour.zhi || '\u0000';
-    var G = [pillars.year.gan, pillars.month.gan, pillars.day.gan, hourG];
-    var Z = [pillars.year.zhi, pillars.month.zhi, pillars.day.zhi, hourZ];
-    var PN = ['年', '月', '日', '时'];
-    var COL = [7, 8, 9, 10];
+    var exG = [], exZ = [];
+    var cls = colList || [];
+    for (var ci0 = 0; ci0 < 3; ci0++) {
+      var cc = cls[ci0];
+      exG.push(cc && cc.gz ? cc.gz.gan : '\u0000');
+      exZ.push(cc && cc.gz ? cc.gz.zhi : '\u0000');
+    }
+    var G = [pillars.year.gan, pillars.month.gan, pillars.day.gan, hourG].concat(exG);
+    var Z = [pillars.year.zhi, pillars.month.zhi, pillars.day.zhi, hourZ].concat(exZ);
+    var PN = ['年', '月', '日', '时'].concat(labels || ['身宫', '命宫', '胎元']);
+    var COL = [7, 8, 9, 10, 11, 12, 13];
+    function exceptCode(anchor) {
+      return COL.filter(function (c) { return c !== anchor; });
+    }
     var dayName = pillars.day.gan + pillars.day.zhi;
     var hourName = pillars.hour.gan && pillars.hour.zhi ? (pillars.hour.gan + pillars.hour.zhi) : '\u0000';
     var nyEl = '';
@@ -511,7 +531,7 @@
     }
     /* 在指定柱位里查找某字符出现的位置 */
     function hitChar(name, chars, isGan, cols) {
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < G.length; i++) {
         if (cols && cols.indexOf(COL[i]) < 0) { continue; }
         var v = isGan ? G[i] : Z[i];
         if (chars.indexOf(v) >= 0) { add(name, v, PN[i]); }
@@ -542,7 +562,7 @@
         }
         else if (code === '16') {
           var pv = r.d[dayName];
-          if (pv && splitVal(pv).join('') === hourName) { add(r.n, pillars.day.zhi + pillars.hour.zhi, '日时'); }
+          if (pv && splitVal(pv).join('') === hourName) { add(r.n, pillars.day.zhi + pillars.hour.zhi, '日'); }
           continue;
         }
         else if (code === '18') {
@@ -569,7 +589,8 @@
           if (cl.length === 2 && GAN.indexOf(cl[0]) >= 0 && ZHI.indexOf(cl[1]) >= 0) {
             var gz2 = cl.join('');
             if (r.n === '正学堂' || r.n === '正词馆') {
-              for (var pi = 0; pi < 4; pi++) { if (gz2 === G[pi] + Z[pi]) { add(r.n, Z[pi], PN[pi]); } }
+              /* 原文是「以年纳音查月日时支」，年柱本身不查，从月柱起 */
+              for (var pi = 1; pi < G.length; pi++) { if (gz2 === G[pi] + Z[pi]) { add(r.n, Z[pi], PN[pi]); } }
             } else if (gz2 === dayName) {
               add(r.n, pillars.day.zhi, '日');
             }
@@ -579,13 +600,13 @@
           var allGan = true;
           for (var q = 0; q < cl.length; q++) { if (GAN.indexOf(cl[q]) < 0) { allGan = false; } }
           if (allGan) { hitChar(r.n, cl, true, null); continue; }
-          /* 地支串 → 按查法确定可落柱位 */
+          /* 地支串 → 按查法确定可落柱位：锚点柱自身排除，其余柱连宫位列一起查 */
           var cols = null;
-          if (code === '7') { cols = [8, 9, 10]; }
-          else if (code === '9') { cols = [7, 8, 10]; }
-          else if (code === '8') { cols = [7, 9, 10]; }
+          if (code === '7') { cols = exceptCode(7); }
+          else if (code === '9') { cols = exceptCode(9); }
+          else if (code === '8') { cols = exceptCode(8); }
           else if (code === '17') { cols = [9]; }
-          if (r.n === '学堂' || r.n === '词馆') { cols = [8, 9, 10]; }
+          if (r.n === '学堂' || r.n === '词馆') { cols = exceptCode(7); }
           if (r.n === '童子煞') { cols = [9, 10]; }
           /* 血刃原文是「以月支查四柱干支」，四柱都算，不排除月柱本身 */
           if (r.n === '血刃') { cols = null; }
@@ -600,7 +621,7 @@
       var isYangZhi = (yzIdx % 2 === 0);
       var isMale = (gender === '男');
       var target = (isYangZhi === isMale) ? (yzIdx + 7) % 12 : (yzIdx + 5) % 12;
-      for (var yj = 0; yj < 4; yj++) { if (Z[yj] === ZHI[target]) { add('元辰', ZHI[target], PN[yj]); } }
+      for (var yj = 0; yj < Z.length; yj++) { if (Z[yj] === ZHI[target]) { add('元辰', ZHI[target], PN[yj]); } }
     }
 
     /* 空亡：日柱旬空与年柱旬空 */
@@ -608,7 +629,7 @@
     var yk = xunKongOf(GAN.indexOf(pillars.year.gan), zhiOfName(pillars.year.zhi));
     var kongs = [dk.text, yk.text];
     for (var kk = 0; kk < kongs.length; kk++) {
-      for (var kj = 0; kj < 4; kj++) {
+      for (var kj = 0; kj < Z.length; kj++) {
         if (kongs[kk].indexOf(Z[kj]) >= 0) { add('空亡', Z[kj], PN[kj]); }
       }
     }
@@ -619,12 +640,18 @@
       var ukey = out[u].name + '|' + out[u].pillar + '|' + out[u].zhi;
       if (!seen[ukey]) { seen[ukey] = 1; uniq.push(out[u]); }
     }
-    /* 正学堂/正词馆成立时，不再重复标学堂/词馆 */
-    var dropNames = [];
-    if (uniq.some(function (s) { return s.name === '正学堂'; })) { dropNames.push('学堂'); }
-    if (uniq.some(function (s) { return s.name === '正词馆'; })) { dropNames.push('词馆'); }
-    if (dropNames.length) {
-      uniq = uniq.filter(function (s) { return dropNames.indexOf(s.name) < 0; });
+    /* 正学堂/正词馆成立时，同一柱上不再重复标学堂/词馆（不同柱各自保留） */
+    var zhengByPillar = {};
+    for (var zz = 0; zz < uniq.length; zz++) {
+      if (uniq[zz].name === '正学堂' || uniq[zz].name === '正词馆') { zhengByPillar[uniq[zz].pillar] = uniq[zz].name; }
+    }
+    if (Object.keys(zhengByPillar).length) {
+      uniq = uniq.filter(function (s) {
+        var zh = zhengByPillar[s.pillar];
+        if (zh === '正学堂' && s.name === '学堂') { return false; }
+        if (zh === '正词馆' && s.name === '词馆') { return false; }
+        return true;
+      });
     }
     /* 问真的排法是按名称字数从多到少（四字在前、三字次之、两字在后），
        同字数里「空亡」固定排最前，其余保持判定先后 */
@@ -806,7 +833,11 @@
     }
     var startAgeRaw = daysRaw / 3;
     var out = [];
-    var g = GAN.indexOf(opts.month.gan), z = zhiOfName(opts.month.zhi);
+    /* monthGanZhi 返回的是 {g,z}；也兼容传进来的是 {gan,zhi} 形式的柱对象的写法 */
+    var g = (typeof opts.month.gan === 'string') ? GAN.indexOf(opts.month.gan) : opts.month.g;
+    var z = (typeof opts.month.zhi === 'string') ? zhiOfName(opts.month.zhi) : opts.month.z;
+    if (g == null || g < 0) { g = 0; }
+    if (z == null || z < 0) { z = 0; }
     for (var i = 1; i <= 10; i++) {
       g = ((g + (fwd ? 1 : -1)) % 10 + 10) % 10;
       z = ((z + (fwd ? 1 : -1)) % 12 + 12) % 12;
@@ -944,7 +975,31 @@
 
     var dayGanIdx = dayInfo.g;
 
-    var shensha = findShenSha(pillars, input.gender || '男');
+    /* 问真的结果表在四柱左边还有身宫、命宫、胎元三列。
+       这三列的十神、藏干、星运、自坐、旬空、纳音与四柱同一套算法；
+       神煞则把宫柱并进「被查柱」，锚点仍是四柱（年干 / 月支 / 年支 / 日支）。 */
+    var gongCols = [
+      hourUnknown ? null : { key: 'shen', label: '身宫', gz: shenGongOf(yearInfo.g, monthInfo.z, hz) },
+      hourUnknown ? null : { key: 'ming', label: '命宫', gz: mingGongOf(yearInfo.g, monthInfo.z, hz) },
+      { key: 'tai', label: '胎元', gz: taiYuanOf(monthInfo.g, monthInfo.z) }
+    ];
+    function buildGongCol(c) {
+      if (!c || !c.gz) { return null; }
+      var gi = GAN.indexOf(c.gz.gan), zi = zhiOfName(c.gz.zhi);
+      return {
+        key: c.key, label: c.label,
+        gan: c.gz.gan, zhi: c.gz.zhi, gz: c.gz.gz,
+        god: tenGod(dayGanIdx, gi),
+        cang: tenGodsOfZhi(dayGanIdx, zi),
+        xy: changShengOf(dayGanIdx, zi),
+        zz: changShengOf(gi, zi),
+        xk: xunKongOf(gi, zi).text,
+        ny: c.gz.nayin || nayinOf(gi, zi)
+      };
+    }
+    var gongColumns = [buildGongCol(gongCols[0]), buildGongCol(gongCols[1]), buildGongCol(gongCols[2])];
+
+    var shensha = findShenSha(pillars, input.gender || '男', gongCols);
     var dayun = daYun({
       year: yearInfo, month: monthInfo,
       dayGanIdx: dayGanIdx, gender: input.gender || '男',
@@ -991,7 +1046,9 @@
       wangShuai: wangShuaiOf(GAN_WX[dayGanIdx], ZHI_WX[monthInfo.z]),
       strength: strengthOf(dayGanIdx, pillars),
       geju: gejuOf(dayGanIdx, monthInfo.z),
-      wxPower: wxPowerOf(pillars)
+      wxPower: wxPowerOf(pillars),
+      /* 身宫 / 命宫 / 胎元 三列的整套取值，顺序与问真表格一致 */
+      columns: gongColumns
     };
 
     return {
@@ -1021,7 +1078,7 @@
     paipan: paipan,
     GAN: GAN, ZHI: ZHI, GAN_WX: GAN_WX, ZHI_WX: ZHI_WX,
     ZHI_CANG: ZHI_CANG, CITY_LON: CITY_LON,
-    tenGod: tenGod, tenGodsOfZhi: tenGodsOfZhi,
+    tenGod: tenGod, tenGodsOfZhi: tenGodsOfZhi, findShenSha: findShenSha,
     SHENSHA_DESC: SHENSHA_DESC, SHENSHA_INFO: SHENSHA_INFO, SHENGXIAO: SHENGXIAO,
     nayinOf: nayinOf, taiYuanOf: taiYuanOf, mingGongOf: mingGongOf,
     shenGongOf: shenGongOf, xunKongOf: xunKongOf,
