@@ -51,6 +51,39 @@
     if (document.body && document.body.style.overflow === 'hidden') {
       document.body.style.overflow = '';
     }
+
+    restoreScroll();
+  }
+
+  /* ---------- 保住横向滚动位置 ----------
+     登录云端后，app.js 每 30 秒拉一次通知并刷未读角标，登录状态下侧栏项
+     还会增删，这些都会让横滑条里的节点变化。浏览器在容器内容变化时会
+     重新计算可滚动范围，scrollLeft 常被拉回 0 —— 表现就是手指往右划，
+     条子立刻弹回左边，看着像"划不动 + 左右抖"。退出登录后轮询停了，
+     这个现象自然消失，所以用户会觉得"登录就坏、退出就好"。
+     这里不跟 app.js 较劲，只把用户划到的位置记住，容器一换就放回去。 */
+  var SAVED_LEFT = 0;
+  var lastBar = null;
+
+  function currentBar() { return document.querySelector('.sidebar'); }
+
+  function saveScroll() {
+    var b = currentBar();
+    if (b) { SAVED_LEFT = b.scrollLeft || 0; }
+  }
+
+  function restoreScroll() {
+    var b = currentBar();
+    if (!b) { return; }
+    if (b === lastBar) { return; }          /* 还是同一根，别来回折腾 */
+    lastBar = b;
+    if (SAVED_LEFT > 0) {
+      try { b.scrollLeft = SAVED_LEFT; } catch (e) {}
+      /* 有些手机首帧宽度还没算好，下一帧再补一次 */
+      requestAnimationFrame(function () {
+        try { if (b.isConnected) { b.scrollLeft = SAVED_LEFT; } } catch (e) {}
+      });
+    }
   }
 
   var timer = 0;
@@ -65,6 +98,10 @@
   function start() {
     ensureStyle();
     clean();
+    /* scroll 不冒泡，必须用捕获阶段才收得到横滑条自己的滚动 */
+    try {
+      document.addEventListener('scroll', saveScroll, { passive: true, capture: true });
+    } catch (e) {}
     try {
       new MutationObserver(tick).observe(document.body, {
         childList: true, subtree: true,
