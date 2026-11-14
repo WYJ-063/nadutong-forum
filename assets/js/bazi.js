@@ -259,17 +259,28 @@
       + '  #ndt-bazi .bz-row .w-y{width:62px}'
       + '  #ndt-bazi .bz-select select{flex:1 1 0;min-width:0}'
       + '  #ndt-bazi .bz-tabs{margin-left:0}'
-      + '  #ndt-bazi .bz-tbl{min-width:calc(46px + var(--bz-cols,6) * 90px)}'
-      + '  #ndt-bazi .bz-tbl tbody th{width:46px;font-size:11.5px;padding-right:6px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl thead th.first{width:46px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:9px 5px}'
-      + '  #ndt-bazi .bz-tbl .gr{font-size:23px;letter-spacing:1px}'
-      + '  #ndt-bazi .bz-tbl .cg,#ndt-bazi .bz-tbl .ssc{font-size:12px}'
-      + '  #ndt-bazi .bz-tbl .ln{line-height:1.85}'
-      + '  #ndt-bazi .bz-tbl .ssc{line-height:2.05}'
-      + '  #ndt-bazi .bz-tbl tr[data-r="ss"] td{padding-top:14px;padding-bottom:14px}'
-      + '  #ndt-bazi .bz-tbl-hint{display:block;font-size:11px;color:var(--bz-mut);'
-      + 'text-align:center;letter-spacing:1px;padding:8px 0 2px}'
+      /* 手机端表格：压缩到屏宽以内，8 列全部看得见，不横滑也不拆成长卡 */
+      + '  #ndt-bazi .bz-tbl-wrap{overflow:visible}'
+      + '  #ndt-bazi .bz-tbl{width:100%;min-width:0;table-layout:fixed}'
+      + '  #ndt-bazi .bz-tbl thead th.first,#ndt-bazi .bz-tbl tbody th{width:28px}'
+      + '  #ndt-bazi .bz-tbl thead th,#ndt-bazi .bz-tbl tbody td{'
+      + 'width:calc((100% - 28px) / var(--bz-cols,6))}'
+      + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:6px 2px}'
+      + '  #ndt-bazi .bz-tbl td{font-size:10.5px}'
+      + '  #ndt-bazi .bz-tbl tbody th,#ndt-bazi .bz-tbl thead th{font-size:10.5px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl tbody th{padding-right:2px}'
+      + '  #ndt-bazi .bz-tbl .gr{font-size:16px;letter-spacing:0;line-height:1.25}'
+      + '  #ndt-bazi .bz-tbl .cg,#ndt-bazi .bz-tbl .ssc{font-size:9.5px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl .ln{line-height:1.5}'
+      + '  #ndt-bazi .bz-tbl .ssc{line-height:1.6}'
+      + '  #ndt-bazi .bz-tbl .unk{font-size:13px;letter-spacing:1px}'
+      + '  #ndt-bazi .bz-tbl tr[data-r="ss"] td{padding-top:9px;padding-bottom:9px}'
+      + '  #ndt-bazi .bz-tbl-hint{display:none}'
+      /* 大运也改成换行排，不要屏内横滑 */
+      + '  #ndt-bazi .bz-dy{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));'
+      + 'gap:8px;overflow:visible;padding-bottom:0}'
+      + '  #ndt-bazi .bz-dy-cell{min-width:0}'
+      + '  #ndt-bazi .bz-modal-card{margin:8vh 10px 0;max-width:none;padding:14px 15px 16px}'
       + '  #ndt-bazi .bz-banner{padding:11px 12px;gap:9px}'
       + '  #ndt-bazi .bz-banner .bn b{font-size:15px;letter-spacing:1px}'
       + '  #ndt-bazi .bz-banner .bd{font-size:11.5px;line-height:1.8}'
@@ -650,7 +661,17 @@
   function addrInit() {
     var R = regionData();
     var ps = $('#bz-prov');
-    if (!ps || !R.length) { return; }
+    if (!ps) { return; }
+    if (!R.length) {
+      /* 地区文件没加载时给出可读的提示，而不是一个空下拉 */
+      ps.innerHTML = '<option value="0">地区数据未加载</option>';
+      var csX = $('#bz-city'), dsX = $('#bz-dist');
+      if (csX) { csX.innerHTML = '<option value="0">—</option>'; }
+      if (dsX) { dsX.innerHTML = '<option value="0">—</option>'; }
+      var noteX = $('#bz-tst-note');
+      if (noteX) { noteX.textContent = 'assets/js/bazi-region.js 未加载，出生地暂不可选。'; }
+      return;
+    }
     ps.innerHTML = R.map(function (p, i) { return '<option value="' + i + '">' + esc(p.n) + '</option>'; }).join('');
     var last = loadLast() || {};
     var a = last.addr;
@@ -1140,7 +1161,7 @@
       + '    <div class="bz-field"><label>月</label><input id="bz-hh-m" type="number" min="1" max="12" value="6"></div>'
       + '    <div class="bz-field"><label>日</label><input id="bz-hh-d" type="number" min="1" max="31" value="15"></div>'
       + '    <div class="bz-field"><label>时辰（北京时间）</label><input id="bz-hh-h" type="time" value="12:00"></div>'
-      + '    <div class="bz-field" style="flex:1 1 100%"><label>对方出生地</label>'
+      + '    <div class="bz-field" style="grid-column:1 / -1"><label>对方出生地</label>'
       + '      <div class="bz-select" style="flex:1 1 auto">'
       + '        <select id="bz-hh-prov" aria-label="省"></select>'
       + '        <select id="bz-hh-city" aria-label="市"></select>'
