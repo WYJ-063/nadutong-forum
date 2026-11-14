@@ -21,6 +21,34 @@
 (function(){
   "use strict";
 
+  /* ---------- 本轮会话只播一次 ----------
+     以前每次页面加载都会重新铺这层全屏动画，而且固定播 2.5 秒，
+     于是"首页一次、进内网又一次"，来来回回地等。
+     这里用 sessionStorage 记一次：同一轮会话里播过就不再播。
+     · 切后台、来回切板块 —— 不清，继续用（正是用户想要的行为）
+     · 彻底关掉标签页 / 杀掉 App —— 清掉，下次冷启动重新播 */
+  var SEEN_KEY = "ndt.preloaderSeen";
+  var seen = false;
+  try { seen = sessionStorage.getItem(SEEN_KEY) === "1"; } catch(e) {}
+
+  if(seen){
+    /* 不播了，但基础遮罩 #page-preloader 是写在 index.html 里的白底 logo，
+       不压掉的话每次加载都会闪一下再消失，比不播还难看。这里用 head 里的
+       一条样式直接压掉，早于 body 渲染生效，连闪都不会有。 */
+    try{
+      var kill = document.createElement("style");
+      kill.textContent = "#page-preloader{display:none !important;}";
+      (document.head || document.documentElement).appendChild(kill);
+    }catch(e){}
+    /* 顺手清掉上一轮可能还挂着的 veil */
+    try{
+      var old = document.getElementById("pl-veil");
+      if(old && old.parentNode) old.parentNode.removeChild(old);
+    }catch(e){}
+    return;
+  }
+  try { sessionStorage.setItem(SEEN_KEY, "1"); } catch(e) {}
+
   /* 表面站路由白名单。其余一律按内网处理：
      内网路由很多（论坛/档案/关系网/OA/占卜…），将来加新的也不会漏判；
      表面站就这么几页，白名单更稳妥。 */
