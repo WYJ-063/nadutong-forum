@@ -741,12 +741,15 @@
   var WX_KE    = { '木': '土', '土': '水', '水': '火', '火': '金', '金': '木' };
 
   /* 旺相休囚死：看日主在月令的状态 */
-  function wangShuaiOf(dayWx, monthWx) {
-    if (dayWx === monthWx) { return { state: '旺', note: '日主与月令同气，得令而旺。' }; }
-    if (WX_SHENG[monthWx] === dayWx) { return { state: '相', note: '月令生扶日主，气机畅旺，次旺。' }; }
-    if (WX_SHENG[dayWx] === monthWx) { return { state: '休', note: '日主之气泄于月令，力量渐退。' }; }
-    if (WX_KE[dayWx] === monthWx) { return { state: '囚', note: '日主去克月令，耗力而受制。' }; }
-    if (WX_KE[monthWx] === dayWx) { return { state: '死', note: '月令克伐日主，最不得力。' }; }
+  /* 月令旺衰：旺相休囚死（以日主五行对月令五行）。
+     说明句按这五态的定义组织：得令者旺、我生者相、生我者休、克我者囚、我克者死。 */
+  function wangShuaiOf(dayWx, monthWx, dayGan, monthZhi) {
+    var who = (dayGan ? '日主' + dayGan + dayWx : '日主' + dayWx) + (monthZhi ? '生于' + monthZhi + '月' : '');
+    if (dayWx === monthWx) { return { state: '旺', note: '得令（旺）。' + who + '，与月令同气，得令而旺，最为得力。' }; }
+    if (WX_SHENG[monthWx] === dayWx) { return { state: '相', note: '得令（相）。' + who + '，' + monthWx + '当令生扶日主，日主受生而相，气机畅旺。' }; }
+    if (WX_SHENG[dayWx] === monthWx) { return { state: '休', note: '失令（休）。' + who + '，' + monthWx + '当令，日主之气泄于月令，力量渐退。' }; }
+    if (WX_KE[dayWx] === monthWx) { return { state: '囚', note: '失令（囚）。' + who + '，' + monthWx + '旺' + dayWx + '弱，处于休囚之地，耗力较大。' }; }
+    if (WX_KE[monthWx] === dayWx) { return { state: '死', note: '失令（死）。' + who + '，' + monthWx + '旺' + dayWx + '绝，月令克伐日主，最不得力。' }; }
     return { state: '平', note: '' };
   }
 
@@ -796,7 +799,14 @@
       }
     }
     var ratio = all ? ally / all : 0;
-    var level = ratio >= 0.58 ? '偏强' : (ratio <= 0.42 ? '偏弱' : '中和');
+    /* 判强弱要把月令放进来：月令同我或生我（得令）时，同党过半即成偏强；
+       月令泄我、克我（失令）时门槛抬高——子平以月令为纲，同党不到六成不给偏强，
+       同党到 52% 仍按偏弱算 */
+    var mwx = ZHI_WX[zhiOfName(pillars.month.zhi)];
+    var deLing = (dayWx === mwx) || (WX_SHENG[mwx] === dayWx);
+    var hi = deLing ? 0.50 : 0.60;
+    var lo = deLing ? 0.38 : 0.52;
+    var level = ratio >= hi ? '偏强' : (ratio <= lo ? '偏弱' : '中和');
     return { ratio: Math.round(ratio * 100), level: level };
   }
 
@@ -1043,7 +1053,7 @@
         day: changShengOf(dayGanIdx, dayInfo.z),
         hour: hourUnknown ? '' : changShengOf(dayGanIdx, hourInfo.z)
       },
-      wangShuai: wangShuaiOf(GAN_WX[dayGanIdx], ZHI_WX[monthInfo.z]),
+      wangShuai: wangShuaiOf(GAN_WX[dayGanIdx], ZHI_WX[monthInfo.z], GAN[dayGanIdx], ZHI[monthInfo.z]),
       strength: strengthOf(dayGanIdx, pillars),
       geju: gejuOf(dayGanIdx, monthInfo.z),
       wxPower: wxPowerOf(pillars),

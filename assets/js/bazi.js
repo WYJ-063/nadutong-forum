@@ -136,6 +136,27 @@
       + 'padding:6px 10px;font-size:13px;cursor:pointer;transition:background .15s}'
       + '#ndt-bazi .bz-ss-tag:hover{background:#F5EDDD}'
       + '#ndt-bazi .bz-ss-tag .p{font-size:11px;opacity:.7;margin-left:4px}'
+      + '#ndt-bazi .ss-hit{cursor:pointer;border-bottom:1px dotted #C9B78E}'
+      + '#ndt-bazi .ss-hit:hover{color:#B98B3E}'
+      + '#ndt-bazi .bz-modal{position:fixed;inset:0;z-index:12000;display:none}'
+      + '#ndt-bazi .bz-modal.on{display:block}'
+      + '#ndt-bazi .bz-modal-mask{position:absolute;inset:0;background:rgba(12,16,28,.5)}'
+      + '#ndt-bazi .bz-modal-card{position:relative;margin:14vh auto 0;max-width:600px;max-height:70vh;'
+      + 'overflow:auto;background:#FBF7EF;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);'
+      + 'padding:16px 20px 18px}'
+      + '#ndt-bazi .bz-modal-hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;'
+      + 'border-bottom:1px solid #EAE6DC;padding-bottom:8px;margin-bottom:10px}'
+      + '#ndt-bazi .bz-modal-hd b{font-size:16px;color:#8A6A2E}'
+      + '#ndt-bazi .bz-modal-hd .pos{font-size:12px;color:#9AA0B4}'
+      + '#ndt-bazi .bz-modal-x{margin-left:auto;border:0;background:none;font-size:20px;line-height:1;'
+      + 'cursor:pointer;color:#9AA0B4;padding:0 2px}'
+      + '#ndt-bazi .bz-modal-body{font-size:13px;line-height:1.85;color:#5A6178}'
+      + '#ndt-bazi .bz-modal-body .how{font-size:12px;color:#8A7A5E;background:#F3EADA;border-radius:6px;'
+      + 'padding:6px 8px;margin:0 0 8px;line-height:1.7;word-break:break-word}'
+      + '#ndt-bazi .bz-modal-body .how em{font-style:normal;color:#B98B3E;font-weight:600;margin-right:6px}'
+      + '#ndt-bazi .bz-modal-body .mean{word-break:break-word}'
+      + '#ndt-bazi .bz-modal-body .src{font-size:11px;color:#9AA0B4;margin-top:10px;padding-top:6px;'
+      + 'border-top:1px dashed #EDE8DC}'
       + '#ndt-bazi .bz-ss-why{margin-top:10px;display:none;font-size:13px;line-height:1.8;color:#5A6178;'
       + 'background:#FBF7EF;border-left:3px solid #B98B3E;border-radius:0 8px 8px 0;padding:10px 12px}'
       + '#ndt-bazi .bz-ss-why.on{display:block}'
@@ -273,12 +294,24 @@
       + '#ndt-bazi .bz-tbl .unk{color:var(--bz-mut)}'
       + '#ndt-bazi .bz-ss-tag{border-color:var(--bz-line);background:var(--bz-bg2);color:var(--bz-ink2)}'
       + '#ndt-bazi .bz-ss-tag:hover{background:var(--bz-input)}'
+      + '#ndt-bazi .ss-hit{border-bottom-color:var(--bz-line)}'
+      + '#ndt-bazi .ss-hit:hover{color:var(--bz-hi)}'
+      + '#ndt-bazi .bz-modal-mask{background:rgba(6,8,16,.62)}'
+      + '#ndt-bazi .bz-modal-card{background:var(--bz-bg);color:var(--bz-ink2);border:1px solid var(--bz-line)}'
+      + '#ndt-bazi .bz-modal-hd{border-bottom-color:var(--bz-line2)}'
+      + '#ndt-bazi .bz-modal-hd b{color:var(--bz-hi)}'
+      + '#ndt-bazi .bz-modal-hd .pos,#ndt-bazi .bz-modal-x{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-modal-body{color:var(--bz-ink2)}'
+      + '#ndt-bazi .bz-modal-body .how{background:var(--bz-input);color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-modal-body .src{border-top-color:var(--bz-line2);color:var(--bz-mut)}'
       + '#ndt-bazi .bz-ss-why{background:var(--bz-bg2);border-left-color:var(--bz-acc);color:var(--bz-ink2)}'
       + '#ndt-bazi .bz-ss-why .how{background:var(--bz-input);color:var(--bz-mut)}'
       + '#ndt-bazi .bz-ss-why .hd b{color:var(--bz-hi)}'
       + '#ndt-bazi .bz-ss-why .src{border-top-color:var(--bz-line2);color:var(--bz-mut)}'
       + '#ndt-bazi .bz-dt-row{border-bottom-color:var(--bz-line2)}'
       + '#ndt-bazi .bz-dt-row .k,#ndt-bazi .bz-dt-row .n,#ndt-bazi .bz-dt-sec{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-dt-why{margin:8px 0 0;padding:9px 11px;border-radius:8px;background:var(--bz-input);'
+      + 'font-size:12px;line-height:1.95;color:var(--bz-mut)}'
       + '#ndt-bazi .bz-dt-row .v{color:var(--bz-ink)}'
       + '#ndt-bazi .bz-wx-row .w,#ndt-bazi .bz-hh-k{color:var(--bz-ink)}'
       + '#ndt-bazi .bz-wx-row .bar{background:var(--bz-bg2)}'
@@ -555,9 +588,13 @@
     var ssList = r.shensha || [];
     var gong = e.columns || [];
 
+    /* 神煞名点一下弹窗看释义，所以每个名字都要带上 data-ss（名）与 data-pos（哪一柱） */
     function ssOf(list, pillarName) {
       return list.filter(function (s) { return s.pillar === pillarName; })
-        .map(function (s) { return '<span class="ln">' + esc(s.name) + '</span>'; }).join('');
+        .map(function (s) {
+          return '<span class="ln ss-hit" data-ss="' + esc(s.name) + '" data-pos="' + esc(pillarName) + '">'
+            + esc(s.name) + '</span>';
+        }).join('');
     }
     /* 问真结果表把「藏干」和「副星」拆成上下两行：
        藏干行只列地支所藏的天干（带五行色），副星行是这些藏干对日主的十神。 */
@@ -709,22 +746,51 @@
     return esc(kept.join('\n')).replace(/\n/g, '<br>');
   }
 
-  function shenshaHtml(r) {
-    if (!r.shensha.length) { return '<div class="bz-tip">此盘未见常用神煞。</div>'; }
-    var tags = r.shensha.map(function (s, i) {
-      return '<span class="bz-ss-tag" data-i="' + i + '">' + esc(s.name) + '<span class="p">' + esc(s.pillar + '柱 ' + s.zhi) + '</span></span>';
-    }).join('');
-    var whys = r.shensha.map(function (s, i) {
-      return '<div class="bz-ss-why" data-i="' + i + '">'
-        + '<div class="hd"><b>' + esc(s.name) + '</b><span class="pos">' + esc(s.pillar + '柱 · ' + s.zhi) + '</span></div>'
-        + (s.how ? '<div class="how"><em>古诀查法</em>' + srcText(s.how) + '</div>' : '')
-        + '<div class="mean">' + srcText(s.desc || '') + '</div>'
-        + '<div class="src">出处：问真八字官网（pcbz.iwzwh.com）神煞条目原文</div>'
-        + '</div>';
-    }).join('');
-    return '<div class="bz-ss">' + tags + '</div><div id="bz-ss-why">' + whys + '</div>'
-      + '<div class="bz-tip" style="margin-top:10px">共命中 ' + r.shensha.length + ' 条，点任意一条看古诀查法与原文详解。'
-      + '释义与查法照抄问真八字官网（pcbz.iwzwh.com）神煞条目原文。</div>';
+  /* 神煞解释改成点表格里的名字弹窗，原来那一整块「神煞（点开看解释）」卡片不再出现 */
+  function ssTipHtml(r) {
+    if (!r.shensha.length) { return ''; }
+    return '<div class="bz-tip" style="margin-top:6px">神煞名点一下看古诀查法与原文释义，本盘共命中 '
+      + r.shensha.length + ' 条。释义与查法照抄问真八字官网（pcbz.iwzwh.com）神煞条目原文。</div>';
+  }
+
+  function ssModalHtml() {
+    return '<div class="bz-modal" id="bz-ss-modal" aria-hidden="true">'
+      + '  <div class="bz-modal-mask" data-ss-close="1"></div>'
+      + '  <div class="bz-modal-card" role="dialog" aria-modal="true" aria-labelledby="bz-ss-name">'
+      + '    <div class="bz-modal-hd"><b id="bz-ss-name">神煞</b><span class="pos" id="bz-ss-pos"></span>'
+      + '      <button class="bz-modal-x" data-ss-close="1" aria-label="关闭">×</button></div>'
+      + '    <div class="bz-modal-body" id="bz-ss-body"></div>'
+      + '  </div>'
+      + '</div>';
+  }
+
+  function openSs(name, pos) {
+    var info = (BaziCore.SHENSHA_INFO || {})[name] || {};
+    var m = document.getElementById('bz-ss-modal');
+    if (!m) { return; }
+    var nm = document.getElementById('bz-ss-name');
+    var ps = document.getElementById('bz-ss-pos');
+    var bd = document.getElementById('bz-ss-body');
+    if (nm) { nm.textContent = name || '神煞'; }
+    if (ps) {
+      var posTxt = pos || '';
+      if (posTxt === '年' || posTxt === '月' || posTxt === '日' || posTxt === '时') { posTxt += '柱'; }
+      ps.textContent = posTxt;
+    }
+    var h = '';
+    if (info.how) { h += '<div class="how"><em>古诀查法</em>' + srcText(info.how) + '</div>'; }
+    h += '<div class="mean">' + (info.desc ? srcText(info.desc) : '<span>该神煞暂无释义。</span>') + '</div>';
+    h += '<div class="src">出处：问真八字官网（pcbz.iwzwh.com）神煞条目原文</div>';
+    if (bd) { bd.innerHTML = h; }
+    m.classList.add('on');
+    m.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSs() {
+    var m = document.getElementById('bz-ss-modal');
+    if (!m) { return; }
+    m.classList.remove('on');
+    m.setAttribute('aria-hidden', 'true');
   }
 
   /* 详尽盘：纳音 / 胎元 / 命宫 / 身宫 / 旬空 / 旺衰 / 格局 / 五行力量 */
@@ -767,22 +833,61 @@
       + '<div class="bz-wx">' + bars + '</div>'
       + '<div class="bz-dt-row"><span class="k">日主强弱</span>'
       + '<span class="v" style="color:' + ssTone + '"><b>' + esc(s.level) + '</b></span>'
-      + '<span class="n">同党占 ' + s.ratio + '%（比劫＋印为同党）</span></div>';
+      + '<span class="n">同党占 ' + s.ratio + '%（比劫＋印为同党）</span></div>'
+      + '<div class="bz-dt-why">综合判定：' + esc(strengthWhy(r)) + '</div>';
+  }
+
+  /* 日主强弱的判定依据：把「月令 vs 同党」这层关系写成一句可核对的说明，
+     省得 50% 同党却判偏弱看着像自相矛盾 */
+  function strengthWhy(r) {
+    var e = r.extra || {};
+    var ws = e.wangShuai || {};
+    var s = e.strength || {};
+    var dayGan = r.pillars.day.gan;
+    var monthZhi = r.pillars.month.zhi;
+    var dwx = BaziCore.GAN_WX[BaziCore.GAN.indexOf(dayGan)];
+    var mwx = BaziCore.ZHI_WX[BaziCore.ZHI.indexOf(monthZhi)];
+    var deLing = (ws.state === '旺' || ws.state === '相');
+    var lv = String(s.level || '');
+    var head = '日主' + dayGan + '（' + dwx + '）生于' + monthZhi + '月，' + mwx + '当令、日主' + (deLing ? '得令' : '失令');
+    if (!deLing) { head += '（月令' + mwx + '旺' + dwx + '弱）'; }
+    var tail;
+    if (lv === '中和') {
+      tail = '同党（比劫＋印）占 ' + s.ratio + '%，与月令的耗泄大致相当，故判中和。';
+    } else if (deLing) {
+      tail = '同党（比劫＋印）占 ' + s.ratio + '%，又得月令生扶，故判' + lv + '。';
+    } else if (lv.indexOf('强') >= 0) {
+      tail = '同党（比劫＋印）占 ' + s.ratio + '%，已过六成、比劫与印成势，虽失月令仍判' + lv + '。';
+    } else {
+      tail = '同党（比劫＋印）占 ' + s.ratio + '%，但月令权重最大，同党之力抵不过月令，故判' + lv + '。';
+    }
+    return head + '；' + tail;
   }
 
   function dayunHtml(r) {
+    /* 起运：startAge 是周岁小数（天数÷3 得来的），拆成 X 年 Y 个月；
+       虚岁＝周岁＋１，问真大运的岁数标签用的就是虚岁 */
+    var sa = r.dayun.startAge;
+    var sy = Math.floor(sa), sm = Math.round((sa - sy) * 12);
+    if (sm >= 12) { sy += 1; sm -= 12; }
+    var zhou = Math.round(sa), xu = zhou + 1;
+    var d0 = new Date(r.input.year, r.input.month - 1, r.input.day);
+    var d1 = new Date(d0.getFullYear(), d0.getMonth() + sm, d0.getDate());
+    d1.setFullYear(d1.getFullYear() + sy);
+    var jiaoDate = d1.getFullYear() + '年' + (d1.getMonth() + 1) + '月' + d1.getDate() + '日';
     var nowAge = new Date().getFullYear() - r.input.year;
     var cells = r.dayun.list.map(function (d) {
       var isNow = nowAge >= d.startAge && nowAge < d.startAge + 10;
       return '<div class="bz-dy-cell' + (isNow ? ' now' : '') + '">'
-        + '<div class="a">' + d.startAge + '岁起</div>'
+        + '<div class="a">' + (d.startAge + 1) + '岁（虚）</div>'
         + '<div class="g">' + esc(d.name) + '</div>'
         + '<div class="t">' + esc(d.tenGod) + '</div>'
         + '</div>';
     }).join('');
     var dir = r.dayun.forward ? '顺排' : '逆排';
     return '<div class="bz-tip" style="margin-bottom:10px">'
-      + dir + ' · 起运约 ' + r.dayun.startAge.toFixed(1) + ' 岁（' + Math.round(r.dayun.startAge) + ' 岁前后交运）'
+      + dir + ' · 出生后 ' + sy + '年' + sm + '个月 起运（约 ' + zhou + ' 周岁，' + xu + ' 虚岁起运）· 首运交于 ' + jiaoDate
+      + '<br>大运年龄按虚岁标（虚岁＝周岁＋１），与问真八字一致。'
       + '</div><div class="bz-dy">' + cells + '</div>';
   }
 
@@ -841,10 +946,10 @@
       + (tstLine ? '<br>' + tstLine : '')
       + (r.jieqi.jie ? '<br>生于 <b>' + esc(r.jieqi.jie) + '</b> 之后，月令为 <b>' + esc(r.pillars.month.zhi) + '</b>' : '')
       + (unk ? '<br>时辰未知，时柱与涉及时支的神煞不排；命宫、身宫须以时支推，此处不给。' : '')
+      + ssTipHtml(r)
       + '  </div>'
       + '</div>'
       + '<div class="bz-card">' + detailHtml(r) + '</div>'
-      + '<div class="bz-card"><h3>神煞（点开看解释）</h3>' + shenshaHtml(r) + '</div>'
       + '<div class="bz-card"><h3>大运</h3>' + dayunHtml(r) + '</div>'
       + '<div class="bz-card"><h3>近年流年</h3>' + liunianHtml(r) + '</div>'
       + '<div class="bz-card"><h3>合婚测算</h3>'
@@ -864,7 +969,8 @@
       + '  <div id="bz-hh-out"></div>'
       + '</div>'
       + '<div class="bz-card"><h3>流月 · ' + new Date().getFullYear() + ' 年</h3>' + liuyueHtml(r) + '</div>'
-      + '<div class="bz-card"><h3>择日 · 建除十二神</h3>' + zeriHtml(r) + '</div>';
+      + '<div class="bz-card"><h3>择日 · 建除十二神</h3>' + zeriHtml(r) + '</div>'
+      + ssModalHtml();
   }
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -1222,17 +1328,21 @@
       });
     }
 
-    /* 神煞点开解释 */
-    var whyBox = $('#bz-ss-why');
-    $$('.bz-ss-tag').forEach(function (tag) {
-      tag.addEventListener('click', function () {
-        var i = tag.getAttribute('data-i');
-        $$('.bz-ss-why').forEach(function (b) { b.classList.remove('on'); });
-        $$('.bz-ss-tag').forEach(function (t) { t.classList.remove('on'); });
-        var target = $('.bz-ss-why[data-i="' + i + '"]');
-        if (target) { target.classList.add('on'); tag.classList.add('on'); }
+    /* 神煞名点击弹窗：委托挂在 #bz-out 上，胎命身开关重画表格也不会丢 */
+    var outBox = $('#bz-out');
+    if (outBox && !outBox.getAttribute('data-ss-bound')) {
+      outBox.setAttribute('data-ss-bound', '1');
+      outBox.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) { return; }
+        var hit = t.closest('.ss-hit');
+        if (hit) { openSs(hit.getAttribute('data-ss'), hit.getAttribute('data-pos')); return; }
+        if (t.closest('[data-ss-close]')) { closeSs(); }
       });
-    });
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' || ev.keyCode === 27) { closeSs(); }
+      });
+    }
 
     var hhGo = $('#bz-hh-go');
     if (hhGo) { hhGo.addEventListener('click', function () { doHehun(r); }); }
