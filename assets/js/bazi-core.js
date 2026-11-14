@@ -24,7 +24,7 @@
     ['甲','丙','戊'],       /* 寅 */
     ['乙'],                 /* 卯 */
     ['戊','乙','癸'],       /* 辰 */
-    ['丙','戊','庚'],       /* 巳 */
+    ['丙','庚','戊'],       /* 巳 */
     ['丁','己'],            /* 午 */
     ['己','丁','乙'],       /* 未 */
     ['庚','壬','戊'],       /* 申 */
@@ -478,12 +478,16 @@
   /* 找出四柱地支里命中的神煞，返回 [{name, pillar, zhi, desc, how, tip, chafa}] */
   function findShenSha(pillars, gender) {
     var out = [];
-    var G = [pillars.year.gan, pillars.month.gan, pillars.day.gan, pillars.hour.gan];
-    var Z = [pillars.year.zhi, pillars.month.zhi, pillars.day.zhi, pillars.hour.zhi];
+    /* 时辰未知时时柱留空，用不可命中的占位符顶上，
+       避免空串和任何取值比对成功，把「时」相关的神煞误报出来。 */
+    var hourG = pillars.hour.gan || '\u0000';
+    var hourZ = pillars.hour.zhi || '\u0000';
+    var G = [pillars.year.gan, pillars.month.gan, pillars.day.gan, hourG];
+    var Z = [pillars.year.zhi, pillars.month.zhi, pillars.day.zhi, hourZ];
     var PN = ['年', '月', '日', '时'];
     var COL = [7, 8, 9, 10];
     var dayName = pillars.day.gan + pillars.day.zhi;
-    var hourName = pillars.hour.gan + pillars.hour.zhi;
+    var hourName = pillars.hour.gan && pillars.hour.zhi ? (pillars.hour.gan + pillars.hour.zhi) : '\u0000';
     var nyEl = '';
     var ny = nayinOf(GAN.indexOf(pillars.year.gan), zhiOfName(pillars.year.zhi));
     if (ny && ny.wx) { nyEl = ny.wx; }
@@ -583,6 +587,8 @@
           else if (code === '17') { cols = [9]; }
           if (r.n === '学堂' || r.n === '词馆') { cols = [8, 9, 10]; }
           if (r.n === '童子煞') { cols = [9, 10]; }
+          /* 血刃原文是「以月支查四柱干支」，四柱都算，不排除月柱本身 */
+          if (r.n === '血刃') { cols = null; }
           hitChar(r.n, cl, false, cols);
         }
       }
@@ -620,6 +626,14 @@
     if (dropNames.length) {
       uniq = uniq.filter(function (s) { return dropNames.indexOf(s.name) < 0; });
     }
+    /* 问真的排法是按名称字数从多到少（四字在前、三字次之、两字在后），
+       同字数里「空亡」固定排最前，其余保持判定先后 */
+    uniq.sort(function (a, b) {
+      var d = b.name.length - a.name.length;
+      if (d) { return d; }
+      var ak = (a.name === '空亡') ? 1 : 0, bk = (b.name === '空亡') ? 1 : 0;
+      return bk - ak;
+    });
     return uniq;
   }
 
@@ -659,26 +673,17 @@
   }
 
   /* 命宫：十四法。月支序(寅=1)+时支序(子=1)，和不满十四则相减，过十四则用二十六减 */
+  /* 命宫：月支序 + 时支序，以 17 逆推。按问真的结果校准（十例逐一对齐），
+     天干用五虎遁（年干起寅） */
   function mingGongOf(yearG, monthZ, hourZ) {
-    var m = ((monthZ - 2 + 12) % 12) + 1;
-    var h = hourZ + 1;
-    var sum = m + h;
-    var seq = sum <= 14 ? 14 - sum : 26 - sum;
-    if (seq <= 0) { seq += 12; }
-    if (seq > 12) { seq -= 12; }
-    var z = (seq - 1) % 12;
+    var z = ((17 - monthZ - hourZ) % 12 + 12) % 12;
     var g = ganOfZhiInYear(yearG, z);
     return { gan: GAN[g], zhi: ZHI[z], gz: GAN[g] + ZHI[z], nayin: nayinOf(g, z) };
   }
 
-  /* 身宫：月支序+时支序，过十二则减十二 */
+  /* 身宫：月支序 + 时支序 + 1 */
   function shenGongOf(yearG, monthZ, hourZ) {
-    var m = ((monthZ - 2 + 12) % 12) + 1;
-    var h = hourZ + 1;
-    var seq = m + h;
-    if (seq > 12) { seq -= 12; }
-    if (seq <= 0) { seq += 12; }
-    var z = (seq - 1) % 12;
+    var z = ((monthZ + hourZ + 1) % 12 + 12) % 12;
     var g = ganOfZhiInYear(yearG, z);
     return { gan: GAN[g], zhi: ZHI[z], gz: GAN[g] + ZHI[z], nayin: nayinOf(g, z) };
   }
@@ -688,6 +693,20 @@
     var start = (dayZ - dayG + 10) % 12;
     var a = ZHI[start], b = ZHI[(start + 1) % 12];
     return { zhi: [a, b], text: a + b };
+  }
+
+  /* 十二长生：阳干顺行、阴干逆行。
+     甲长生亥、乙长生午、丙戊长生寅、丁己长生酉、庚长生巳、辛长生子、
+     壬长生申、癸长生卯。用于「星运」（日干对各柱地支）与「自坐」（本柱天干对本柱地支）。 */
+  var CS_NAME = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养'];
+  var CS_START = [11, 6, 2, 9, 2, 9, 5, 0, 8, 3];
+  function changShengOf(ganIdx, zhiIdx) {
+    if (ganIdx < 0 || zhiIdx < 0) { return ''; }
+    var start = CS_START[ganIdx];
+    var i = GAN_YINYANG[ganIdx]
+      ? (zhiIdx - start + 12) % 12
+      : (start - zhiIdx + 12) % 12;
+    return CS_NAME[i];
   }
 
   /* 五行相生/相克 */
@@ -709,8 +728,10 @@
     var acc = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 };
     var arr = [pillars.year, pillars.month, pillars.day, pillars.hour];
     for (var i = 0; i < 4; i++) {
-      acc[GAN_WX[GAN.indexOf(arr[i].gan)]] += 1;
-      var cz = ZHI_CANG[zhiOfName(arr[i].zhi)] || [];
+      var p = arr[i];
+      if (!p || !p.gan) { continue; }      /* 时辰未知时柱留空，跳过 */
+      acc[GAN_WX[GAN.indexOf(p.gan)]] += 1;
+      var cz = ZHI_CANG[zhiOfName(p.zhi)] || [];
       var w = [1, 0.6, 0.3];
       for (var j = 0; j < cz.length; j++) {
         acc[GAN_WX[GAN.indexOf(cz[j])]] += w[j] || 0.2;
@@ -731,12 +752,14 @@
     var ally = 0, all = 0;
     var arr = [pillars.year, pillars.month, pillars.day, pillars.hour];
     for (var i = 0; i < 4; i++) {
-      var gi = GAN.indexOf(arr[i].gan);
+      var p = arr[i];
+      if (!p || !p.gan) { continue; }      /* 时辰未知时柱留空，跳过 */
+      var gi = GAN.indexOf(p.gan);
       var gwx = GAN_WX[gi];
       var val = 1;
       all += val;
       if (gwx === dayWx || WX_SHENG[gwx] === dayWx) { ally += val; }
-      var cz = ZHI_CANG[zhiOfName(arr[i].zhi)] || [];
+      var cz = ZHI_CANG[zhiOfName(p.zhi)] || [];
       var w = [1, 0.6, 0.3];
       for (var j = 0; j < cz.length; j++) {
         var zwx = GAN_WX[GAN.indexOf(cz[j])];
@@ -879,8 +902,12 @@
     var y = input.year, m = input.month, d = input.day,
         hh = input.hour || 0, mi = input.minute || 0;
 
+    /* 时辰未知：只排年月日三柱，时柱留空。
+       主流做法是时柱不排、涉及「时」的神煞一并跳过，起运仍按当天 0 点近似。 */
+    var hourUnknown = !!input.hourUnknown;
+
     var tst = null;
-    if (input.useTrueSolar && input.lon) {
+    if (!hourUnknown && input.useTrueSolar && input.lon) {
       tst = trueSolarTime(y, m, d, hh, mi, input.lon);
       hh = tst.hh; mi = tst.mi;
       if (tst.dayShift) {
@@ -889,25 +916,31 @@
       }
     }
 
-    /* 晚子时（23:00 以后）按次日立日柱，这是主流排法 */
-    var dayOffset = hh >= 23 ? 1 : 0;
+    /* 晚子时（23:00 以后）：按问真的排法，日柱不换、仍取当日，
+       只有起时的日干按次日算（五鼠遁），所以时柱是「当日时支 + 次日日干」。
+       早子时（00:00-00:59）本就是当日，无需处理。 */
+    var dayOffset = 0;
 
-    var jd = toJD(y, m, d, hh, mi) - 8 / 24;     /* 北京时间 → UT 儒略日 */
+    var jd = toJD(y, m, d, hourUnknown ? 0 : hh, hourUnknown ? 0 : mi) - 8 / 24;
     var dayInfo = dayGanZhi(y, m, d, dayOffset);
     var yearInfo = yearGanZhi(jd);
     var monthInfo = monthGanZhi(jd);
-    var hz = hourZhiOf(hh, mi);
-    var hourInfo = hourGanZhi(dayInfo.g, hz);
+    var hz = hourUnknown ? -1 : hourZhiOf(hh, mi);
+    var hourBaseGan = dayInfo.g;
+    if (!hourUnknown && hh >= 23) { hourBaseGan = (dayInfo.g + 1) % 10; }
+    var hourInfo = hourUnknown ? null : hourGanZhi(hourBaseGan, hz);
 
     var pillars = {
       year:  { gan: GAN[yearInfo.g],  zhi: ZHI[yearInfo.z],  god: '' },
       month: { gan: GAN[monthInfo.g], zhi: ZHI[monthInfo.z], god: '' },
       day:   { gan: GAN[dayInfo.g],   zhi: ZHI[dayInfo.z],   god: '日主' },
-      hour:  { gan: GAN[hourInfo.g],  zhi: ZHI[hourInfo.z],  god: '' }
+      hour:  hourUnknown
+        ? { gan: '', zhi: '', god: '', unknown: true }
+        : { gan: GAN[hourInfo.g], zhi: ZHI[hourInfo.z], god: '' }
     };
     pillars.month.god = tenGod(dayInfo.g, monthInfo.g);
     pillars.year.god  = tenGod(dayInfo.g, yearInfo.g);
-    pillars.hour.god  = tenGod(dayInfo.g, hourInfo.g);
+    if (!hourUnknown) { pillars.hour.god = tenGod(dayInfo.g, hourInfo.g); }
 
     var dayGanIdx = dayInfo.g;
 
@@ -928,12 +961,33 @@
         year: nayinOf(yearInfo.g, yearInfo.z),
         month: nayinOf(monthInfo.g, monthInfo.z),
         day: nayinOf(dayInfo.g, dayInfo.z),
-        hour: nayinOf(hourInfo.g, hourInfo.z)
+        hour: hourUnknown ? null : nayinOf(hourInfo.g, hourInfo.z)
       },
       taiYuan: taiYuanOf(monthInfo.g, monthInfo.z),
-      mingGong: mingGongOf(yearInfo.g, monthInfo.z, hz),
-      shenGong: shenGongOf(yearInfo.g, monthInfo.z, hz),
+      mingGong: hourUnknown ? { name: '—', note: '时辰未知，命宫不排' } : mingGongOf(yearInfo.g, monthInfo.z, hz),
+      shenGong: hourUnknown ? { name: '—', note: '时辰未知，身宫不排' } : shenGongOf(yearInfo.g, monthInfo.z, hz),
       xunKong: xunKongOf(dayInfo.g, dayInfo.z),
+      /* 各柱自身的旬空（问真「空亡」行按柱各算各的） */
+      xunKongAll: {
+        year: xunKongOf(yearInfo.g, yearInfo.z).text,
+        month: xunKongOf(monthInfo.g, monthInfo.z).text,
+        day: xunKongOf(dayInfo.g, dayInfo.z).text,
+        hour: hourUnknown ? '' : xunKongOf(hourInfo.g, hourInfo.z).text
+      },
+      /* 自坐：本柱天干对本柱地支的十二长生 */
+      ziZuo: {
+        year: changShengOf(yearInfo.g, yearInfo.z),
+        month: changShengOf(monthInfo.g, monthInfo.z),
+        day: changShengOf(dayInfo.g, dayInfo.z),
+        hour: hourUnknown ? '' : changShengOf(hourInfo.g, hourInfo.z)
+      },
+      /* 星运：日干对各柱地支的十二长生 */
+      xingYun: {
+        year: changShengOf(dayGanIdx, yearInfo.z),
+        month: changShengOf(dayGanIdx, monthInfo.z),
+        day: changShengOf(dayGanIdx, dayInfo.z),
+        hour: hourUnknown ? '' : changShengOf(dayGanIdx, hourInfo.z)
+      },
       wangShuai: wangShuaiOf(GAN_WX[dayGanIdx], ZHI_WX[monthInfo.z]),
       strength: strengthOf(dayGanIdx, pillars),
       geju: gejuOf(dayGanIdx, monthInfo.z),
@@ -950,8 +1004,9 @@
         year: tenGodsOfZhi(dayGanIdx, zhiOfName(pillars.year.zhi)),
         month: tenGodsOfZhi(dayGanIdx, zhiOfName(pillars.month.zhi)),
         day: tenGodsOfZhi(dayGanIdx, zhiOfName(pillars.day.zhi)),
-        hour: tenGodsOfZhi(dayGanIdx, zhiOfName(pillars.hour.zhi))
+        hour: hourUnknown ? [] : tenGodsOfZhi(dayGanIdx, zhiOfName(pillars.hour.zhi))
       },
+      hourUnknown: hourUnknown,
       shensha: shensha,
       dayun: dayun,
       liunian: liunian,
@@ -971,6 +1026,7 @@
     nayinOf: nayinOf, taiYuanOf: taiYuanOf, mingGongOf: mingGongOf,
     shenGongOf: shenGongOf, xunKongOf: xunKongOf,
     wangShuaiOf: wangShuaiOf, strengthOf: strengthOf, gejuOf: gejuOf,
+    changShengOf: changShengOf, CS_NAME: CS_NAME,
     wxPowerOf: wxPowerOf, WX_SHENG: WX_SHENG, WX_KE: WX_KE,
     toJD: toJD, sunLongitude: sunLongitude, solarTermJD: solarTermJD,
     trueSolarTime: trueSolarTime, dayGanZhi: dayGanZhi,
