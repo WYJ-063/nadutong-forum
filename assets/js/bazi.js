@@ -95,6 +95,11 @@
       + '#ndt-bazi .bz-tabs span.on{background:#B98B3E;color:#fff}'
       + '#ndt-bazi .bz-date{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;'
       + 'color:#7A8098;flex:1 1 auto;min-width:0}'
+      + '#ndt-bazi .bz-select{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;flex-wrap:wrap}'
+      + '#ndt-bazi .bz-select select{flex:1 1 0;min-width:104px}'
+      + '#ndt-bazi .bz-select .is-off{opacity:.5;cursor:not-allowed}'
+      + '#ndt-bazi .bz-unkcity{display:inline-flex;align-items:center;gap:6px;font-size:13px;'
+      + 'color:#7A8098;white-space:nowrap;flex:0 0 auto;cursor:pointer}'
       + '#ndt-bazi .bz-go2{display:block;width:100%;margin-top:18px;padding:15px;border:none;border-radius:12px;'
       + 'background:#1E2030 !important;color:#F3E7CB !important;font-size:17px;letter-spacing:6px;cursor:pointer;font-family:inherit}'
       + '#ndt-bazi .bz-go2:active{transform:translateY(1px)}'
@@ -252,6 +257,7 @@
       + '  #ndt-bazi .bz-row input[type=text],#ndt-bazi .bz-row input[type=number],'
       + '  #ndt-bazi .bz-row select{padding:7px 7px;font-size:13px}'
       + '  #ndt-bazi .bz-row .w-y{width:62px}'
+      + '  #ndt-bazi .bz-select select{flex:1 1 0;min-width:0}'
       + '  #ndt-bazi .bz-tabs{margin-left:0}'
       + '  #ndt-bazi .bz-tbl{min-width:calc(46px + var(--bz-cols,6) * 90px)}'
       + '  #ndt-bazi .bz-tbl tbody th{width:46px;font-size:11.5px;padding-right:6px;letter-spacing:0}'
@@ -296,6 +302,7 @@
       + '#ndt-bazi .bz-tabs span{color:var(--bz-mut)}'
       + '#ndt-bazi .bz-tabs span.on{background:var(--bz-acc);color:#fff}'
       + '#ndt-bazi .bz-date{color:var(--bz-mut)}'
+      + '#ndt-bazi .bz-unkcity{color:var(--bz-mut)}'
       + '#ndt-bazi .bz-btn{background:var(--bz-acc);color:#fff}'
       + '#ndt-bazi .bz-btn.ghost{color:var(--bz-acc);border-color:var(--bz-line)}'
       + '#ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{border-bottom-color:var(--bz-line2);color:var(--bz-ink)}'
@@ -445,10 +452,6 @@
     var y = last.year || (now.getFullYear() - 25);
     formCal = last.cal === 'lunar' ? 'lunar' : 'solar';
     var mm = last.month || 6, dd = last.day || 15;
-    var cityKey = last.city || '北京';
-    var optCities = Object.keys(BaziCore.CITY_LON).map(function (c) {
-      return '<option value="' + esc(c) + '"' + (cityKey === c ? ' selected' : '') + '>' + esc(c) + '</option>';
-    }).join('');
     var optMon = '', optDay = '', i, j;
     for (i = 1; i <= 12; i++) { optMon += '<option value="' + i + '"' + (mm === i ? ' selected' : '') + '>' + i + '</option>'; }
     for (j = 1; j <= 31; j++) { optDay += '<option value="' + j + '"' + (dd === j ? ' selected' : '') + '>' + j + '</option>'; }
@@ -499,8 +502,16 @@
       + '      </div>'
       + '    </div>'
       + '    <div class="bz-row"><span class="bz-rk">出生地址</span>'
-      + '      <div class="bz-date">'
-      + '        <select id="bz-city"><option value="unknown"' + (cityKey === 'unknown' ? ' selected' : '') + '>未知地</option>' + optCities + '</select>'
+      + '      <div class="bz-select">'
+      + '        <select id="bz-prov" aria-label="省"></select>'
+      + '        <select id="bz-city" aria-label="市"></select>'
+      + '        <select id="bz-dist" aria-label="区县"></select>'
+      + '      </div>'
+      + '    </div>'
+      + '    <div class="bz-row"><span class="bz-rk">乡镇街道</span>'
+      + '      <div class="bz-select">'
+      + '        <input id="bz-town" type="text" maxlength="24" placeholder="乡镇 / 街道，选填" style="flex:1 1 0;min-width:0">'
+      + '        <label class="bz-unkcity"><input type="checkbox" id="bz-unk-city"' + (last.unkCity ? ' checked' : '') + '>未知地</label>'
       + '      </div>'
       + '    </div>'
       + '    <div class="bz-row"><span class="bz-rk">选项</span>'
@@ -516,6 +527,154 @@
       + '<div class="bz-out" id="bz-out"><div class="bz-empty">填好出生信息后点「开始排盘」</div></div>';
   }
 
+  /* ---------- 出生地址：省 / 市 / 区县 三级联动 ----------
+     选项来自 window.BAZI_REGION（全国 34 个省级、2875 个区县；
+     bazi-region.js 头注释写了数据源）。经度取该区县行政区划中心点，
+     用于真太阳时换算。乡镇街道是自由填写的文字，只记录不参与换算。 */
+
+  function regionData() { return window.BAZI_REGION || []; }
+
+  var ADDR_IDS = ['bz-prov', 'bz-city', 'bz-dist'];
+  var HH_ADDR_IDS = ['bz-hh-prov', 'bz-hh-city', 'bz-hh-dist'];
+
+  function addrFillCity(keepName, ids) {
+    var id = ids || ADDR_IDS;
+    var R = regionData();
+    var ps = $('#' + id[0]), cs = $('#' + id[1]);
+    if (!ps || !cs) { return; }
+    var p = R[Number(ps.value)] || R[0];
+    cs.innerHTML = (p ? p.c : []).map(function (c, i) {
+      var sel = (keepName && c.n === keepName) ? ' selected' : '';
+      return '<option value="' + i + '"' + sel + '>' + esc(c.n) + '</option>';
+    }).join('');
+    addrFillDist(null, id);
+  }
+
+  function addrFillDist(keepName, ids) {
+    var id = ids || ADDR_IDS;
+    var R = regionData();
+    var ps = $('#' + id[0]), cs = $('#' + id[1]), ds = $('#' + id[2]);
+    if (!ps || !cs || !ds) { return; }
+    var p = R[Number(ps.value)] || R[0];
+    var c = (p && p.c[Number(cs.value || 0)]) || null;
+    ds.innerHTML = (c ? c.d : []).map(function (d, i) {
+      var sel = (keepName && d[1] === keepName) ? ' selected' : '';
+      return '<option value="' + i + '"' + sel + '>' + esc(d[1]) + '</option>';
+    }).join('');
+  }
+
+  /* 当前选中的地址 */
+  function addrNow(ids) {
+    var id = ids || ADDR_IDS;
+    var R = regionData();
+    var ps = $('#' + id[0]), cs = $('#' + id[1]), ds = $('#' + id[2]);
+    var p = R[Number(ps && ps.value)] || R[0] || null;
+    var c = (p && p.c[Number(cs && cs.value)]) || null;
+    var d = (c && c.d[Number(ds && ds.value)]) || null;
+    var town = ids ? '' : (($('#bz-town') || {}).value || '').replace(/^\s+|\s+$/g, '');
+    return {
+      p: p, c: c, d: d, town: town,
+      lon: d ? Number(d[2]) : null,
+      text: [p && p.n, c && c.n, d && d[1], town].filter(Boolean).join(' ')
+    };
+  }
+
+  /* 按文字回填（旧存档、案例里存的是地名文字）：逐级找省 → 市 → 区县 */
+  function addrApply(name, ids) {
+    var id = ids || ADDR_IDS;
+    var R = regionData();
+    var ps = $('#' + id[0]), cs = $('#' + id[1]), ds = $('#' + id[2]);
+    if (!ps || !cs || !ds || !R.length) { return false; }
+    var parts = String(name || '').split(/[\s,，]+/).filter(Boolean);
+    if (parts.length >= 2) {
+      var pi = -1, ci = -1, di = -1, i, j, k;
+      for (i = 0; i < R.length; i++) { if (R[i].n === parts[0]) { pi = i; break; } }
+      if (pi >= 0) {
+        for (j = 0; j < R[pi].c.length; j++) { if (R[pi].c[j].n === parts[1]) { ci = j; break; } }
+        if (ci >= 0 && parts[2]) {
+          for (k = 0; k < R[pi].c[ci].d.length; k++) { if (R[pi].c[ci].d[k][1] === parts[2]) { di = k; break; } }
+        }
+      }
+      if (pi >= 0 && ci >= 0) {
+        ps.value = String(pi);
+        addrFillCity(R[pi].c[ci].n, id);
+        cs.value = String(ci);
+        addrFillDist(di >= 0 ? R[pi].c[ci].d[di][1] : null, id);
+        if (di >= 0) { ds.value = String(di); }
+        return true;
+      }
+    }
+    var one = parts[0] || '';
+    if (!one) { return false; }
+    var pIdx = -1, cIdx = -1, dIdx = -1, i2, j2, k2;
+    for (i2 = 0; i2 < R.length && pIdx < 0; i2++) {
+      if (R[i2].n.indexOf(one) === 0) { pIdx = i2; }
+    }
+    if (pIdx < 0) {
+      for (i2 = 0; i2 < R.length && pIdx < 0; i2++) {
+        for (j2 = 0; j2 < R[i2].c.length && pIdx < 0; j2++) {
+          if (R[i2].c[j2].n.indexOf(one) === 0) { pIdx = i2; cIdx = j2; }
+        }
+      }
+    }
+    if (pIdx < 0) {
+      for (i2 = 0; i2 < R.length && pIdx < 0; i2++) {
+        for (j2 = 0; j2 < R[i2].c.length && pIdx < 0; j2++) {
+          for (k2 = 0; k2 < R[i2].c[j2].d.length && pIdx < 0; k2++) {
+            if (R[i2].c[j2].d[k2][1].indexOf(one) === 0) { pIdx = i2; cIdx = j2; dIdx = k2; }
+          }
+        }
+      }
+    }
+    if (pIdx < 0) { return false; }
+    ps.value = String(pIdx);
+    addrFillCity(cIdx >= 0 ? R[pIdx].c[cIdx].n : null, id);
+    if (cIdx >= 0) {
+      cs.value = String(cIdx);
+      addrFillDist(dIdx >= 0 ? R[pIdx].c[cIdx].d[dIdx][1] : null, id);
+      if (dIdx >= 0) { ds.value = String(dIdx); }
+    }
+    return true;
+  }
+
+  /* 「未知地」勾上后锁掉三级下拉 */
+  function addrLock(lock) {
+    var ids = ['bz-prov', 'bz-city', 'bz-dist', 'bz-town'];
+    ids.forEach(function (id) {
+      var el = $('#' + id);
+      if (el) { el.disabled = !!lock; el.classList[lock ? 'add' : 'remove']('is-off'); }
+    });
+  }
+
+  /* 首次渲染时把省列表填上，并恢复上次的选择 */
+  function addrInit() {
+    var R = regionData();
+    var ps = $('#bz-prov');
+    if (!ps || !R.length) { return; }
+    ps.innerHTML = R.map(function (p, i) { return '<option value="' + i + '">' + esc(p.n) + '</option>'; }).join('');
+    var last = loadLast() || {};
+    var a = last.addr;
+    if (a && a.p !== undefined) {
+      ps.value = String(a.p);
+      addrFillCity(a.cn || null);
+      var cs = $('#bz-city');
+      if (cs && a.c !== undefined) { cs.value = String(a.c); addrFillDist(a.dn || null); }
+      var ds = $('#bz-dist');
+      if (ds && a.d !== undefined) { ds.value = String(a.d); }
+    } else if (last.city && last.city !== 'unknown' && last.city !== '未知地') {
+      addrApply(last.city);
+    } else {
+      addrApply('北京市');
+    }
+    var townEl = $('#bz-town');
+    if (townEl) { townEl.value = last.town || ''; }
+    var unkEl = $('#bz-unk-city');
+    if (unkEl) {
+      if (last.unkCity) { unkEl.checked = true; }
+      addrLock(unkEl.checked);
+    }
+  }
+
   /* 表单联动：历法切换、时辰未知/地址未知时关掉真太阳时并给出说明 */
   function bindForm() {
     $$('#bz-cal-tabs span').forEach(function (s) {
@@ -528,20 +687,25 @@
         syncFormNote();
       });
     });
-    ['bz-city', 'bz-h'].forEach(function (id) {
-      var el = $('#' + id);
-      if (el) { el.addEventListener('change', syncFormNote); }
-    });
+    var ps = $('#bz-prov'), cs = $('#bz-city'), ds = $('#bz-dist'), unkEl = $('#bz-unk-city');
+    if (ps) { ps.addEventListener('change', function () { addrFillCity(null); syncFormNote(); }); }
+    if (cs) { cs.addEventListener('change', function () { addrFillDist(null); syncFormNote(); }); }
+    if (ds) { ds.addEventListener('change', syncFormNote); }
+    if (unkEl) { unkEl.addEventListener('change', function () { addrLock(unkEl.checked); syncFormNote(); }); }
+    var hEl = $('#bz-h');
+    if (hEl) { hEl.addEventListener('change', syncFormNote); }
+    var townEl = $('#bz-town');
+    if (townEl) { townEl.addEventListener('input', syncFormNote); }
+    if (unkEl) { addrLock(unkEl.checked); }
     var tst = $('#bz-tst');
     if (tst) { tst.addEventListener('change', syncFormNote); }
     syncFormNote();
   }
 
   function syncFormNote() {
-    var city = (($('#bz-city') || {}).value) || '';
+    var unkCity = !!($('#bz-unk-city') && $('#bz-unk-city').checked);
     var t = (($('#bz-h') || {}).value) || '';
     var tst = $('#bz-tst');
-    var unkCity = city === 'unknown';
     var unkHour = t === 'unknown';
     if (tst && (unkCity || unkHour)) {
       tst.disabled = true;
@@ -549,12 +713,12 @@
     } else if (tst) {
       tst.disabled = false;
     }
-    var lon = unkCity ? null : BaziCore.CITY_LON[city];
+    var a = addrNow();
     var parts = [];
     if (unkCity) {
-      parts.push('出生地未知，经度按东经 120° 计，不做真太阳时校正');
-    } else if (lon) {
-      parts.push('出生地 ' + city + '，经度 ' + lon.toFixed(2) + '°');
+      parts.push('出生地未填，经度按东经 120° 计，不做真太阳时校正');
+    } else if (a.lon !== null && !isNaN(a.lon)) {
+      parts.push('出生地 ' + (a.text || '—') + '，经度 东经 ' + a.lon.toFixed(2) + '°');
       parts.push(tst && tst.checked ? '已按经度与均时差校正' : '未勾选真太阳时，按北京时间排');
     }
     if (unkHour) { parts.push('时辰未知，只排年、月、日三柱'); }
@@ -945,6 +1109,9 @@
       + '        <div>' + (lunarLine ? '阴历 <b>' + lunarLine + '</b>' : '阴历 <b>—</b>')
       + '          <span class="zt">（' + zao + (unk ? ' · 时辰未知' : '') + '）</span></div>'
       + '        <div>阳历 <b>' + esc(birth) + '</b>' + (tst ? '<span class="zt">（已按真太阳时换算）</span>' : '') + '</div>'
+      + '        <div>出生地 <b>' + esc(r.input.city || '未知地') + '</b>'
+      + (r.input.cityUnknown ? '<span class="zt">（按东经 120° 计）</span>'
+        : '<span class="zt">（东经 ' + (Number(r.input.lon) || 120).toFixed(2) + '°）</span>') + '</div>'
       + '      </div>'
       + '    </div>'
       + '    <label class="bz-tms" title="打开后左列排身宫 / 命宫 / 胎元；关闭则排流年 / 大运">'
@@ -973,9 +1140,12 @@
       + '    <div class="bz-field"><label>月</label><input id="bz-hh-m" type="number" min="1" max="12" value="6"></div>'
       + '    <div class="bz-field"><label>日</label><input id="bz-hh-d" type="number" min="1" max="31" value="15"></div>'
       + '    <div class="bz-field"><label>时辰（北京时间）</label><input id="bz-hh-h" type="time" value="12:00"></div>'
-      + '    <div class="bz-field"><label>出生地</label><select id="bz-hh-city">'
-      + Object.keys(BaziCore.CITY_LON).map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('')
-      + '    </select></div>'
+      + '    <div class="bz-field" style="flex:1 1 100%"><label>对方出生地</label>'
+      + '      <div class="bz-select" style="flex:1 1 auto">'
+      + '        <select id="bz-hh-prov" aria-label="省"></select>'
+      + '        <select id="bz-hh-city" aria-label="市"></select>'
+      + '        <select id="bz-hh-dist" aria-label="区县"></select>'
+      + '      </div></div>'
       + '  </div>'
       + '  <div class="bz-actions"><button class="bz-btn ghost" id="bz-hh-go">测 合 婚</button></div>'
       + '  <div id="bz-hh-out"></div>'
@@ -1086,7 +1256,17 @@
     $$('#ndt-bazi input[name="bz-gender"]').forEach(function (el) {
       el.checked = el.value === (c.input.gender || '男');
     });
-    if ($('#bz-city')) { $('#bz-city').value = c.input.cityUnknown ? 'unknown' : (c.input.city || '北京'); }
+    if ($('#bz-city')) {
+      if (c.input.cityUnknown) {
+        if ($('#bz-unk-city')) { $('#bz-unk-city').checked = true; }
+        addrLock(true);
+      } else {
+        if ($('#bz-unk-city')) { $('#bz-unk-city').checked = false; }
+        addrLock(false);
+        addrApply(c.input.city || '北京市');
+        if (c.input.town && $('#bz-town')) { $('#bz-town').value = c.input.town; }
+      }
+    }
     if ($('#bz-tst')) { $('#bz-tst').checked = c.input.useTrueSolar !== false && !c.input.hourUnknown && !c.input.cityUnknown; }
     syncFormNote();
     doPaipan();
@@ -1282,10 +1462,12 @@
     var mi = parseInt(parts[1], 10) || 0;
     var gEl = document.querySelector('#ndt-bazi input[name="bz-gender"]:checked');
     var gender = gEl ? gEl.value : '男';
-    var city = (($('#bz-city') || {}).value) || '北京';
-    var cityUnknown = city === 'unknown';
+    var cityUnknown = !!($('#bz-unk-city') && $('#bz-unk-city').checked);
+    var addr = addrNow();
+    var city = cityUnknown ? '未知地' : (addr.text || '未知地');
+    var addrLon = addr.lon;
     var useTST = !!($('#bz-tst') && $('#bz-tst').checked) && !hourUnknown && !cityUnknown;
-    var lon = cityUnknown ? 120 : (BaziCore.CITY_LON[city] || 120);
+    var lon = (cityUnknown || addrLon === null || isNaN(addrLon)) ? 120 : addrLon;
 
     if (!y || y < 1900 || y > 2100 || !m || m < 1 || m > 12 || !d || d < 1 || d > 31) {
       $('#bz-out').innerHTML = '<div class="bz-card"><div class="bz-tip" style="color:#C0504D">年月日填写有误，请检查。</div></div>';
@@ -1298,7 +1480,7 @@
     }
 
     var input = { year: y, month: m, day: d, hour: hh, minute: mi, gender: gender,
-      useTrueSolar: useTST, lon: lon, city: city,
+      useTrueSolar: useTST, lon: lon, city: city, town: addr.town,
       hourUnknown: hourUnknown, cityUnknown: cityUnknown };
 
     /* 农历输入：先折算成公历再排盘 */
@@ -1358,6 +1540,7 @@
 
     var hhGo = $('#bz-hh-go');
     if (hhGo) { hhGo.addEventListener('click', function () { doHehun(r); }); }
+    hhAddrInit();
 
     var saveBtn = $('#bz-save');
     if (saveBtn) {
@@ -1369,9 +1552,33 @@
     try {
       localStorage.setItem(MEM_KEY, JSON.stringify({
         year: y, month: m, day: d, gender: gender, time: timeStr, city: city,
+        town: addr.town,
+        addr: (function () {
+          var ps = $('#bz-prov'), cs = $('#bz-city'), ds = $('#bz-dist');
+          if (!ps) { return null; }
+          return {
+            p: Number(ps.value),
+            c: Number(cs && cs.value),
+            d: Number(ds && ds.value),
+            cn: addr.c ? addr.c.n : '',
+            dn: addr.d ? addr.d[1] : ''
+          };
+        })(),
+        unkCity: cityUnknown,
         useTST: useTST, cal: cal
       }));
     } catch (e) {}
+  }
+
+  /* 合婚表单里的地址：与主表单同一套全国数据，默认北京 */
+  function hhAddrInit() {
+    var R = regionData();
+    var ps = $('#bz-hh-prov'), cs = $('#bz-hh-city'), ds = $('#bz-hh-dist');
+    if (!ps || !cs || !ds || !R.length) { return; }
+    ps.innerHTML = R.map(function (p, i) { return '<option value="' + i + '">' + esc(p.n) + '</option>'; }).join('');
+    addrApply('北京市', HH_ADDR_IDS);
+    ps.addEventListener('change', function () { addrFillCity(null, HH_ADDR_IDS); });
+    cs.addEventListener('change', function () { addrFillDist(null, HH_ADDR_IDS); });
   }
 
   /* 合婚：a 是刚排好的主盘，b 由用户在合婚卡片里填 */
@@ -1386,7 +1593,8 @@
     var hh = parseInt(parts[0], 10) || 0;
     var mi = parseInt(parts[1], 10) || 0;
     var gender = (($('#bz-hh-gender') || {}).value) || '女';
-    var city = (($('#bz-hh-city') || {}).value) || '北京';
+    var hhAddr = addrNow(HH_ADDR_IDS);
+    var city = hhAddr.text || '未知地';
 
     if (!y || y < 1900 || y > 2100 || !m || m < 1 || m > 12 || !d || d < 1 || d > 31) {
       out.innerHTML = '<div class="bz-tip" style="color:#C0504D;margin-top:10px">对方年月日填写有误。</div>';
@@ -1401,7 +1609,7 @@
     var b;
     try {
       b = BaziCore.paipan({ year: y, month: m, day: d, hour: hh, minute: mi, gender: gender,
-        useTrueSolar: true, lon: BaziCore.CITY_LON[city] || 120, city: city });
+        useTrueSolar: true, lon: hhAddr.lon === null ? 120 : hhAddr.lon, city: city });
     } catch (e) {
       out.innerHTML = '<div class="bz-tip" style="color:#C0504D;margin-top:10px">排盘出错：' + esc(e.message) + '</div>';
       return;
@@ -1502,6 +1710,22 @@
     paint();
   }
 
+  /* 预览页 / 调试用：按地名选中地址（'unknown' 表示未知地） */
+  window.BaziAddrSelect = function (name) {
+    var unk = $('#bz-unk-city');
+    if (String(name) === 'unknown') {
+      if (unk) { unk.checked = true; }
+      addrLock(true);
+      syncFormNote();
+      return (addrNow().text || '未知地');
+    }
+    if (unk) { unk.checked = false; }
+    addrLock(false);
+    if (!addrApply(String(name || ''))) { addrApply('北京市'); }
+    syncFormNote();
+    return addrNow().text;
+  };
+
   function paint() {
     if (!isBaziPage()) { return; }
     var main = $('#app .p-main');
@@ -1510,6 +1734,7 @@
     ensureStyle();
     main.innerHTML = '<div id="ndt-bazi">' + formHtml() + '</div>';
     main.setAttribute('data-ndt-bazi-rendered', '1');
+    addrInit();
     var btn = $('#bz-go');
     if (btn) { btn.addEventListener('click', doPaipan); }
     bindForm();
