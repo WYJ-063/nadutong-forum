@@ -171,22 +171,32 @@
   function ensureSideItem() {
     var bar = $('.sidebar');
     if (!bar) { return; }
-    var exist = $('[' + ITEM_KEY + ']', bar);
-    if (exist) { return; }
-    /* 参照同排已有项的结构，避免样式跑偏 */
-    var ref = $('.side-item[data-section="divination"]', bar) || $('.side-item', bar);
-    var a = document.createElement('a');
-    a.className = 'side-item';
-    a.href = HASH;
-    a.setAttribute('data-section', 'bazi');
-    a.setAttribute('data-hash', HASH);
-    a.setAttribute(ITEM_KEY, '1');
-    var ico = '<svg class="side-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">'
-      + '<circle cx="12" cy="12" r="8"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/>'
-      + '<circle cx="12" cy="12" r="2.2"/></svg>';
-    a.innerHTML = ico + '<span class="side-item-label">四柱八字</span>';
-    if (ref && ref.parentNode === bar) { bar.insertBefore(a, ref.nextSibling); }
-    else { bar.appendChild(a); }
+    var item = $('[' + ITEM_KEY + ']', bar);
+    if (!item) {
+      item = document.createElement('a');
+      item.className = 'side-item';
+      item.href = HASH;
+      item.setAttribute('data-section', 'bazi');
+      item.setAttribute('data-hash', HASH);
+      item.setAttribute(ITEM_KEY, '1');
+      var ico = '<svg class="side-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">'
+        + '<circle cx="12" cy="12" r="8"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/>'
+        + '<circle cx="12" cy="12" r="2.2"/></svg>';
+      item.innerHTML = ico + '<span class="side-item-label">四柱八字</span>';
+    }
+    /* 位置：签卜命理组内、「抽签问吉」之后（sidebar-order.js 给的就是这个位）。
+       已存在但被挪到别处（比如落到「其他」）时，这里把它搬回来。
+       只在位置不对时才动 DOM —— 否则会和 sidebar-order 的分组重排互相触发，
+       侧栏反复重建，手机上就是抖动 / 划不动。 */
+    var ref = $('.side-item[data-section="divination"]', bar);
+    if (ref && ref.parentNode === bar) {
+      if (item.parentNode !== bar || item.previousElementSibling !== ref) {
+        bar.insertBefore(item, ref.nextSibling);
+      }
+      return;
+    }
+    if (item.parentNode === bar) { return; }
+    bar.appendChild(item);
   }
 
   /* ---------- 表单 ---------- */

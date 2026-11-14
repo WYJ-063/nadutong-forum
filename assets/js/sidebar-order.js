@@ -27,7 +27,7 @@
     { name: "论坛大厅", items: ["论坛首页", "发帖提问", "云端账号", "帖子消息", "我的收藏", "论坛聊天室"] },
     { name: "情报档案", items: ["在逃异人", "异闻典藏"] },
     { name: "业务系统", items: ["异人档案", "事件档案", "资料库", "势力关系网", "重点异人关系网", "专属名片", "工作组", "OA 办公", "管理员工作台"] },
-    { name: "签卜命理", items: ["抽签问吉", "塔罗占卜", "伏羲六十四卦", "黄大仙灵签"] },
+    { name: "签卜命理", items: ["抽签问吉", "四柱八字", "塔罗占卜", "伏羲六十四卦", "黄大仙灵签"] },
     { name: "个人中心", items: ["我的好友", "私信", "个人空间", "个人能力详情", "空间装修"] },
     { name: "拓展功能", items: ["方块小游戏", "数据中心"] }
   ];
@@ -99,7 +99,14 @@
       want.push("G:" + g.name);
       members.forEach(function (el) { want.push("I:" + labelOf(el)); });
     });
-    extras.forEach(function (el) { want.push("I:" + labelOf(el)); });
+    /* 兜底组也必须带上标题一起比对：重建时会 append「其他」标题，
+       但 want 早先只收了项、没收标题，导致 currentSig 永远对不上，
+       每次刷新都判定「需要重排」→ 无脑重建侧栏。侧栏一有白名单外的项
+       （四柱八字、我的收藏之类）就变成死循环，手机上表现为抖动、划不动。 */
+    if (extras.length) {
+      want.push("G:" + EXTRA_NAME);
+      extras.forEach(function (el) { want.push("I:" + labelOf(el)); });
+    }
 
     /* 保存滚动位置再动 DOM。
         portalShell 每次切板块都会新建一个 .sidebar 节点，新节点的
