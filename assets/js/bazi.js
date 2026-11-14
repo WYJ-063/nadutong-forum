@@ -111,11 +111,11 @@
       + '#ndt-bazi .bz-tbl .ln{display:block;line-height:1.6;white-space:nowrap}'
       + '#ndt-bazi .bz-tbl .ssc{font-size:12px;color:#8A6A2F;line-height:1.85}'
       + '#ndt-bazi .bz-tbl .unk{color:#C4C9D6;letter-spacing:4px;font-size:20px}'
-      + '#ndt-bazi .w-mu{color:#3F7D5A}'
-      + '#ndt-bazi .w-huo{color:#B5503F}'
-      + '#ndt-bazi .w-tu{color:#A8863A}'
-      + '#ndt-bazi .w-jin{color:#78808F}'
-      + '#ndt-bazi .w-shui{color:#3B6D93}'
+      + '#ndt-bazi .w-mu{color:#2E7D53}'
+      + '#ndt-bazi .w-huo{color:#B34430}'
+      + '#ndt-bazi .w-tu{color:#8A5A2B}'
+      + '#ndt-bazi .w-jin{color:#967A1F}'
+      + '#ndt-bazi .w-shui{color:#2F6699}'
       + '#ndt-bazi .bz-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;max-width:100%}'
       + '#ndt-bazi{min-width:0;max-width:100%}'
       + '#ndt-bazi .bz-card{min-width:0;max-width:100%}'
@@ -303,10 +303,10 @@
       + '#ndt-bazi .bz-case-del{background:var(--bz-input);border-color:var(--bz-line);color:#C0544D}'
       /* 五行色：深浅主题下都保持可辨（木火土金水不会因为换主题而失去语义） */
       + '#ndt-bazi .w-mu{color:#2FA36B}'
-      + '#ndt-bazi .w-huo{color:#E0574A}'
-      + '#ndt-bazi .w-tu{color:#C99442}'
-      + '#ndt-bazi .w-jin{color:#96A0BA}'
-      + '#ndt-bazi .w-shui{color:#4189D2}'
+      + '#ndt-bazi .w-huo{color:#DD4B39}'
+      + '#ndt-bazi .w-tu{color:#8E5A2C}'
+      + '#ndt-bazi .w-jin{color:#E0B33C}'
+      + '#ndt-bazi .w-shui{color:#3E86D8}'
       /* ---- 结果页顶部 banner（照问真结果页：左圆形标 + 姓名 + 阴历阳历两行 + 右侧胎命身开关） ---- */
       + '#ndt-bazi .bz-banner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;'
       + 'background:linear-gradient(100deg,#1B1B18,#2C2519 58%,#1F1C16);color:#F4E9CE;'
@@ -346,10 +346,13 @@
 
   /* ---------- 侧栏入口 ---------- */
 
-  /* 侧栏图标：和 app.js 的 svgIco() 同一套规格（24×24、线宽 1.8、圆头），
-     内容是一个罗盘（外环 + 内环 + 四向刻度），和签卜命理同组的线形图标风格一致。 */
+  /* 侧栏图标：和 app.js 的 svgIco() 同一套规格（24×24、线宽 1.8、圆头）。
+     图形是四根竖柱立在同一根基线上 —— 四根柱就是「四柱」，
+     比罗盘更能一眼看出这是个八字排盘入口。 */
   var BAZI_ICON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-    + '<path d="M12 2.6a9.4 9.4 0 1 0 0 18.8 9.4 9.4 0 0 0 0-18.8M12 7.6a4.4 4.4 0 1 0 0 8.8 4.4 4.4 0 0 0 0-8.8M12 7.6v1.7M12 14.7v1.7M7.6 12h1.7M14.7 12h1.7"/></svg>';
+    + '<line x1="4" y1="4.6" x2="4" y2="17.4"/><line x1="9.4" y1="4.6" x2="9.4" y2="17.4"/>'
+    + '<line x1="14.6" y1="4.6" x2="14.6" y2="17.4"/><line x1="20" y1="4.6" x2="20" y2="17.4"/>'
+    + '<line x1="2.2" y1="20.4" x2="21.8" y2="20.4"/></svg>';
 
   function ensureSideItem() {
     var bar = $('.sidebar');
