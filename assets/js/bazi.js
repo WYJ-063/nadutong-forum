@@ -168,26 +168,28 @@
 
   /* ---------- 侧栏入口 ---------- */
 
+  /* 侧栏图标：和 app.js 的 svgIco() 同一套规格（24×24、线宽 1.8、圆头），
+     内容是一个罗盘（外环 + 内环 + 四向刻度），和签卜命理同组的线形图标风格一致。 */
+  var BAZI_ICON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M12 2.6a9.4 9.4 0 1 0 0 18.8 9.4 9.4 0 0 0 0-18.8M12 7.6a4.4 4.4 0 1 0 0 8.8 4.4 4.4 0 0 0 0-8.8M12 7.6v1.7M12 14.7v1.7M7.6 12h1.7M14.7 12h1.7"/></svg>';
+
   function ensureSideItem() {
     var bar = $('.sidebar');
     if (!bar) { return; }
     var item = $('[' + ITEM_KEY + ']', bar);
     if (!item) {
-      item = document.createElement('a');
+      /* 必须和 app.js 的 item() 同构：div.side-item + data-section + data-hash。
+         app.js 的点击是 document 上的事件委托，靠 data-hash 认路。 */
+      item = document.createElement('div');
       item.className = 'side-item';
-      item.href = HASH;
       item.setAttribute('data-section', 'bazi');
       item.setAttribute('data-hash', HASH);
       item.setAttribute(ITEM_KEY, '1');
-      var ico = '<svg class="side-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">'
-        + '<circle cx="12" cy="12" r="8"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/>'
-        + '<circle cx="12" cy="12" r="2.2"/></svg>';
-      item.innerHTML = ico + '<span class="side-item-label">四柱八字</span>';
+      item.innerHTML = BAZI_ICON + '<span class="side-item-label">四柱八字</span>';
     }
-    /* 位置：签卜命理组内、「抽签问吉」之后（sidebar-order.js 给的就是这个位）。
+    /* 位置：签卜命理组内、「抽签问吉」之后（与 sidebar-order.js 的分组表一致）。
        已存在但被挪到别处（比如落到「其他」）时，这里把它搬回来。
-       只在位置不对时才动 DOM —— 否则会和 sidebar-order 的分组重排互相触发，
-       侧栏反复重建，手机上就是抖动 / 划不动。 */
+       只在位置不对时才动 DOM —— 否则会和分组重排互相触发，侧栏反复重建。 */
     var ref = $('.side-item[data-section="divination"]', bar);
     if (ref && ref.parentNode === bar) {
       if (item.parentNode !== bar || item.previousElementSibling !== ref) {
@@ -831,29 +833,73 @@
 
   /* ---------- 页面接管 ---------- */
 
+  /* app.js 的 switch 里没有 bazi 这一支，命中 #/bazi 会走 default → viewHome()。
+     viewHome 是「官网首页」外壳（surfaceHeader + hero），根本没有 .p-main、
+     也没有侧栏 —— 直接接管就会拿不到挂载点，整块内网界面被顶掉，
+     用户看到的就是「一点就闪退」。
+
+     解决办法：内网页面时把 .portal 的结构存一份快照；进八字页时 app.js
+     已经把 #app 换成了官网首页，就在同一个 tick 里把快照放回去，
+     再换掉中间的 .p-main。浏览器还没绘制，看不到中间那一帧。 */
+  var PORTAL_SNAPSHOT = null;
+
+  var shellBooting = false;
+  /* 连快照都没有（第一次就直达 #/bazi）：先落到内网首页拿到正规门户外壳，
+     再切回 #/bazi。正常人是从侧栏点进来的，走不到这里。 */
+  function bootstrapShell() {
+    if (shellBooting) { return; }
+    shellBooting = true;
+    location.hash = '#/forum';
+    setTimeout(function () {
+      location.hash = HASH;
+      setTimeout(function () { shellBooting = false; tick(); }, 30);
+    }, 80);
+  }
+
+  function cachePortal() {
+    var p = $('#app .portal');
+    if (p && $('.p-main', p)) {
+      try { PORTAL_SNAPSHOT = p.outerHTML; } catch (e) {}
+    }
+  }
+
+  function routeToBazi() {
+    if (!isBaziPage()) { return; }
+    if (!$('#app .p-main')) {
+      var app = $('#app');
+      if (app && PORTAL_SNAPSHOT) {
+        app.innerHTML = PORTAL_SNAPSHOT;
+        var restored = $('#app .p-main');
+        if (restored) { restored.removeAttribute('data-ndt-bazi-rendered'); }
+      }
+      /* 快照也没有（比如第一次就是直接打开 #/bazi）：先落到内网首页，
+         再切回来，拿一次正规门户外壳。 */
+      if (!$('#app .p-main')) { bootstrapShell(); return; }
+    }
+    paint();
+  }
+
   function paint() {
+    if (!isBaziPage()) { return; }
     var main = $('#app .p-main');
     if (!main) { return; }
-    if (main.getAttribute('data-ndt-bazi-rendered') === '1') {
-      /* 同一页面重复触发（afterRenderInit 之类）不用重画，避免把已排的结果冲掉 */
-      if (isBaziPage()) { return; }
-    }
-    if (!isBaziPage()) { return; }
+    if (main.getAttribute('data-ndt-bazi-rendered') === '1') { return; }
     ensureStyle();
     main.innerHTML = '<div id="ndt-bazi">' + formHtml() + '</div>';
     main.setAttribute('data-ndt-bazi-rendered', '1');
     var btn = $('#bz-go');
     if (btn) { btn.addEventListener('click', doPaipan); }
     renderCases();
-    /* 侧栏高亮切到八字 */
-    $$('#app .side-item.is-active, #app .side-item.active').forEach(function (x) { x.classList.remove('is-active'); x.classList.remove('active'); });
-    $$('#app .side-item[data-section="bazi"]').forEach(function (x) { x.classList.add('is-active'); });
+    /* 侧栏高亮：app.js 的 item() 用的是 .on，不是 is-active */
+    $$('#app .side-item').forEach(function (x) { x.classList.remove('on'); });
+    $$('#app .side-item[data-section="bazi"]').forEach(function (x) { x.classList.add('on'); });
   }
 
   function tick() {
     ensureStyle();
     ensureSideItem();
-    paint();
+    if (!isBaziPage()) { cachePortal(); return; }
+    routeToBazi();
   }
 
   function watch() {
@@ -869,10 +915,24 @@
     tick();
   }
 
-  window.addEventListener('hashchange', function () {
-    /* app.js 的 router 在同一 tick 里同步写完 #app，这里退一格再接管 */
-    setTimeout(tick, 0);
-  });
+  /* 点击：capture 阶段就拦下来。app.js 的委托是读 [data-hash] 然后改 hash，
+     当 hash 已经是 #/bazi 时它还会直接调 router()，那一步就会渲染官网首页。 */
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var si = (t && t.closest) ? t.closest('[' + ITEM_KEY + ']') : null;
+    if (!si) { return; }
+    e.preventDefault();
+    e.stopPropagation();
+    if (location.hash !== HASH) { location.hash = HASH; }
+    else { tick(); }
+  }, true);
+
+  /* 路由：app.js 的 router 也挂在 window 的 hashchange 上，且它先注册、
+     所以到这里时 #app 已经被它换掉了。注意 window 作为 target 时 capture
+     标记不生效（监听器按注册顺序调用），抢不到前面去 —— 只能等它跑完，
+     在同一个 tick 里立刻把门户结构顶回来，浏览器还没绘制，看不到中间帧。 */
+  window.addEventListener('hashchange', function () { tick(); });
+
   window.addEventListener('load', function () { tick(); });
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
