@@ -261,7 +261,14 @@
       + '  #ndt-bazi .bz-tabs{margin-left:0}'
       /* 手机端表格：压缩到屏宽以内，8 列全部看得见，不横滑也不拆成长卡 */
       + '  #ndt-bazi .bz-tbl-wrap{overflow:visible;width:100%}'
-      + '  #ndt-bazi .bz-tbl{width:100%;min-width:100%;max-width:100%;table-layout:fixed}'
+      /* 站点 main.css 在窄屏把 table 设成了 display:block（为了横滑），
+         那会让固定列宽失效、表格缩成内容宽，右边空一块。这里改回真表格并锁宽 */
+      + '  #ndt-bazi .bz-tbl{display:table;width:100%;min-width:100%;max-width:100%;'
+      + 'table-layout:fixed;border-collapse:collapse}'
+      + '  #ndt-bazi .bz-tbl>thead{display:table-header-group;width:100%}'
+      + '  #ndt-bazi .bz-tbl>tbody{display:table-row-group}'
+      + '  #ndt-bazi .bz-tbl tr{display:table-row}'
+      + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{display:table-cell}'
       + '  #ndt-bazi .bz-tbl thead th.first,#ndt-bazi .bz-tbl tbody th{width:28px}'
       + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:6px 2px}'
       + '  #ndt-bazi .bz-tbl td{font-size:10.5px}'
