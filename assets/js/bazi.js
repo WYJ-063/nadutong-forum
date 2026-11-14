@@ -100,7 +100,7 @@
       + '#ndt-bazi .bz-go2:active{transform:translateY(1px)}'
       /* ---- 四柱表格 ---- */
       + '#ndt-bazi .bz-tbl{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:2px}'
-      + '#ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:9px 5px;border-bottom:1px solid #EEF1F6;'
+      + '#ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:10px 6px;border-bottom:1px solid #EEF1F6;'
       + 'text-align:center;vertical-align:middle;word-break:break-word}'
       + '#ndt-bazi .bz-tbl thead th{font-size:12px;color:#8A90A8;font-weight:400;letter-spacing:3px;background:#F8F6F1}'
       + '#ndt-bazi .bz-tbl thead th.first{width:60px;letter-spacing:1px}'
@@ -108,8 +108,10 @@
       + 'text-align:right;padding-right:10px;background:#FCFBF7}'
       + '#ndt-bazi .bz-tbl .gr{font-size:26px;font-weight:600;letter-spacing:2px;line-height:1.3}'
       + '#ndt-bazi .bz-tbl .cg{font-size:12px;color:#6E7590;line-height:1.7}'
-      + '#ndt-bazi .bz-tbl .ln{display:block;line-height:1.6;white-space:nowrap}'
-      + '#ndt-bazi .bz-tbl .ssc{font-size:12px;color:#8A6A2F;line-height:1.85}'
+      + '#ndt-bazi .bz-tbl .ln{display:block;line-height:1.78;white-space:nowrap}'
+      + '#ndt-bazi .bz-tbl .ssc{font-size:12.5px;color:#8A6A2F;line-height:2.1;letter-spacing:.2px}'
+      + '#ndt-bazi .bz-tbl tr[data-r="ss"] td{padding-top:15px;padding-bottom:15px}'
+      + '#ndt-bazi .bz-tbl-hint{display:none}'
       + '#ndt-bazi .bz-tbl .unk{color:#C4C9D6;letter-spacing:4px;font-size:20px}'
       + '#ndt-bazi .w-mu{color:#2E7D53}'
       + '#ndt-bazi .w-huo{color:#B34430}'
@@ -251,12 +253,22 @@
       + '  #ndt-bazi .bz-row select{padding:7px 7px;font-size:13px}'
       + '  #ndt-bazi .bz-row .w-y{width:62px}'
       + '  #ndt-bazi .bz-tabs{margin-left:0}'
-      + '  #ndt-bazi .bz-tbl tbody th{width:42px;font-size:11px;padding-right:5px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl thead th.first{width:42px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:7px 2px}'
-      + '  #ndt-bazi .bz-tbl .gr{font-size:19px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl .cg,#ndt-bazi .bz-tbl .ssc{font-size:11px;line-height:1.55}'
-      + '  #ndt-bazi .bz-tbl .unk{font-size:15px;letter-spacing:1px}'
+      + '  #ndt-bazi .bz-tbl{min-width:calc(46px + var(--bz-cols,6) * 90px)}'
+      + '  #ndt-bazi .bz-tbl tbody th{width:46px;font-size:11.5px;padding-right:6px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl thead th.first{width:46px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:9px 5px}'
+      + '  #ndt-bazi .bz-tbl .gr{font-size:23px;letter-spacing:1px}'
+      + '  #ndt-bazi .bz-tbl .cg,#ndt-bazi .bz-tbl .ssc{font-size:12px}'
+      + '  #ndt-bazi .bz-tbl .ln{line-height:1.85}'
+      + '  #ndt-bazi .bz-tbl .ssc{line-height:2.05}'
+      + '  #ndt-bazi .bz-tbl tr[data-r="ss"] td{padding-top:14px;padding-bottom:14px}'
+      + '  #ndt-bazi .bz-tbl-hint{display:block;font-size:11px;color:var(--bz-mut);'
+      + 'text-align:center;letter-spacing:1px;padding:8px 0 2px}'
+      + '  #ndt-bazi .bz-banner{padding:11px 12px;gap:9px}'
+      + '  #ndt-bazi .bz-banner .bn b{font-size:15px;letter-spacing:1px}'
+      + '  #ndt-bazi .bz-banner .bd{font-size:11.5px;line-height:1.8}'
+      + '  #ndt-bazi .bz-banner .zt{font-size:10px}'
+      + '  #ndt-bazi .bz-tms{margin-left:auto}'
       + '  #ndt-bazi .bz-go2{padding:13px;font-size:15px;letter-spacing:3px}'
       + '  #ndt-bazi .bz-meta{font-size:11px}'
       + '}'
@@ -363,12 +375,11 @@
       + '#ndt-bazi .bz-tms input:checked + .sw i{left:19px}'
       + '#ndt-bazi .bz-tbl thead th.gong{color:var(--bz-hi)}'
       + '@media(max-width:560px){'
-      + '  #ndt-bazi .bz-banner{padding:11px 12px;gap:10px}'
+      + '  #ndt-bazi .bz-banner{padding:11px 12px;gap:9px}'
       + '  #ndt-bazi .bz-banner .logo{width:38px;height:38px}'
       + '  #ndt-bazi .bz-banner .logo svg{width:22px;height:22px}'
       + '  #ndt-bazi .bz-banner .bn b{font-size:16px}'
-      + '  #ndt-bazi .bz-tbl thead th.gong,#ndt-bazi .bz-tbl thead th.zhu{font-size:10px;letter-spacing:0}'
-      + '  #ndt-bazi .bz-tbl .ssc,#ndt-bazi .bz-tbl .cg{font-size:10px;letter-spacing:0}'
+      + '  #ndt-bazi .bz-tbl thead th.gong,#ndt-bazi .bz-tbl thead th.zhu{font-size:11px;letter-spacing:0}'
       + '}';
     var st = document.createElement('style');
     st.id = STYLE_ID;
@@ -727,7 +738,9 @@
         + '</tr>';
     }).join('');
 
-    return '<div class="bz-tbl-wrap"><table class="bz-tbl" data-mode="' + mode + '">' + head + '<tbody>' + body + '</tbody></table></div>';
+    return '<div class="bz-tbl-wrap"><table class="bz-tbl" data-mode="' + mode + '" style="--bz-cols:' + cols.length + '">'
+      + head + '<tbody>' + body + '</tbody></table></div>'
+      + '<div class="bz-tbl-hint">左右滑动查看各柱 · 共 ' + cols.length + ' 列</div>';
   }
 
   /* 原文排版清洗：去掉官网文本的缩进空白与多余空行，再转 <br> */
