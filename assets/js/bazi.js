@@ -260,11 +260,9 @@
       + '  #ndt-bazi .bz-select select{flex:1 1 0;min-width:0}'
       + '  #ndt-bazi .bz-tabs{margin-left:0}'
       /* 手机端表格：压缩到屏宽以内，8 列全部看得见，不横滑也不拆成长卡 */
-      + '  #ndt-bazi .bz-tbl-wrap{overflow:visible}'
-      + '  #ndt-bazi .bz-tbl{width:100%;min-width:0;table-layout:fixed}'
+      + '  #ndt-bazi .bz-tbl-wrap{overflow:visible;width:100%}'
+      + '  #ndt-bazi .bz-tbl{width:100%;min-width:100%;max-width:100%;table-layout:fixed}'
       + '  #ndt-bazi .bz-tbl thead th.first,#ndt-bazi .bz-tbl tbody th{width:28px}'
-      + '  #ndt-bazi .bz-tbl thead th,#ndt-bazi .bz-tbl tbody td{'
-      + 'width:calc((100% - 28px) / var(--bz-cols,6))}'
       + '  #ndt-bazi .bz-tbl th,#ndt-bazi .bz-tbl td{padding:6px 2px}'
       + '  #ndt-bazi .bz-tbl td{font-size:10.5px}'
       + '  #ndt-bazi .bz-tbl tbody th,#ndt-bazi .bz-tbl thead th{font-size:10.5px;letter-spacing:0}'
@@ -517,11 +515,6 @@
       + '        <select id="bz-prov" aria-label="省"></select>'
       + '        <select id="bz-city" aria-label="市"></select>'
       + '        <select id="bz-dist" aria-label="区县"></select>'
-      + '      </div>'
-      + '    </div>'
-      + '    <div class="bz-row"><span class="bz-rk">乡镇街道</span>'
-      + '      <div class="bz-select">'
-      + '        <input id="bz-town" type="text" maxlength="24" placeholder="乡镇 / 街道，选填" style="flex:1 1 0;min-width:0">'
       + '        <label class="bz-unkcity"><input type="checkbox" id="bz-unk-city"' + (last.unkCity ? ' checked' : '') + '>未知地</label>'
       + '      </div>'
       + '    </div>'
@@ -1072,9 +1065,11 @@
     var d1 = new Date(d0.getFullYear(), d0.getMonth() + sm, d0.getDate());
     d1.setFullYear(d1.getFullYear() + sy);
     var jiaoDate = d1.getFullYear() + '年' + (d1.getMonth() + 1) + '月' + d1.getDate() + '日';
-    var nowAge = new Date().getFullYear() - r.input.year;
+    /* 当前所在的大运：与卡片上的虚岁口径对齐（今年虚岁落在哪一运的区间里） */
+    var nowXu = new Date().getFullYear() - r.input.year + 1;
     var cells = r.dayun.list.map(function (d) {
-      var isNow = nowAge >= d.startAge && nowAge < d.startAge + 10;
+      var xuStart = d.startAge + 1;
+      var isNow = nowXu >= xuStart && nowXu < xuStart + 10;
       return '<div class="bz-dy-cell' + (isNow ? ' now' : '') + '">'
         + '<div class="a">' + (d.startAge + 1) + '岁（虚）</div>'
         + '<div class="g">' + esc(d.name) + '</div>'
@@ -1089,8 +1084,9 @@
   }
 
   function liunianHtml(r) {
+    /* 从今年起的十个流年，与问真「近年流年」的起法一致 */
     var nowY = new Date().getFullYear();
-    var cells = r.liunian.slice(0, 10).map(function (l) {
+    var cells = r.liunian.filter(function (l) { return l.year >= nowY; }).slice(0, 10).map(function (l) {
       return '<div class="bz-ln-cell' + (l.year === nowY ? ' now' : '') + '">'
         + '<div class="y">' + l.year + '</div>'
         + '<div class="g">' + esc(l.name) + '</div>'
@@ -1330,7 +1326,8 @@
         + '</div>';
     }).join('');
     return '<div class="bz-tip" style="margin-bottom:8px">' + y + ' 年 ' + m + ' 月　本月吉日 '
-      + good + ' / ' + days.length + ' 天（依建除十二神）</div>'
+      + good + ' / ' + days.length + ' 天（依建除十二神）'
+      + '<br>吉凶取通书口诀「建满平收黑，除危定执黄，成开皆可用，闭破不相当」</div>'
       + '<div class="bz-zr">' + rows + '</div>';
   }
 
@@ -1371,9 +1368,14 @@
       add('日干无合', 0, '日主天干不在五合之内（' + a.pillars.day.gan + '·' + b.pillars.day.gan + '）。');
     }
 
-    /* 2. 日支六合 / 三合 / 相冲 / 相害 */
+    /* 2. 日支六合 / 同宫 / 三合 / 相冲 / 相害
+       六合：子丑 寅亥 卯戌 辰酉 巳申 午未；三合：申子辰 亥卯未 寅午戌 巳酉丑；
+       六冲：相隔六位；六害：子未 丑午 寅巳 卯辰 申亥 酉戌。
+       同支不算三合，单列「同宫」。 */
     if ((az + bz) % 12 === 1) {
       add('日支六合', 16, '两人日支六合（' + a.pillars.day.zhi + '·' + b.pillars.day.zhi + '）。六合主和合。');
+    } else if (az === bz) {
+      add('日支同宫', 0, '两人日支相同（' + a.pillars.day.zhi + '），同宫之象，非合非冲。');
     } else if (az % 4 === bz % 4) {
       add('日支三合', 11, '两人日支同属三合局（' + a.pillars.day.zhi + '·' + b.pillars.day.zhi + '）。');
     } else if ((az - bz) % 12 === 6 || (bz - az) % 12 === 6) {
@@ -1384,10 +1386,11 @@
       add('日支无合', 0, '两人日支既不合也不冲（' + a.pillars.day.zhi + '·' + b.pillars.day.zhi + '）。');
     }
 
-    /* 3. 年支（生肖）关系 */
+    /* 3. 年支（生肖）关系：同支单列，不算三合 */
     var ay = BaziCore.ZHI.indexOf(a.pillars.year.zhi);
     var by = BaziCore.ZHI.indexOf(b.pillars.year.zhi);
-    if ((ay + by) % 12 === 1) { add('生肖六合', 8, '两人年支六合（' + a.pillars.year.zhi + '·' + b.pillars.year.zhi + '）。'); }
+    if (ay === by) { add('生肖相同', 0, '两人年支相同（' + a.pillars.year.zhi + '）。'); }
+    else if ((ay + by) % 12 === 1) { add('生肖六合', 8, '两人年支六合（' + a.pillars.year.zhi + '·' + b.pillars.year.zhi + '）。'); }
     else if (ay % 4 === by % 4) { add('生肖三合', 6, '两人年支同属三合（' + a.pillars.year.zhi + '·' + b.pillars.year.zhi + '）。'); }
     else if ((ay - by) % 12 === 6 || (by - ay) % 12 === 6) { add('生肖相冲', -8, '两人年支相冲（' + a.pillars.year.zhi + '·' + b.pillars.year.zhi + '），即六冲。'); }
     else { add('生肖无涉', 0, '两人年支无合无冲（' + a.pillars.year.zhi + '·' + b.pillars.year.zhi + '）。'); }
@@ -1460,9 +1463,13 @@
       + '    <small>分 · ' + tone + '</small></div>'
       + '  <div class="bz-tip" style="margin:6px 0 12px">'
       + esc(a.input.gender + ' ' + a.pillars.day.gan + a.pillars.day.zhi + '日') + ' × '
-      + esc(b.input.gender + ' ' + b.pillars.day.gan + b.pillars.day.zhi + '日')
-      + '　（基准 55 分，逐条加减）</div>'
+      + esc(b.input.gender + ' ' + b.pillars.day.gan + b.pillars.day.zhi + '日') + '</div>'
       + rows
+      + '  <div class="bz-tip" style="margin-top:10px;line-height:1.9">'
+      + '判定四目取自子平合婚常法：日干五合、日支六合三合六冲六害、'
+      + '年支生肖合冲、男看财女看官（《三命通会》《渊海子平》论合婚诸条）。'
+      + '上面的分数是按这四目逐条加减的汇总，不是古籍里的原话，看单项比看总分更实在。'
+      + '</div>'
       + '</div>';
   }
 
