@@ -280,6 +280,13 @@
       + '  #ndt-bazi .bz-tbl .ssc{line-height:1.6}'
       + '  #ndt-bazi .bz-tbl .unk{font-size:13px;letter-spacing:1px}'
       + '  #ndt-bazi .bz-tbl tr[data-r="ss"] td{padding-top:9px;padding-bottom:9px}'
+      /* 胎命身开着是 8 列，390 屏下每列只有 43px 左右；
+         左右内边距吃掉 4px 后「太极贵人」这类四字神煞会折成两行，这里收掉内边距并缩 0.5px 字号 */
+      + '  #ndt-bazi .bz-tbl.cols-8 th,#ndt-bazi .bz-tbl.cols-8 td{padding-left:0;padding-right:0}'
+      + '  #ndt-bazi .bz-tbl.cols-8 tbody th{width:26px}'
+      + '  #ndt-bazi .bz-tbl.cols-8 td{font-size:10px}'
+      + '  #ndt-bazi .bz-tbl.cols-8 .ssc,#ndt-bazi .bz-tbl.cols-8 .cg{font-size:9.5px}'
+      + '  #ndt-bazi .bz-tbl.cols-8 .gr{font-size:15px}'
       + '  #ndt-bazi .bz-tbl-hint{display:none}'
       /* 大运也改成换行排，不要屏内横滑 */
       + '  #ndt-bazi .bz-dy{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));'
@@ -923,7 +930,8 @@
         + '</tr>';
     }).join('');
 
-    return '<div class="bz-tbl-wrap"><table class="bz-tbl" data-mode="' + mode + '" style="--bz-cols:' + cols.length + '">'
+    return '<div class="bz-tbl-wrap"><table class="bz-tbl' + (cols.length >= 8 ? ' cols-8' : '')
+      + '" data-mode="' + mode + '" style="--bz-cols:' + cols.length + '">'
       + head + '<tbody>' + body + '</tbody></table></div>'
       + '<div class="bz-tbl-hint">左右滑动查看各柱 · 共 ' + cols.length + ' 列</div>';
   }
