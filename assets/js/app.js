@@ -347,15 +347,47 @@ const Cloud={
     try{this.token=localStorage.getItem('ndt-cloud-token')||null;}catch(e){this.token=null;}
   },
   get connected(){return !!(this.token&&this.user);},
+  /* 单条请求的超时与重试。
+     国内直连 Cloudflare 时，一个请求常常卡十几秒才失败，这段时间界面像死机；
+     现在每条请求最多等 20 秒，并且只对「可重复」的 GET 自动重试一次（700ms 后）。
+     写操作（发帖/回复/点赞/签到等）绝不重试，避免重复提交。 */
   async request(path,opts={}){
     const headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
     if(this.token)headers.Authorization='Bearer '+this.token;
-    let res;
-    try{res=await fetch(this.base+path,Object.assign({headers},opts));}
-    catch(e){throw new Error('无法连接云端（可能离线，或后端未部署/未绑定）');}
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(data.error||('请求失败 ('+res.status+')'));
-    return data;
+    const url=this.base+path;
+    const method=(opts.method||'GET').toUpperCase();
+    const TIMEOUT=20000;
+    const send=async()=>{
+      const ctrl=(typeof AbortController==='function')?new AbortController():null;
+      const timer=ctrl?setTimeout(()=>{try{ctrl.abort();}catch(e){}},TIMEOUT):null;
+      const init=Object.assign({},opts,{headers});
+      if(ctrl&&!init.signal)init.signal=ctrl.signal;
+      let res;
+      try{
+        res=await fetch(url,init);
+      }catch(e){
+        const err=new Error(String(e&&e.name==='AbortError'?'网络超时，请稍后再试':'无法连接云端（可能离线，或后端未部署/未绑定）'));
+        err.network=true;
+        throw err;
+      }finally{
+        if(timer)clearTimeout(timer);
+      }
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok){
+        const err=new Error((data&&data.error)||('请求失败 ('+res.status+')'));
+        err.status=res.status;
+        err.network=res.status>=500;   /* 520-524 这类网关错误等同「没连上」 */
+        throw err;
+      }
+      return data;
+    };
+    if(method!=='GET')return await send();
+    try{ return await send(); }
+    catch(e){
+      if(!e||!e.network)throw e;
+      await new Promise(r=>setTimeout(r,700));
+      return await send();
+    }
   },
   setSession(d){
     this.token=d.token;this.user=d.user;
@@ -4145,7 +4177,7 @@ function viewRoom(idx){
   let i=Math.max(0,Math.min(rooms.length-1,idx||0));
   const room=rooms[i];
   markConversationSeen('room',room.id);
-  const userOf=id=>DB.data.users.find(u=>u.id===id)||{id,id,name:'未知',avatar:''};
+  const userOf=id=>DB.data.users.find(u=>u.id===id)||{id,name:'未知',avatar:''};
   const isCard=room.mode==='card';
   const roomPageKey='room:'+room.id;
   const roomTotalPages=Math.max(1,Math.ceil(room.messages.length/CHAT_PAGE_SIZE));
@@ -5170,7 +5202,11 @@ function renderConversationMessages(target){
       :'<div class="empty">工作组还没有消息。</div>';
   const me=DB.user;
   const other=kind==='chat'?DB.data.users.find(u=>u.id===key):null;
-  const out=arr.map((m,mi)=>{
+  /* v100 修：这里原本是 `const out`，下面 224 行还有一句 `out+=typingBubbleHtml(...)`，
+     一旦「对方正在输入」的气泡在渲染期间生效，就会抛 TypeError:
+     Assignment to constant variable.，整个会话渲染直接失败（消息不刷新）。
+     改成 let。 */
+  let out=arr.map((m,mi)=>{
     const timeNode=chatTimestampHtml(m,kind,key,arr[mi-1]);
     if(kind==='chat'){
       const mine=m.side==='me';

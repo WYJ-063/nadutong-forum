@@ -552,6 +552,29 @@
 
   function regionData() { return window.BAZI_REGION || []; }
 
+  /* 地区数据（34 个省级、2875 个区县，bazi-region.js 约 116KB）只有排盘表单里的
+     出生地用得到，不该跟首屏一起下载。v100 起改成按需加载：
+     · 进入八字页、表单需要填省市时才拉这一次；
+     · 首屏空闲时预取一次（2G/省流量模式下不预取），正常网速下用户感觉不到。 */
+  var REGION_SRC = 'assets/js/bazi-region.js?v=100';
+  var regionLoading = false;
+  var regionWaiters = [];
+  function loadRegion(cb) {
+    if (window.BAZI_REGION) { if (typeof cb === 'function') { cb(); } return; }
+    if (typeof cb === 'function') { regionWaiters.push(cb); }
+    if (regionLoading) { return; }
+    regionLoading = true;
+    var s = document.createElement('script');
+    s.src = REGION_SRC;
+    s.async = true;
+    s.onload = s.onerror = function () {
+      regionLoading = false;
+      var list = regionWaiters.splice(0);
+      list.forEach(function (fn) { try { fn(); } catch (e) {} });
+    };
+    (document.head || document.documentElement).appendChild(s);
+  }
+
   var ADDR_IDS = ['bz-prov', 'bz-city', 'bz-dist'];
   var HH_ADDR_IDS = ['bz-hh-prov', 'bz-hh-city', 'bz-hh-dist'];
 
@@ -670,13 +693,16 @@
     var ps = $('#bz-prov');
     if (!ps) { return; }
     if (!R.length) {
-      /* 地区文件没加载时给出可读的提示，而不是一个空下拉 */
-      ps.innerHTML = '<option value="0">地区数据未加载</option>';
+      /* 地区文件还没拉回来时给出可读的提示，而不是一个空下拉 */
+      ps.innerHTML = '<option value="0">出生地加载中…</option>';
       var csX = $('#bz-city'), dsX = $('#bz-dist');
       if (csX) { csX.innerHTML = '<option value="0">—</option>'; }
       if (dsX) { dsX.innerHTML = '<option value="0">—</option>'; }
       var noteX = $('#bz-tst-note');
-      if (noteX) { noteX.textContent = 'assets/js/bazi-region.js 未加载，出生地暂不可选。'; }
+      if (noteX) { noteX.textContent = '正在加载出生地数据，稍等即可选择。'; }
+      loadRegion(function () {
+        if (window.BAZI_REGION && isBaziPage()) { addrInit(); syncFormNote(); }
+      });
       return;
     }
     ps.innerHTML = R.map(function (p, i) { return '<option value="' + i + '">' + esc(p.n) + '</option>'; }).join('');
@@ -1832,6 +1858,21 @@
      标记不生效（监听器按注册顺序调用），抢不到前面去 —— 只能等它跑完，
      在同一个 tick 里立刻把门户结构顶回来，浏览器还没绘制，看不到中间帧。 */
   window.addEventListener('hashchange', function () { tick(); });
+
+  /* 空闲预取出生地数据：不阻塞首屏；弱网/省流量模式下不预取，等用户真的要用时再拉。 */
+  function prefetchRegion() {
+    if (window.BAZI_REGION || regionLoading) { return; }
+    try {
+      var c = navigator.connection || {};
+      if (c.saveData || /(^|-)(2g|slow-2g)$/i.test(String(c.effectiveType || ''))) { return; }
+    } catch (e) {}
+    loadRegion(null);
+  }
+  if ('requestIdleCallback' in window) {
+    try { window.requestIdleCallback(prefetchRegion, { timeout: 4000 }); } catch (e) { setTimeout(prefetchRegion, 2500); }
+  } else {
+    setTimeout(prefetchRegion, 2500);
+  }
 
   window.addEventListener('load', function () { tick(); });
 

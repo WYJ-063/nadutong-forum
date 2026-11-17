@@ -1,0 +1,25 @@
+# 哪都通 · Cloudflare Pages 响应头配置
+# 说明：这个文件只影响 CDN 返回的响应头，不会被当成页面内容。
+#
+# 1) /assets/* 全是带 ?v= 版本号的静态资源，内容一变版本号就变，
+#    所以可以放心让浏览器缓存一年（immutable），
+#    重复访问时不再向 600~700ms 外的服务器逐个发请求校验。
+# 2) index.html / sw.js 必须每次回源校验，否则新版本发布后用户看不到更新。
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(self), microphone=(), camera=()
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=86400

@@ -62,9 +62,11 @@
   var first = segs[0] || "";
   var isSurface = SURFACE[first] === 1;
 
-  var MIN  = 1800;   /* 最短停留：留出渐隐与加载的余量，整体观感约 2.5 秒 */
+  /* v100：原来最短停留固定 1.8 秒、最长 2.6 秒，弱网时这段等待叠在真实加载之上，
+     体感就是「一直转圈」。现在压到 1.0 秒 / 1.8 秒：动画还在，但不再额外拖时间。 */
+  var MIN  = 1000;   /* 最短停留 */
   var FADE = isSurface ? 560  : 700;    /* 渐隐时长 */
-  var CAP  = 2600;   /* 最长停留 */
+  var CAP  = 1800;   /* 最长停留 */
 
   var t0 = Date.now();
   var done = false;

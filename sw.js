@@ -2,14 +2,41 @@
    注意：正式发布新版本时，把下面的 v1 改成 v2、v3……
    旧缓存会被自动清掉，用户下次打开就是新文件。
    index.html 走"网络优先"，所以新部署能被立刻感知，不会卡在旧版本。 */
-const ASSET_CACHE = 'ndt-assets-v4';
+const ASSET_CACHE = 'ndt-assets-v100';
 /* 页面留一份缓存只作兜底：网络不通 / 超时才用它，正常有网一律取最新的。
    （早先写成"缓存优先、后台更新"，结果是不会清缓存的用户永远停在上一个版本，
      这条路是错的，改回网络优先。） */
-const PAGE_CACHE = 'ndt-pages-v1';
+const PAGE_CACHE = 'ndt-pages-v100';
 const PAGE_NET_TIMEOUT = 3500;
 
-self.addEventListener('install',event=>{self.skipWaiting();});
+/* 首屏必须用到的文件：装好 SW 后主动下载一份。
+   国内直连 Cloudflare 时首屏最贵的就是这些请求；
+   预热之后（哪怕那一刻线路抖了）页面也能从本地缓存秒开。
+   单个文件失败不影响整体：失败的那个下次访问会再补。 */
+const CORE_ASSETS = [
+  './index.html',
+  './assets/css/app.bundle.css?v=100',
+  './assets/js/app.bundle.js?v=100',
+  './assets/js/preloader-tone.js?v=100',
+  './assets/logo.png',
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './manifest.webmanifest'
+];
+
+self.addEventListener('install',event=>{
+  event.waitUntil((async()=>{
+    self.skipWaiting();
+    try{
+      const cache=await caches.open(ASSET_CACHE);
+      await Promise.all(CORE_ASSETS.map(u=>
+        fetch(u,{cache:'reload'})
+          .then(res=>{ if(res&&res.ok) return cache.put(u,res); })
+          .catch(()=>{})
+      ));
+    }catch(e){}
+  })());
+});
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
