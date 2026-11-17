@@ -92,3 +92,21 @@
   .ship-svc{padding:9px 7px 8px}
   .ship-svc .nm{font-size:12px}
 }
+
+/* ===== 首页 App 下载入口（仅手机端） v104 ===== */
+.appdl-nd{margin:12px 0 0;padding:11px 12px;display:flex;align-items:center;gap:10px;box-sizing:border-box;
+  background:#fff;border:1px solid #E3E8F4;border-radius:12px;box-shadow:0 6px 20px rgba(16,32,80,.05)}
+.appdl-nd-tile{width:40px;height:40px;flex:0 0 40px;border-radius:10px;background:#F3F6FF;border:1px solid #E6ECFA;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.appdl-nd-tile img{width:30px;display:block}
+.appdl-nd-main{flex:1;min-width:0}
+.appdl-nd-head{display:flex;align-items:center;gap:6px}
+.appdl-nd-t{font-size:13px;font-weight:700;color:#0E1B52;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appdl-nd-pill{flex:0 0 auto;font-size:10px;line-height:15px;font-weight:600;color:#1E3A8A;border:1px solid #C9D5F0;
+  border-radius:5px;padding:0 5px;background:#fff}
+.appdl-nd-sub{font-size:10.5px;color:#7C8AAE;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appdl-nd-go{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;background:#F5821F;color:#fff;text-decoration:none;
+  font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:8px;box-shadow:0 4px 10px rgba(245,130,31,.22)}
+.appdl-nd-go svg{width:11px;height:11px;display:block}
+.appdl-nd-go:active{transform:translateY(1px)}
+@media (min-width:681px){.appdl-nd{display:none!important}}

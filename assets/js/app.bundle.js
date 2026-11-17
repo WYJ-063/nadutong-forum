@@ -3645,3 +3645,106 @@ function shipToastThrottled(msg, type) {
 
 
 viewService = function(){ return viewShipForm(); };
+
+/* ===== 首页 App 下载入口（仅手机端）· v104 =====
+   规则：App 内(UA 含 NDTApp)不显示；桌面端不显示（只做手机）；iOS 点击只提示不下载；
+   链接与版本号读 version.json，体积用 HEAD 的 content-length，链接带 ?v= 绕缓存。 */
+(function(){
+  try{
+    var UA=navigator.userAgent||"";
+    if(/NDTApp/i.test(UA))return;
+    var isAndroid=/Android/i.test(UA);
+    var isIOS=/iPhone|iPad|iPod/i.test(UA)&&!window.MSStream;
+    if(!isAndroid&&!isIOS)return;
+
+    var VER="1.0.4",KB="340 KB";
+    var APKPATH="/yirenneiwang.apk";
+    var href=APKPATH+"?v="+VER;
+
+    function toastMsg(msg){
+      var w=document.getElementById("toast");
+      if(!w){return}
+      var el=document.createElement("div");
+      el.className="toast";
+      el.textContent=msg;
+      w.appendChild(el);
+      setTimeout(function(){el.style.opacity="0";el.style.transition=".3s";setTimeout(function(){el.remove()},300)},2400);
+    }
+
+    var ICON='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/></svg>';
+
+    function html(){
+      return '<div class="appdl-nd" id="appdl-nd">'+
+        '<div class="appdl-nd-tile"><img src="assets/logo.png" alt="哪都通"></div>'+
+        '<div class="appdl-nd-main">'+
+          '<div class="appdl-nd-head"><span class="appdl-nd-t">哪都通快递 App</span><span class="appdl-nd-pill">安卓</span></div>'+
+          '<div class="appdl-nd-sub" id="appdl-nd-sub">查件更快 · '+KB+' · v'+VER+'</div>'+
+        '</div>'+
+        '<a class="appdl-nd-go" id="appdl-nd-go" href="'+href+'">'+ICON+'<span>立即下载</span></a>'+
+      '</div>';
+    }
+
+    function isHome(){
+      var h=location.hash.replace(/^#/,"");
+      return h===""||h==="/";
+    }
+    function ensure(){
+      if(document.getElementById("appdl-nd"))return;
+      if(!isHome())return;
+      if(window.innerWidth>680)return;
+      var hero=document.querySelector(".hero");
+      if(!hero)return;
+      var box=document.createElement("div");
+      box.innerHTML=html();
+      hero.insertAdjacentElement("afterend",box.firstElementChild);
+    }
+    function tick(){if(!document.getElementById("appdl-nd"))ensure()}
+
+    document.addEventListener("click",function(e){
+      var a=e.target&&e.target.closest?e.target.closest("#appdl-nd-go"):null;
+      if(!a)return;
+      if(isIOS){e.preventDefault();toastMsg("iOS 版暂未提供，请用安卓手机下载")}
+    },true);
+
+    function refresh(){
+      var a=document.getElementById("appdl-nd-go");
+      var s=document.getElementById("appdl-nd-sub");
+      if(a)a.setAttribute("href",href);
+      if(s)s.textContent="查件更快 · "+KB+" · v"+VER;
+    }
+
+    function loadMeta(){
+      try{
+        fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){
+          if(!j)return;
+          if(j.versionName)VER=j.versionName;
+          if(j.url){
+            var u=String(j.url).replace(/^https?:\/\/[^/]+/,"");
+            if(u&&u.charAt(0)==="/")APKPATH=u.replace(/\?.*$/,"");
+          }
+          href=APKPATH+"?v="+VER;
+          refresh();
+          fetch(href,{method:"HEAD",cache:"no-store"}).then(function(r){
+            if(!r||!r.ok)return;
+            var cl=r.headers.get("content-length"),n=Number(cl);
+            if(!cl||!isFinite(n)||n<=0)return;
+            var k=n/1024;KB=(k>=1000?(Math.round(k/1024*10)/10+" MB"):(Math.round(k)+" KB"));refresh()
+          }).catch(function(){});
+        }).catch(function(){});
+      }catch(e){}
+    }
+
+    function boot(){
+      ensure();
+      setTimeout(tick,800);
+      setTimeout(tick,2000);
+      loadMeta();
+    }
+
+    window.addEventListener("hashchange",function(){setTimeout(tick,350);setTimeout(tick,1200)});
+    window.addEventListener("resize",function(){tick()});
+    setInterval(tick,1500);
+
+    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
+  }catch(e){}
+})();
