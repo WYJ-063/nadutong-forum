@@ -40,9 +40,9 @@
 </style>
 <!-- 样式只留一个文件：原来 14 个 CSS 是 14 次往返，国内直连时每次 600~700ms。
      合并顺序与原 index.html 完全一致，层叠覆盖关系不变。 -->
-<link rel="stylesheet" href="assets/css/app.bundle.css?v=100">
+<link rel="stylesheet" href="assets/css/app.bundle.css?v=101">
 <!-- 首屏脚本预加载：让它和样式表并行下载，而不是等 body 解析到最后才开始 -->
-<link rel="preload" href="assets/js/app.bundle.js?v=100" as="script">
+<link rel="preload" href="assets/js/app.bundle.js?v=101" as="script">
 </head>
 <body>
 <div id="page-preloader" role="status" aria-label="页面加载中">
@@ -54,12 +54,12 @@
   <div class="pl-tip">正在接入内网…</div>
   <div class="pl-bar"><span></span></div>
 </div>
-<script src="assets/js/preloader-tone.js?v=100"></script>
+<script src="assets/js/preloader-tone.js?v=101"></script>
 <div id="app"></div>
 <img src="assets/logo.png" alt="" class="hide" aria-hidden="true">
 <div id="toast"></div>
 <!-- 全部前端逻辑合并成一个文件（24 个脚本 → 1 个），执行顺序与旧版逐条加载完全一致。
      出生地数据 bazi-region.js 不再预载，由 bazi.js 进入八字页时按需拉取。 -->
-<script src="assets/js/app.bundle.js?v=100"></script>
+<script src="assets/js/app.bundle.js?v=101"></script>
 </body>
 </html>
