@@ -3301,6 +3301,9 @@ function shipRecalc() {
 
 /* ------------------------------ 下单 ------------------------------ */
 function shipSubmit() {
+  if (window.__shipBusy) return;          // 防连点：重复点击不再叠提示、不会再下一单
+  window.__shipBusy = 1;
+  setTimeout(function () { window.__shipBusy = 0; }, 1400);
   var v = function (id) { var el = $("#" + id); return el ? String(el.value || "").trim() : ""; };
   var sName = v("s-name"), sTel = v("s-tel").replace(/\s|-/g, ""),
       rName = v("r-name"), rTel = v("r-tel").replace(/\s|-/g, ""),
@@ -3310,16 +3313,16 @@ function shipSubmit() {
   var svcEl = $(".ship-svc.on");
   var svc = svcEl ? svcEl.getAttribute("data-svc") : "标准快递";
 
-  if (!sName) return toast("请填写寄件人姓名", "warn");
-  if (!/^1[3-9]\d{9}$/.test(shipNormTel(sTel))) return toast("寄件人手机号要 11 位数字，当前 " + shipNormTel(sTel).length + " 位", "warn");
-  if (!sAddr) return toast("请填写取件详细地址", "warn");
-  if (!rName) return toast("请填写收件人姓名", "warn");
-  if (!/^1[3-9]\d{9}$/.test(shipNormTel(rTel))) return toast("收件人手机号要 11 位数字，当前 " + shipNormTel(rTel).length + " 位", "warn");
-  if (!rAddr) return toast("请填写收件详细地址", "warn");
-  if (!goods) return toast("请填写物品名称", "warn");
-  if (!count || count < 1) return toast("件数至少 1 件", "warn");
-  if (!weight || weight <= 0) return toast("请填写重量，按 kg 计", "warn");
-  if (weight > 50) return toast("超过 50kg 请走企业物流", "warn");
+  if (!sName) return shipToastThrottled("请填写寄件人姓名", "warn");
+  var sTelErr = shipTelError(sTel); if (sTelErr) return shipToastThrottled("寄件人手机号" + sTelErr, "warn");
+  if (!sAddr) return shipToastThrottled("请填写取件详细地址", "warn");
+  if (!rName) return shipToastThrottled("请填写收件人姓名", "warn");
+  var rTelErr = shipTelError(rTel); if (rTelErr) return shipToastThrottled("收件人手机号" + rTelErr, "warn");
+  if (!rAddr) return shipToastThrottled("请填写收件详细地址", "warn");
+  if (!goods) return shipToastThrottled("请填写物品名称", "warn");
+  if (!count || count < 1) return shipToastThrottled("件数至少 1 件", "warn");
+  if (!weight || weight <= 0) return shipToastThrottled("请填写重量，按 kg 计", "warn");
+  if (weight > 50) return shipToastThrottled("超过 50kg 请走企业物流", "warn");
 
   var insureOn = $("#s-insure") && $("#s-insure").checked;
   var insureValue = insureOn ? Math.max(0, Number(v("s-insure-val")) || 0) : 0;
@@ -3478,7 +3481,7 @@ document.addEventListener("click", function (e) {
   if (t.closest("#ship-copy")) {
     var el = t.closest("#ship-copy");
     var code = el.getAttribute("data-code") || "";
-    var done = function () { toast("运单号已复制", "ok"); };
+    var done = function () { shipToastThrottled("运单号已复制", "ok"); };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(code).then(done, function () { shipCopyFallback(code, done); });
@@ -3615,6 +3618,29 @@ document.addEventListener("input", function (e) {
     if (w !== t.value) t.value = w;
   }
 });
+
+
+/* ------------------------------ 手机号提示 ------------------------------ */
+/* 只卡两件事：11 位、以 1 开头。
+   以前要求第二位是 3-9（正则 1[3-9]\d{9}），拿 12345678999 这种测试号
+   明明 11 位却永远下不了单，提示还只说"要 11 位"，看着像冤案。 */
+function shipTelError(v) {
+  var d = shipNormTel(v);
+  if (!d) return "填一下号码";
+  if (d.length < 11) return "还差 " + (11 - d.length) + " 位（当前 " + d.length + " 位）";
+  if (d.charAt(0) !== "1") return "要以 1 开头";
+  return "";
+}
+
+/* 同一句提示 1.6 秒内只弹一次：连点确认下单不会再刷一屏一样的 toast */
+var __shipLastToastMsg = "", __shipLastToastAt = 0;
+function shipToastThrottled(msg, type) {
+  var now = Date.now();
+  if (msg === __shipLastToastMsg && now - __shipLastToastAt < 1600) return;
+  __shipLastToastMsg = msg;
+  __shipLastToastAt = now;
+  try { if (typeof toast === "function") toast(msg, type || "warn"); } catch (e) {}
+}
 
 
 
