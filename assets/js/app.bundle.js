@@ -3232,7 +3232,7 @@ function viewShipForm() {
 
         '<label class="fl">寄件人</label>' +
         '<div class="ship-row"><input class="field" id="s-name" placeholder="姓名" value="' + shipEscAttr(pre.sName || "") + '">' +
-        '<input class="field" id="s-tel" placeholder="手机号" inputmode="numeric" maxlength="11" value="' + shipEscAttr(pre.sTel || "") + '"></div>' +
+        '<input class="field" id="s-tel" type="tel" placeholder="手机号" inputmode="numeric" autocomplete="tel" value="' + shipEscAttr(pre.sTel || "") + '"></div>' +
 
         '<label class="fl">取件地址</label>' +
         '<div class="ship-row3"><select class="field" id="s-prov">' + shipProvOpts(pre.fromProv) + '</select>' +
@@ -3241,7 +3241,7 @@ function viewShipForm() {
 
         '<label class="fl">收件人</label>' +
         '<div class="ship-row"><input class="field" id="r-name" placeholder="姓名" value="' + shipEscAttr(pre.rName || "") + '">' +
-        '<input class="field" id="r-tel" placeholder="手机号" inputmode="numeric" maxlength="11" value="' + shipEscAttr(pre.rTel || "") + '"></div>' +
+        '<input class="field" id="r-tel" type="tel" placeholder="手机号" inputmode="numeric" autocomplete="tel" value="' + shipEscAttr(pre.rTel || "") + '"></div>' +
         '<div class="ship-row3"><select class="field" id="r-prov">' + shipProvOpts(pre.toProv) + '</select>' +
         shipCityInput("r-city", pre.toCity) + '</div>' +
         '<div class="ship-row"><input class="field" id="r-addr" placeholder="街道、门牌号" value="' + shipEscAttr(pre.toAddr || "") + '"></div>' +
@@ -3311,10 +3311,10 @@ function shipSubmit() {
   var svc = svcEl ? svcEl.getAttribute("data-svc") : "标准快递";
 
   if (!sName) return toast("请填写寄件人姓名", "warn");
-  if (!/^1[3-9]\d{9}$/.test(sTel)) return toast("寄件人手机号填 11 位号码", "warn");
+  if (!/^1[3-9]\d{9}$/.test(shipNormTel(sTel))) return toast("寄件人手机号要 11 位数字，当前 " + shipNormTel(sTel).length + " 位", "warn");
   if (!sAddr) return toast("请填写取件详细地址", "warn");
   if (!rName) return toast("请填写收件人姓名", "warn");
-  if (!/^1[3-9]\d{9}$/.test(rTel)) return toast("收件人手机号填 11 位号码", "warn");
+  if (!/^1[3-9]\d{9}$/.test(shipNormTel(rTel))) return toast("收件人手机号要 11 位数字，当前 " + shipNormTel(rTel).length + " 位", "warn");
   if (!rAddr) return toast("请填写收件详细地址", "warn");
   if (!goods) return toast("请填写物品名称", "warn");
   if (!count || count < 1) return toast("件数至少 1 件", "warn");
@@ -3581,6 +3581,40 @@ document.addEventListener("click", function (e) {
   location.hash = "#/track/" + encodeURIComponent(v);
   if (typeof router === "function") router();
 }, true);
+
+
+/* ------------------------------ 输入规整 ------------------------------ */
+/* 手机号不用 maxlength 硬截断：部分输入法/粘贴会把全角数字、空格算进去，
+   出现"第 11 位打不进去、校验又说要 11 位"的死循环。
+   改成输入即规整：全角转半角 → 只留数字 → 最多 11 位。 */
+function shipNormTel(v) {
+  var s = String(v == null ? "" : v);
+  s = s.replace(/[\uFF10-\uFF19]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); });
+  s = s.replace(/\D/g, "");
+  return s.slice(0, 11);
+}
+
+document.addEventListener("input", function (e) {
+  var t = e.target;
+  if (!t || !t.id) return;
+  if (t.id === "s-tel" || t.id === "r-tel") {
+    var nv = shipNormTel(t.value);
+    if (nv !== t.value) {
+      t.value = nv;
+      try { t.setSelectionRange(nv.length, nv.length); } catch (err) {}
+    }
+    return;
+  }
+  if (t.id === "s-count") {
+    var c = String(t.value || "").replace(/\D/g, "").slice(0, 3);
+    if (c !== t.value) t.value = c;
+    return;
+  }
+  if (t.id === "s-weight") {
+    var w = String(t.value || "").replace(/[^\d.]/g, "").replace(/\./g, "#").replace(/#/g, ".").slice(0, 6);
+    if (w !== t.value) t.value = w;
+  }
+});
 
 
 
