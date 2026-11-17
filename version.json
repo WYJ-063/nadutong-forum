@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "versionName": "1.0.3",
+  "versionCode": 5,
+  "versionName": "1.0.4",
   "url": "https://nadutong-forum.pages.dev/yirenneiwang.apk",
-  "notes": "启动动画白底无文字，新增下拉刷新、系统分享、崩溃自动恢复"
+  "notes": "状态栏图标跟随页面明暗；WebView 版本过低会提示更新；应用内更新改为直接下载安装，不再跳浏览器"
 }
