@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>在逃通缉 · 手绘画像 原型 v3</title>
+<style>
+  :root{--deep:#101828;--accent:#8C2D22;--muted:#6B7280;--line:#E5E8EF}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#EEF1F6;color:var(--deep);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif}
+  .wrap{max-width:1320px;margin:0 auto;padding:24px 22px 44px;display:grid;
+    grid-template-columns:minmax(400px,510px) minmax(390px,1fr);gap:24px;align-items:start}
+
+  /* ---------- 通缉令 ---------- */
+  .poster{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px 18px;
+    box-shadow:0 12px 30px rgba(16,24,40,.06)}
+  .p-top{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.14em;
+    color:#9AA0AE;border-bottom:1px solid #EDEFF4;padding-bottom:9px}
+  .p-title{text-align:center;margin:14px 0 2px;font-size:12.5px;letter-spacing:.42em;color:var(--accent);font-weight:700}
+  .p-name{text-align:center;font-size:29px;font-weight:800;letter-spacing:.08em;margin:4px 0 2px}
+  .p-body{display:grid;grid-template-columns:168px 1fr;gap:18px;margin-top:14px}
+  .slot{position:relative;width:168px;height:212px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;overflow:hidden;background:linear-gradient(155deg,#FBFAF6,#F3F0E7);
+    box-shadow:inset 0 0 0 1px #E7E2D3,inset 0 2px 8px rgba(120,100,64,.07)}
+  .slot canvas{position:absolute;inset:0;width:100%;height:100%;display:none}
+  .slot.filled{box-shadow:none;background:transparent}
+  .slot.filled canvas{display:block}
+  .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;padding:14px;text-align:center}
+  .slot.filled .ph{display:none}
+  .ph b{font-size:14px;color:#A79877;font-weight:600;letter-spacing:.26em;text-indent:.26em}
+  .ph span{font-size:11px;line-height:1.75;color:#B0A794}
+  .corner{position:absolute;width:14px;height:14px;border:1px solid #DCD5C4}
+  .c1{left:8px;top:8px;border-right:0;border-bottom:0}
+  .c2{right:8px;top:8px;border-left:0;border-bottom:0}
+  .c3{left:8px;bottom:8px;border-right:0;border-top:0}
+  .c4{right:8px;bottom:8px;border-left:0;border-top:0}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:11px 14px;align-content:start}
+  .kv span{display:block;font-size:11px;color:#9AA0AE;margin-bottom:2px}
+  .kv b{font-size:13.5px;font-weight:600}
+  .rew{color:var(--accent);font-weight:800}
+  .p-tip{margin-top:14px;background:#FDF3F0;border-left:3px solid #C98C7C;border-radius:4px;
+    padding:8px 11px;font-size:12px;color:#7A5A50;line-height:1.6}
+  .p-btns{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+  .btn{border:1px solid #D9DEE8;background:#fff;color:#3A4354;border-radius:8px;padding:8px 13px;
+    font-size:12.5px;cursor:pointer;font-family:inherit}
+  .btn.primary{background:#1F2A44;color:#fff;border-color:#1F2A44}
+  .btn.ghost-red{color:var(--accent);border-color:#E2CFC9;background:#FFF9F7}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ---------- 画板 ---------- */
+  .pad{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;position:sticky;top:16px;
+    box-shadow:0 12px 30px rgba(16,24,40,.06)}
+  .pad-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .pad-head h3{margin:0;font-size:15px}
+  .pad-close{border:1px solid #DDE2EB;background:#fff;color:#5A6373;border-radius:20px;
+    padding:5px 13px;font-size:11.5px;cursor:pointer;font-family:inherit}
+  .pad-close:hover{background:#F3F5FA}
+  .papers{display:flex;gap:6px;margin-left:auto}
+  .papers button{border:1px solid #DDE2EB;background:#fff;color:#5A6373;border-radius:20px;padding:5px 11px;
+    font-size:11.5px;cursor:pointer;font-family:inherit}
+  .papers button.on{background:#1F2A44;border-color:#1F2A44;color:#fff}
+  .cwrap{position:relative;width:100%;aspect-ratio:1/1;border-radius:10px;overflow:hidden;
+    background:#FDFCF8;box-shadow:inset 0 0 0 1px rgba(70,58,40,.2),0 10px 24px rgba(60,44,22,.12);
+    touch-action:none}
+  .cwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #art{mix-blend-mode:multiply}
+  #grain{mix-blend-mode:multiply;pointer-events:none}
+  .tools{margin-top:11px;display:flex;flex-direction:column;gap:9px}
+  .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .lbl{font-size:10.5px;color:#9AA0AE;letter-spacing:.1em;width:30px;flex:none}
+  .chip{border:1px solid #DDE2EB;background:#fff;border-radius:7px;padding:5px 9px;font-size:11.5px;
+    color:#4B5468;cursor:pointer;font-family:inherit}
+  .chip.on{background:#1F2A44;color:#fff;border-color:#1F2A44}
+  .sw{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.14);cursor:pointer;flex:none}
+  .sw.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #1F2A44}
+  .pick{position:relative;width:30px;height:24px;border-radius:6px;overflow:hidden;border:1px solid #DDE2EB;
+    background:conic-gradient(#f44,#fc4,#4f4,#4ff,#44f,#f4f,#f44);display:flex;cursor:pointer;flex:none}
+  .pick input{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}
+  .sizes button{border:1px solid #DDE2EB;background:#fff;border-radius:7px;width:32px;height:28px;cursor:pointer}
+  .sizes button.on{border-color:#1F2A44;background:#F2F5FB}
+  .size-slider{flex:1;max-width:280px;accent-color:#1F2A44;height:18px}
+  .size-num{font-size:11px;color:#5A6373;min-width:26px;text-align:right}
+  .dot{display:block;border-radius:50%;background:#2B2419;margin:0 auto}
+  .toggle{display:flex;align-items:center;gap:5px;font-size:11.5px;color:#4B5468;cursor:pointer;margin-left:auto}
+  .toggle input{width:31px;height:18px;appearance:none;background:#D6DCE7;border-radius:20px;position:relative;
+    outline:none;cursor:pointer;transition:.18s;flex:none}
+  .toggle input:checked{background:#1F2A44}
+  .toggle input::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;transition:.18s}
+  .toggle input:checked::after{transform:translateX(13px)}
+  .stamps .chip{padding:4px}
+  .stamps .chip canvas{width:38px;height:38px;display:block}
+  .import{border:1px dashed #C9D1DE;background:#FAFBFD;color:#7A8394;border-radius:7px;padding:6px 10px;
+    font-size:11.5px;cursor:pointer;font-family:inherit}
+  .sel-panel{display:none;gap:8px;align-items:center;background:#F7F9FC;border:1px solid #E3E8F2;
+    border-radius:8px;padding:7px 9px;flex-wrap:wrap}
+  .sel-panel.show{display:flex}
+  .sel-panel input[type=range]{width:82px;accent-color:#1F2A44}
+  .acts .btn{flex:1;min-width:72px;text-align:center}
+
+  /* ---------- 图层 ---------- */
+  .layers{margin-top:4px;border:1px solid #E6EAF2;border-radius:9px;overflow:hidden;background:#FAFBFD}
+  .layers-head{display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #EDF0F6}
+  .layers-head b{font-size:11.5px;letter-spacing:.08em;color:#5A6373}
+  .layers-head .hint{font-size:10.5px;color:#A6ADBA}
+  .layers-head .ops{margin-left:auto;display:flex;gap:5px}
+  .layers-head button{border:1px solid #DCE2EC;background:#fff;border-radius:6px;padding:3px 8px;
+    font-size:10.5px;color:#4B5468;cursor:pointer;font-family:inherit}
+  .lyr{display:flex;align-items:center;gap:7px;padding:5px 9px;border-bottom:1px solid #F0F3F8;
+    font-size:11.5px;color:#4B5468;cursor:pointer}
+  .lyr:last-child{border-bottom:0}
+  .lyr.on{background:#EEF3FF}
+  .lyr .ico{border:0;background:transparent;font-size:12px;cursor:pointer;line-height:1;padding:2px;width:20px;color:#7A8394}
+  .lyr .ico.off{opacity:.35}
+  .lyr .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lyr .bd{font-size:9.5px;border:1px solid #D8DFEA;border-radius:4px;padding:1px 5px;color:#6B7484;background:#fff}
+  .lyr .bd on{}
+  .lyr .bd.mult{background:#1F2A44;color:#fff;border-color:#1F2A44}
+  .note{font-size:10.8px;color:#98A0AE;line-height:1.7}
+
+  @media (max-width:980px){
+    .wrap{grid-template-columns:1fr;gap:16px;padding:14px 12px 30px}
+    .pad-close{position:fixed;top:10px;right:12px;z-index:9;background:#fff;
+      box-shadow:0 4px 12px rgba(20,30,60,.12);border-color:#D7DDE8}
+    .pad-head{padding-right:72px}
+    .pad{position:static}
+    .p-body{grid-template-columns:1fr;gap:14px}
+    .slot{width:152px;height:198px;margin:0 auto}
+    .papers{width:100%;margin:6px 0 0}
+    .papers button{flex:1;text-align:center}
+    .lyr{padding:6px 8px}
+    .layers-head{flex-wrap:wrap}
+    .layers-head .hint{display:none}
+    .layers-head .ops{width:100%;margin:6px 0 0;justify-content:flex-end}
+    .layers-head button{white-space:nowrap;padding:4px 9px;font-size:11px}
+    .size-tip{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ================= 通缉令 ================= -->
+  <div class="poster">
+    <div class="p-top"><span>ND-TONG / WANTED</span><span id="pCode">NO. ND-WANTED-009</span></div>
+    <div class="p-title">在 逃 通 缉</div>
+    <div class="p-name" id="pName">吕 良</div>
+    <div class="p-body">
+      <div class="slot empty" id="slot">
+        <canvas id="slotCanvas" width="336" height="424"></canvas>
+        <div class="ph" id="slotPh">
+          <b>暂无</b>
+          <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+        </div>
+      </div>
+      <div class="info" id="pInfo">
+        <div class="kv"><span>危险等级</span><b>B 级</b></div>
+        <div class="kv"><span>所属势力</span><b>原吕家成员</b></div>
+        <div class="kv"><span>异术特征</span><b>明魂术</b></div>
+        <div class="kv"><span>最后线索</span><b>行踪不明</b></div>
+        <div class="kv"><span>当前状态</span><b>在逃</b></div>
+        <div class="kv"><span>悬赏金额</span><b class="rew">￥300,000</b></div>
+      </div>
+    </div>
+    <div class="p-tip" id="pTip">掌握记忆相关异术，具有较高情报价值。</div>
+    <div class="p-btns">
+      <button class="btn primary" id="toSlot">贴到通缉令</button>
+      <button class="btn" id="unSlot" disabled>清除画像</button>
+      <button class="btn" id="saveArt">保存单张通缉照</button>
+      <button class="btn" id="savePng">保存整张通缉令</button>
+      <button class="btn" id="sharePng">分享</button>
+      <button class="btn" id="stickCard">设为卡片画像</button>
+    </div>
+  </div>
+
+  <!-- ================= 画板 ================= -->
+  <div class="pad">
+    <div class="pad-head">
+      <h3>绘制通缉画像</h3>
+      <div class="papers" id="papers">
+        <button data-paper="pure" class="on">纯白</button>
+        <button data-paper="white">素白</button>
+        <button data-paper="note">笔记本</button>
+        <button data-paper="kraft">牛皮纸</button>
+      </div>
+      <button class="pad-close" id="padClose">关闭</button>
+    </div>
+
+    <div class="cwrap" id="cwrap">
+      <canvas id="paper"></canvas>
+      <canvas id="art"></canvas>
+      <canvas id="grain"></canvas>
+    </div>
+
+    <div class="tools">
+      <div class="row">
+        <span class="lbl">笔</span><div class="row" id="brushes" style="gap:6px"></div>
+        <label class="toggle"><input type="checkbox" id="pressure" checked>压感</label>
+      </div>
+      <div class="row">
+        <span class="lbl">色</span><div class="row" id="swatches" style="gap:7px"></div>
+        <label class="pick" title="RGB 自选"><input type="color" id="colorPick" value="#241C12"></label>
+        <code id="hex" style="font-size:11px;color:#8A93A3">#241C12</code>
+      </div>
+      <div class="row">
+        <span class="lbl">粗细</span>
+        <input type="range" id="sizeRange" min="1" max="18" step="0.5" value="4" class="size-slider">
+        <code id="sizeNum" class="size-num">4</code>
+        <span class="note size-tip" style="margin-left:auto;white-space:nowrap">用力粗 · 轻抬收细</span>
+      </div>
+      <div class="row">
+        <span class="lbl">印章</span><div class="row stamps" id="stamps" style="gap:6px"></div>
+        <button class="import" id="importBtn">＋ 自定义贴纸</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+      </div>
+      <div class="row">
+        <span class="lbl">照片</span>
+        <button class="import" id="photoBtn">＋ 直接上传图片当通缉照</button>
+        <button class="import" id="photoClear" style="display:none">用回手绘</button>
+        <input type="file" id="photoInput" accept="image/*" style="display:none">
+      </div>
+
+      <div class="sel-panel" id="selPanel">
+        <span class="note">已选贴纸</span>
+        <input type="range" id="stkSize" min="40" max="360" value="120">
+        <input type="range" id="stkRot" min="-180" max="180" value="-8">
+        <button class="btn" id="stkDel" style="padding:5px 9px;font-size:11px">删除</button>
+        <button class="btn" id="stkDone" style="padding:5px 9px;font-size:11px">完成</button>
+      </div>
+
+      <div class="row acts">
+        <button class="btn" id="undo" disabled>撤回</button>
+        <button class="btn" id="eraser">擦除</button>
+        <button class="btn" id="clear">清空本层</button>
+      </div>
+
+      <!-- 图层 -->
+      <div class="layers">
+        <div class="layers-head">
+          <b>图层</b><span class="hint">点行切换 · 眼睛隐藏 · 锁住不可画</span>
+          <div class="ops">
+            <button id="upLayer" title="上移一层">↑</button>
+            <button id="downLayer" title="下移一层">↓</button>
+            <button id="addLayer">＋ 新建</button>
+            <button id="mergeLayer">合并向下</button>
+            <button id="delLayer">删除</button>
+          </div>
+        </div>
+        <div id="layerList"></div>
+      </div>
+      <div class="note">正片叠底＝墨迹压在纸纹上（更像真画）；正常＝纯色不透明。合并会把上层按当前混合模式烘进下一层。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var W=720,H=720;
+  var paperC=document.getElementById('paper'), artC=document.getElementById('art'), grainC=document.getElementById('grain');
+  var slotC=document.getElementById('slotCanvas'), slot=document.getElementById('slot');
+  var cwrap=document.getElementById('cwrap');
+  var pctx=paperC.getContext('2d'), actx=artC.getContext('2d'), gctx=grainC.getContext('2d');
+  [paperC,artC,grainC].forEach(function(c){c.width=W;c.height=H;});
+
+  function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;
+    var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;};}
+  function newCanvas(){var c=document.createElement('canvas');c.width=W;c.height=H;return c;}
+
+  /* =============== 纸 =============== */
+  var PAPER={};
+  // 纯白：无渐变无纹理，就是干净白纸
+  PAPER.pure=function(){
+    pctx.fillStyle='#FFFFFF';pctx.fillRect(0,0,W,H);
+  };
+  PAPER.white=function(){
+    pctx.fillStyle='#FDFCF7';pctx.fillRect(0,0,W,H);
+  };
+  PAPER.note=function(){
+    pctx.fillStyle='#FCFDFB';pctx.fillRect(0,0,W,H);
+    pctx.strokeStyle='#D6E1F0';pctx.lineWidth=1.6;
+    for(var y=64;y<H;y+=54){pctx.beginPath();pctx.moveTo(0,y);pctx.lineTo(W,y);pctx.stroke();}
+    pctx.strokeStyle='#E9C9C9';pctx.beginPath();pctx.moveTo(74,0);pctx.lineTo(74,H);pctx.stroke();
+    pctx.fillStyle='rgba(120,140,170,.05)';pctx.fillRect(0,0,74,H);
+  };
+  PAPER.kraft=function(){
+    var g=pctx.createLinearGradient(0,0,W*.8,H);
+    g.addColorStop(0,'#D3A46F');g.addColorStop(.5,'#C69560');g.addColorStop(1,'#B9834F');
+    pctx.fillStyle=g;pctx.fillRect(0,0,W,H);
+    // 短纤（不做长线，避免看起来像网格）
+    var rnd=mulberry(3171);
+    pctx.lineWidth=1.2;
+    for(var i=0;i<520;i++){
+      var x=rnd()*W,y=rnd()*H,len=5+rnd()*13,ang=rnd()*Math.PI;
+      pctx.strokeStyle=rnd()>.5
+        ? 'rgba(255,242,218,'+(.05+rnd()*.08)+')'
+        : 'rgba(122,80,40,'+(.04+rnd()*.07)+')';
+      pctx.beginPath();pctx.moveTo(x,y);
+      pctx.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len);pctx.stroke();
+    }
+  };
+  var paperKind='pure';
+  function syncGrain(){grainC.style.display=hasPaperFilter()?'':'none';}
+  function drawPaper(k){pctx.clearRect(0,0,W,H);(PAPER[k]||PAPER.white)();syncGrain();}
+
+  /* 纸面做旧滤镜：只给 素白/笔记本/牛皮纸 用，纯白纸完全不上滤镜 */
+  (function grain(){
+    var img=gctx.createImageData(W,H),d=img.data,rnd=mulberry(7788);
+    for(var i=0;i<d.length;i+=4){var n=176+Math.floor(rnd()*70);
+      d[i]=d[i+1]=d[i+2]=n;d[i+3]=11+Math.floor(rnd()*16);}
+    gctx.putImageData(img,0,0);
+    var rnd2=mulberry(4711);
+    for(var k=0;k<9;k++){
+      var x=rnd2()*W,y=rnd2()*H,r=W*(.18+rnd2()*.34);
+      var g=gctx.createRadialGradient(x,y,r*.1,x,y,r);
+      g.addColorStop(0,'rgba(122,96,58,'+(.04+rnd2()*.06)+')');
+      g.addColorStop(.55,'rgba(122,96,58,'+(.02+rnd2()*.03)+')');
+      g.addColorStop(1,'rgba(122,96,58,0)');
+      gctx.fillStyle=g;gctx.beginPath();gctx.arc(x,y,r,0,Math.PI*2);gctx.fill();
+    }
+    var vg=gctx.createRadialGradient(W/2,H/2,W*.42,W/2,H/2,W*.78);
+    vg.addColorStop(0,'rgba(120,100,70,0)');vg.addColorStop(1,'rgba(120,100,70,.16)');
+    gctx.fillStyle=vg;gctx.fillRect(0,0,W,H);
+  })();
+  function hasPaperFilter(){return paperKind!=='pure';}
+
+  /* =============== 笔 =============== */
+  var BRUSHES={
+    // body=笔身细噪点  fringe=外圈飞白浓度  bleed=毛笔那种洇边  gsz=颗粒相对笔宽
+    pen:{label:'钢笔',w:.95,alpha:.96,bleed:0,fringe:.55,body:.12,gsz:.7},
+    ball:{label:'圆珠笔',w:.62,alpha:.9,bleed:0,fringe:.30,body:.24,gsz:.6},
+    pencil:{label:'铅笔',w:.68,alpha:.7,bleed:.10,fringe:.45,body:.34,gsz:1.0},
+    charcoal:{label:'炭笔',w:1.35,alpha:.86,bleed:.16,fringe:.55,body:.18,gsz:.7,rough:2},
+    brush:{label:'毛笔',w:1.2,alpha:.9,bleed:.6,fringe:.5,body:.14,gsz:.9},
+    marker:{label:'马克笔',w:1.75,alpha:.4,bleed:.06,fringe:.22,body:.1,gsz:.9,flat:true}
+  };
+  var brush='pen',baseSize=4,eraser=false,usePressure=true,color='#241C12';
+
+  var brushWrap=document.getElementById('brushes');
+  Object.keys(BRUSHES).forEach(function(k,i){
+    var b=document.createElement('button');
+    b.className='chip'+(i===0?' on':'');b.dataset.brush=k;b.textContent=BRUSHES[k].label;
+    b.onclick=function(){brush=k;[].forEach.call(brushWrap.children,function(x){x.classList.toggle('on',x===b);});};
+    brushWrap.appendChild(b);
+  });
+
+  var PRESET=['#241C12','#8C2D22','#B4402B','#3B4A6B','#8A5B2A','#5E3A22','#6B6459','#2F6B58'];
+  var swWrap=document.getElementById('swatches'),hexEl=document.getElementById('hex');
+  function setColor(c,btn){color=c;hexEl.textContent=c.toUpperCase();
+    document.getElementById('colorPick').value=c;
+    [].forEach.call(swWrap.children,function(x){x.classList.toggle('on',x===btn);});}
+  PRESET.forEach(function(c,i){
+    var b=document.createElement('button');b.className='sw'+(i===0?' on':'');b.style.background=c;
+    b.onclick=function(){setColor(c,b);};swWrap.appendChild(b);
+  });
+  document.getElementById('colorPick').oninput=function(e){setColor(e.target.value,null);};
+  var sizeRange=document.getElementById('sizeRange'),sizeNum=document.getElementById('sizeNum');
+  sizeRange.oninput=function(){baseSize=parseFloat(sizeRange.value);sizeNum.textContent=baseSize;};
+  document.getElementById('pressure').onchange=function(e){usePressure=e.target.checked;};
+
+  /* =============== 印章（仅一枚·做旧朱文） =============== */
+  function makeSeal(size){
+    var c=document.createElement('canvas');c.width=c.height=size;
+    var x=c.getContext('2d'),s=size,red='#A12A20';
+    x.translate(s/2,s/2);x.rotate(-0.055);
+    // 外圈：两遍叠印，边缘有浓淡
+    x.strokeStyle=red;x.lineCap='round';
+    x.globalAlpha=.5;x.lineWidth=s*.055;
+    x.beginPath();x.arc(0,0,s*.4265,0,Math.PI*2);x.stroke();
+    x.globalAlpha=.9;x.lineWidth=s*.049;
+    x.beginPath();x.arc(0,0,s*.425,0,Math.PI*2);x.stroke();
+    // 内细圈
+    x.globalAlpha=.62;x.lineWidth=s*.011;
+    x.beginPath();x.arc(0,0,s*.368,0,Math.PI*2);x.stroke();
+    // 印字（略偏右下，像手盖）
+    x.globalAlpha=.97;x.fillStyle=red;x.textAlign='center';x.textBaseline='middle';
+    x.font='bold '+(s*.405)+'px "KaiTi","STKaiti","Kaiti SC",serif';
+    x.save();x.scale(1.02,1.06);x.fillText('缉',s*.004,s*.026);x.restore();
+    // 印泥不匀（轻，只做氛围）
+    var rnd=mulberry(90210);x.globalCompositeOperation='destination-out';
+    for(var i=0;i<90;i++){
+      var a=rnd()*Math.PI*2,r=s*(.30+rnd()*.14);
+      x.globalAlpha=.03+rnd()*.09;
+      x.beginPath();x.arc(Math.cos(a)*r,Math.sin(a)*r,Math.max(.7,s*.006+rnd()*s*.01),0,Math.PI*2);x.fill();
+    }
+    // 边缘残缺（不规则豁口）
+    for(var j=0;j<34;j++){
+      var a2=rnd()*Math.PI*2;
+      x.globalAlpha=.18+rnd()*.35;
+      x.beginPath();x.arc(Math.cos(a2)*s*.425,Math.sin(a2)*s*.425,s*.003+rnd()*s*.012,0,Math.PI*2);x.fill();
+    }
+    // 几道弧线缺口，像印面缺角
+    for(var k=0;k<6;k++){
+      var a3=rnd()*Math.PI*2,span=.10+rnd()*.22;
+      x.globalAlpha=.3+rnd()*.3;x.lineWidth=s*(.012+rnd()*.02);
+      x.beginPath();x.arc(0,0,s*.425,a3,a3+span);x.stroke();
+    }
+    x.globalCompositeOperation='source-over';x.globalAlpha=1;
+    return c;
+  }
+  var SEAL=null;
+  function getSeal(){ if(!SEAL) SEAL=makeSeal(256); return SEAL; }
+  var stampWrap=document.getElementById('stamps');
+  (function(){
+    var b=document.createElement('button');
+    b.className='chip';b.title='点一下盖到当前图层';
+    var sm=document.createElement('canvas');sm.width=sm.height=64;
+    sm.getContext('2d').drawImage(getSeal(),0,0,64,64);
+    b.appendChild(sm);
+    b.onclick=function(){addSticker(getSeal(),118,-6);};
+    stampWrap.appendChild(b);
+  })();
+
+  /* =============== 图层系统 =============== */
+  var layers=[], active=-1, uid=0;
+  function layer(name){
+    var c=newCanvas();
+    return {id:++uid,name:name,ink:c,ctx:c.getContext('2d'),
+      tmp:newCanvas(),objects:[],mode:'multiply',visible:true,locked:false};
+  }
+  function addLayer(name,atTop){
+    var l=layer(name||('图层 '+(layers.length+1)));
+    if(atTop===false) layers.unshift(l); else layers.push(l);
+    active=layers.indexOf(l);
+    renderLayers(); composite(true); return l;
+  }
+  function activeLayer(){return layers[active];}
+  function renderLayers(){
+    var list=document.getElementById('layerList');list.innerHTML='';
+    // 列表从上层往下显示
+    for(var i=layers.length-1;i>=0;i--){
+      (function(i){
+        var l=layers[i];
+        var row=document.createElement('div');
+        row.className='lyr'+(i===active?' on':'');
+        row.onclick=function(){active=i;renderLayers();};
+        var eye=document.createElement('button');
+        eye.className='ico'+(l.visible?'':' off');eye.textContent=l.visible?'◉':'○';eye.title='显示/隐藏';
+        eye.style.fontSize='11px';eye.style.color=l.visible?'#1F2A44':'#C2C9D6';
+        eye.onclick=function(e){e.stopPropagation();l.visible=!l.visible;renderLayers();composite(true);};
+        var lock=document.createElement('button');
+        lock.className='ico';lock.textContent='锁';
+        lock.title=l.locked?'已锁定，点一下解锁':'未锁定，点一下锁住';
+        lock.style.cssText='font-size:10px;font-weight:700;border:0;padding:2px 3px;border-radius:4px;cursor:pointer;'+
+          (l.locked?'color:#8C2D22;background:#FBEDE9':'color:#C2C9D6;background:transparent');
+        lock.onclick=function(e){e.stopPropagation();l.locked=!l.locked;renderLayers();};
+        var nm=document.createElement('span');nm.className='nm';nm.textContent=l.name;
+        var bd=document.createElement('button');
+        bd.className='bd'+(l.mode==='multiply'?' mult':'');bd.textContent=l.mode==='multiply'?'正片':'正常';
+        bd.title='切换混合模式';
+        bd.onclick=function(e){e.stopPropagation();l.mode=l.mode==='multiply'?'normal':'multiply';
+          renderLayers();composite(true);};
+        row.appendChild(eye);row.appendChild(nm);row.appendChild(lock);row.appendChild(bd);
+        list.appendChild(row);
+      })(i);
+    }
+  }
+  document.getElementById('addLayer').onclick=function(){addLayer();};
+  document.getElementById('upLayer').onclick=function(){
+    if(active>=layers.length-1) return toast('已经在最上层了');
+    var a=layers[active],b=layers[active+1];
+    layers[active]=b;layers[active+1]=a;active++;
+    renderLayers();composite(true);
+  };
+  document.getElementById('downLayer').onclick=function(){
+    if(active<=0) return toast('已经在最下层了');
+    var a=layers[active],b=layers[active-1];
+    layers[active]=b;layers[active-1]=a;active--;
+    renderLayers();composite(true);
+  };
+  document.getElementById('delLayer').onclick=function(){
+    if(layers.length<=1) return toast('至少留一个图层');
+    layers.splice(active,1);active=Math.min(active,layers.length-1);
+    renderLayers();composite(true);
+  };
+  document.getElementById('mergeLayer').onclick=function(){
+    if(active<1) return toast('最底层没有可合并的对象');
+    var up=layers[active],dn=layers[active-1];
+    var t=up.tmp.getContext('2d');
+    t.clearRect(0,0,W,H);t.globalCompositeOperation='source-over';
+    t.drawImage(up.ink,0,0);
+    drawObjects(t,up.objects);
+    var dnc=dn.tmp.getContext('2d');
+    dnc.save();
+    dnc.globalCompositeOperation = up.mode==='multiply'?'multiply':'source-over';
+    dnc.drawImage(up.tmp,0,0);
+    dnc.restore();
+    // 烘进下层 ink
+    dn.ctx.clearRect(0,0,W,H);
+    dn.ctx.drawImage(dn.tmp,0,0);
+    // 对象搬过去（变成已烘死的对象无效，直接清空）
+    dn.objects.length=0;
+    layers.splice(active,1);active=active-1;
+    renderLayers();composite(true);
+    toast('已合并到「'+dn.name+'」');
+  };
+
+  /* 图层渲染：ink + objects → tmp */
+  function drawObjects(ctx,objs){
+    objs.forEach(function(o){
+      ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot*Math.PI/180);
+      ctx.drawImage(o.img,-o.w/2,-o.w/2,o.w,o.w);ctx.restore();
+    });
+  }
+  function composite(now){
+    if(!now){ if(composite._q) return; composite._q=requestAnimationFrame(function(){composite._q=0;composite(true);}); return; }
+    composite._q=0;
+    actx.clearRect(0,0,W,H);
+    for(var i=0;i<layers.length;i++){
+      var l=layers[i]; if(!l.visible) continue;
+      var t=l.tmp.getContext('2d');
+      t.setTransform(1,0,0,1,0,0);
+      t.clearRect(0,0,W,H);
+      t.globalCompositeOperation='source-over';
+      t.drawImage(l.ink,0,0);
+      drawObjects(t,l.objects);
+      actx.globalCompositeOperation = l.mode==='multiply'?'multiply':'source-over';
+      actx.drawImage(l.tmp,0,0);
+    }
+    // 正在画的这一笔（暂时缓冲，抬手才烘进图层）
+    if(stroking){
+      actx.globalAlpha=BRUSHES[brush].alpha;
+      actx.globalCompositeOperation='multiply';
+      actx.drawImage(liveC,0,0);
+      actx.globalAlpha=1;
+    }
+    actx.globalCompositeOperation='source-over';
+  }
+
+  /* =============== 贴纸 =============== */
+  var selObj=null, drag=null;
+  function addSticker(src,size,rot){
+    var l=activeLayer();
+    if(!l) return;
+    if(l.locked) return toast('当前图层已锁定');
+    var o={img:src,x:W/2,y:H/2,w:size,rot:rot||0,layer:l};
+    l.objects.push(o);selObj=o;syncSel();composite(true);
+  }
+  function findObj(p){
+    for(var i=layers.length-1;i>=0;i--){
+      var l=layers[i]; if(!l.visible||l.locked) continue;
+      for(var j=l.objects.length-1;j>=0;j--){
+        var o=l.objects[j],dx=p.x-o.x,dy=p.y-o.y,a=-o.rot*Math.PI/180;
+        var rx=dx*Math.cos(a)-dy*Math.sin(a),ry=dx*Math.sin(a)+dy*Math.cos(a);
+        if(Math.abs(rx)<=o.w/2&&Math.abs(ry)<=o.w/2) return o;
+      }
+    }
+    return null;
+  }
+  function syncSel(){
+    var p=document.getElementById('selPanel');
+    if(selObj){p.classList.add('show');
+      document.getElementById('stkSize').value=selObj.w;
+      document.getElementById('stkRot').value=Math.round(selObj.rot);
+    }else p.classList.remove('show');
+  }
+  document.getElementById('stkSize').oninput=function(e){if(selObj){selObj.w=parseFloat(e.target.value);composite(true);}};
+  document.getElementById('stkRot').oninput=function(e){if(selObj){selObj.rot=parseFloat(e.target.value);composite(true);}};
+  document.getElementById('stkDel').onclick=function(){
+    if(!selObj) return;
+    var l=selObj.layer,i=l.objects.indexOf(selObj);if(i>=0) l.objects.splice(i,1);
+    selObj=null;syncSel();composite(true);
+  };
+  document.getElementById('stkDone').onclick=function(){selObj=null;syncSel();composite(true);};
+
+  var fileInput=document.getElementById('fileInput');
+  document.getElementById('importBtn').onclick=function(){fileInput.click();};
+  fileInput.onchange=function(e){
+    var f=e.target.files&&e.target.files[0];if(!f) return;
+    var fr=new FileReader();
+    fr.onload=function(){var img=new Image();img.onload=function(){addSticker(img,150,-4);};img.src=fr.result;};
+    fr.readAsDataURL(f);fileInput.value='';
+  };
+
+  /* 直接上传一张图当通缉照 */
+  var photoInput=document.getElementById('photoInput'),photoClearBtn=document.getElementById('photoClear');
+  document.getElementById('photoBtn').onclick=function(){photoInput.click();};
+  photoInput.onchange=function(e){
+    var f=e.target.files&&e.target.files[0];if(!f) return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        photoImg=img;photoClearBtn.style.display='';
+        if(slot.classList.contains('filled')) drawSlot();
+        toast('已换成上传的通缉照');
+      };
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(f);photoInput.value='';
+  };
+  photoClearBtn.onclick=function(){
+    photoImg=null;photoClearBtn.style.display='none';
+    if(slot.classList.contains('filled')) drawSlot();
+    toast('已切回手绘画像');
+  };
+
+  /* =============== 绘制 =============== */
+  var history=[],undoBtn=document.getElementById('undo');
+  function snap(){
+    var l=activeLayer();if(!l) return;
+    if(history.length>=20) history.shift();
+    history.push({layer:l,data:l.ctx.getImageData(0,0,W,H),objs:l.objects.slice()});
+    undoBtn.disabled=false;
+  }
+  undoBtn.onclick=function(){
+    var s=history.pop();if(!s) return;
+    s.layer.ctx.putImageData(s.data,0,0);
+    s.layer.objects.length=0;[].push.apply(s.layer.objects,s.objs);
+    undoBtn.disabled=history.length===0;
+    composite(true);
+  };
+  document.getElementById('clear').onclick=function(){
+    var l=activeLayer();if(!l) return;
+    if(l.locked) return toast('当前图层已锁定');
+    snap();l.ctx.clearRect(0,0,W,H);composite(true);   // 只清笔迹，印章/贴纸保留
+  };
+  document.getElementById('eraser').onclick=function(e){
+    eraser=!eraser;e.target.classList.toggle('on',eraser);
+    e.target.textContent=eraser?'擦除中':'擦除';
+  };
+
+  function canvasPos(e){var r=cwrap.getBoundingClientRect();
+    return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};}
+  function widthFor(e,speed){
+    var B=BRUSHES[brush],w=baseSize*B.w;
+    if(B.flat) return w;
+    if(usePressure){
+      var p=(e.pointerType==='pen'&&e.pressure>0)?e.pressure:0;
+      if(p>0) w*=(0.5+p*1.2);
+      else w*=Math.max(0.55,1/(1+speed*0.45));   // 画得快就收细，慢就压粗
+    }
+    return Math.max(0.6,w);
+  }
+
+  /* 本笔的临时缓冲：整笔不透明地画完，抬手时按笔刷透明度一次性烘进图层，
+     这样重叠段不会出现接头/e 缝隙，笔触是连贯的一条 */
+  var liveC=newCanvas(), liveCtx=liveC.getContext('2d'), stroking=false;
+  var strokeSum=0,strokeN=0;
+  function paint(ctx,x0,y0,x1,y1,w){
+    var B=BRUSHES[brush];
+    ctx.lineCap=B.flat?'butt':'round';ctx.lineJoin='round';ctx.globalCompositeOperation='source-over';
+    if(B.rough){
+      // 炭笔：一遍主笔身 + 一遍错位细压，笔身是实心墨，毛边交给外圈飞白
+      ctx.globalAlpha=1;ctx.strokeStyle=color;
+      ctx.lineWidth=w;ctx.beginPath();
+      ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+      ctx.lineWidth=w*.62;
+      ctx.beginPath();
+      ctx.moveTo(x0+(Math.random()-.5)*2.4,y0+(Math.random()-.5)*2.4);
+      ctx.lineTo(x1+(Math.random()-.5)*2.4,y1+(Math.random()-.5)*2.4);ctx.stroke();
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(x1,y1,Math.max(.5,w/2),0,Math.PI*2);ctx.fill();
+      return;
+    }
+    ctx.globalAlpha=1;ctx.strokeStyle=color;ctx.lineWidth=w;
+    ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+    // 两端补圆：粗细节点自然衔接，不出现"竹节"
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.arc(x1,y1,Math.max(.5,w/2),0,Math.PI*2);ctx.fill();
+  }
+
+  /* 墨面颗粒：低分辨率噪声放大 + 柔化，得到 1~2px 的细软砂点，
+     不是大白圆孔。笔越粗砂点略大，细笔就是极细的一片 */
+  function grainMask(level,px,seed){
+    var s=64,c=document.createElement('canvas');c.width=c.height=s;
+    var x=c.getContext('2d'),rnd=mulberry(seed||777);
+    var img=x.createImageData(s,s),d=img.data;
+    for(var i=0;i<d.length;i+=4){
+      var v=rnd();
+      d[i]=d[i+1]=d[i+2]=0;
+      d[i+3]=v>.52?Math.round((v-.52)/.48*238*level):0;
+    }
+    x.putImageData(img,0,0);
+    // 放大到 128 并平滑，噪点边缘就是晕开的（扩散感）
+    var b=document.createElement('canvas');b.width=b.height=128;
+    var bx=b.getContext('2d');
+    bx.imageSmoothingEnabled=true;
+    try{bx.filter='blur(.6px)';}catch(e){}
+    bx.drawImage(c,0,0,128,128);
+    return b;
+  }
+  function applyGrain(ctx,level,px,seed){
+    var mask=grainMask(level,px,seed);
+    var pat=ctx.createPattern(mask,'repeat');
+    var k=Math.max(.85,Math.min(2.2,(px||6)/8));
+    try{
+      var m=new DOMMatrix();
+      m.translateSelf(Math.random()*128,Math.random()*128);
+      m.scaleSelf(k,k);
+      pat.setTransform(m);
+    }catch(e){}
+    ctx.save();
+    ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;
+    ctx.fillStyle=pat;ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+  /* 抬手烘入：实心笔身 + 明显晕开的细砂颗粒。
+     颗粒只作用在本笔，不会把之前画好的线条越啃越淡 */
+  var txC=newCanvas(), txCtx=txC.getContext('2d');
+  var frC=newCanvas(), frCtx=frC.getContext('2d');
+  var spC=newCanvas(), spCtx=spC.getContext('2d');
+  var hcC=newCanvas(), hcCtx=hcC.getContext('2d');
+  function finishStroke(l,avgW,bB){
+    var B=bB||BRUSHES[brush];
+    // ① 笔身：实心墨 + 轻微吃墨
+    txCtx.clearRect(0,0,W,H);
+    txCtx.globalCompositeOperation='source-over';txCtx.globalAlpha=1;
+    txCtx.drawImage(liveC,0,0);
+    if(B.body>0) applyGrain(txCtx,B.body,avgW*(B.gsz||.8),Math.floor(Math.random()*1e6));
+    // ② 晕开：一层很淡的模糊墨晕，压在颗粒下面
+    hcCtx.clearRect(0,0,W,H);
+    hcCtx.globalCompositeOperation='source-over';hcCtx.globalAlpha=1;
+    hcCtx.save();
+    try{hcCtx.filter='blur('+Math.max(2.2,avgW*.55)+'px)';}catch(e){}
+    hcCtx.drawImage(liveC,0,0);
+    hcCtx.filter='none';
+    hcCtx.restore();
+    // ③ 边缘环：模糊外扩再挖掉笔身，只在环里撒砂点
+    frCtx.clearRect(0,0,W,H);
+    frCtx.globalCompositeOperation='source-over';frCtx.globalAlpha=1;
+    frCtx.save();
+    try{frCtx.filter='blur('+Math.max(1.8,avgW*.26)+'px)';}catch(e){}
+    frCtx.drawImage(liveC,0,0);
+    frCtx.filter='none';
+    frCtx.restore();
+    frCtx.globalCompositeOperation='destination-out';
+    frCtx.drawImage(liveC,0,0);
+    frCtx.globalCompositeOperation='source-over';
+
+    spCtx.clearRect(0,0,W,H);
+    spCtx.globalCompositeOperation='source-over';
+    var n=1100,base=Math.max(1,avgW*.11);
+    for(var i=0;i<n;i++){
+      spCtx.globalAlpha=.32+Math.random()*.68;
+      var rr=base*(.45+Math.random()*1.55);
+      spCtx.beginPath();spCtx.arc(Math.random()*W,Math.random()*H,rr,0,Math.PI*2);spCtx.fillStyle=color;spCtx.fill();
+    }
+    spCtx.globalAlpha=1;
+    spCtx.globalCompositeOperation='destination-in';
+    spCtx.drawImage(frC,0,0);
+    spCtx.globalCompositeOperation='source-over';
+
+    l.ctx.save();
+    l.ctx.globalCompositeOperation='multiply';
+    if(B.fringe>0){
+      l.ctx.globalAlpha=Math.min(.5,B.alpha*.22);          // 晕：淡
+      l.ctx.drawImage(hcC,0,0);
+      l.ctx.globalAlpha=Math.min(1,B.alpha*B.fringe*2);     // 颗粒：重
+      l.ctx.drawImage(spC,0,0);
+    }
+    if(B.bleed>0){
+      l.ctx.globalAlpha=B.alpha*B.bleed;
+      try{l.ctx.filter='blur('+Math.max(1.2,avgW*.34)+'px)';}catch(e){}
+      l.ctx.drawImage(txC,0,0);
+      l.ctx.filter='none';
+    }
+    l.ctx.globalAlpha=B.alpha;
+    l.ctx.drawImage(txC,0,0);
+    l.ctx.restore();
+    l.ctx.globalAlpha=1;l.ctx.globalCompositeOperation='source-over';
+  }
+  /* 线稿吃墨（只在初始化画示例时用） */
+  function erodeInk(ctx,level,px){applyGrain(ctx,level,px,Math.floor(Math.random()*1e6));}
+  function eraseAt(ctx,x,y,w){
+    ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.fillStyle='#000';
+    ctx.lineWidth=w;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(x,y,Math.max(5,w/2),0,Math.PI*2);ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  var drawing=false,lastPt=null,lastT=0;
+  function down(e){
+    if(e.button!==undefined&&e.button!==0) return;
+    var p=canvasPos(e);
+    var o=findObj(p);
+    if(o){selObj=o;syncSel();composite(true);
+      drag={o:o,dx:p.x-o.x,dy:p.y-o.y};try{cwrap.setPointerCapture(e.pointerId);}catch(err){}return;}
+    if(selObj){selObj=null;syncSel();composite(true);}
+    var l=activeLayer();
+    if(!l) return;
+    if(l.locked) return toast('当前图层已锁定，换个图层或解锁');
+    try{cwrap.setPointerCapture(e.pointerId);}catch(err){}
+    snap();
+    drawing=true;lastPt=p;lastT=performance.now();
+    if(eraser){
+      eraseAt(l.ctx,p.x,p.y,Math.max(10,baseSize*2.6));
+    }else{
+      stroking=true;liveCtx.clearRect(0,0,W,H);
+      var w0=widthFor(e,0);strokeSum=w0;strokeN=1;
+      paint(liveCtx,p.x,p.y,p.x,p.y,w0);
+    }
+    composite();
+  }
+  function move(e){
+    var p=canvasPos(e);
+    if(drag){drag.o.x=p.x-drag.dx;drag.o.y=p.y-drag.dy;composite(true);return;}
+    if(!drawing) return;
+    var l=activeLayer();if(!l) return;
+    var evts=e.getCoalescedEvents?e.getCoalescedEvents():[];
+    if(!evts.length) evts=[e];
+    for(var i=0;i<evts.length;i++){
+      var q=canvasPos(evts[i]);
+      var now=performance.now(),dt=Math.max(1,now-lastT);
+      var dist=Math.hypot(q.x-lastPt.x,q.y-lastPt.y),speed=dist/dt;
+      var wv=widthFor(evts[i],speed);
+      if(eraser) eraseAt(l.ctx,q.x,q.y,Math.max(10,baseSize*2.6));
+      else {paint(liveCtx,lastPt.x,lastPt.y,q.x,q.y,wv);strokeSum+=wv;strokeN++;}
+      lastPt=q;lastT=now;
+    }
+    composite();
+  }
+  function up(){
+    if(drag){drag=null;return;}
+    if(!drawing) return;
+    drawing=false;
+    var l=activeLayer();
+    if(l && !eraser && stroking){
+      var avgW=strokeN?strokeSum/strokeN:baseSize;
+      finishStroke(l,avgW);
+      liveCtx.clearRect(0,0,W,H);stroking=false;strokeSum=0;strokeN=0;
+    }
+    composite(true);
+  }
+  /* 输入：指针优先，鼠标 / 触摸兜底（有些预览面板不发 pointer 事件） */
+  var pointerSeen=false;
+  cwrap.addEventListener('pointerdown',function(e){pointerSeen=true;if(e.preventDefault)e.preventDefault();down(e);});
+  cwrap.addEventListener('pointermove',function(e){if(drag||drawing){if(e.preventDefault)e.preventDefault();move(e);}});
+  cwrap.addEventListener('pointerup',function(e){if(e.preventDefault)e.preventDefault();up(e);});
+  cwrap.addEventListener('pointercancel',up);
+  cwrap.addEventListener('pointerleave',function(){if(drawing) up();});
+
+  cwrap.addEventListener('mousedown',function(e){if(pointerSeen)return;e.preventDefault();down(e);});
+  document.addEventListener('mousemove',function(e){if(pointerSeen||!(drag||drawing))return;e.preventDefault();move(e);});
+  document.addEventListener('mouseup',function(e){if(pointerSeen)return;up(e);});
+
+  cwrap.addEventListener('touchstart',function(e){
+    if(pointerSeen||e.touches.length!==1) return;
+    e.preventDefault();
+    var t=e.touches[0];
+    down({clientX:t.clientX,clientY:t.clientY,pointerType:'touch',pressure:t.force||0,pointerId:1,button:0});
+  },{passive:false});
+  cwrap.addEventListener('touchmove',function(e){
+    if(pointerSeen||!drawing) return;
+    e.preventDefault();
+    var t=e.touches[0];
+    move({clientX:t.clientX,clientY:t.clientY,pointerType:'touch',pressure:t.force||0});
+  },{passive:false});
+  cwrap.addEventListener('touchend',function(e){if(pointerSeen)return;up();});
+  cwrap.addEventListener('touchcancel',function(e){if(pointerSeen)return;up();});
+
+  document.querySelectorAll('[data-paper]').forEach(function(b){
+    b.onclick=function(){paperKind=b.dataset.paper;
+      document.querySelectorAll('[data-paper]').forEach(function(x){x.classList.toggle('on',x===b);});
+      drawPaper(paperKind);};
+  });
+
+  /* =============== 合成画板成品 =============== */
+  function composeArt(){
+    var c=newCanvas(),x=c.getContext('2d');
+    x.drawImage(paperC,0,0);
+    x.globalCompositeOperation='multiply';x.drawImage(artC,0,0);x.globalCompositeOperation='source-over';
+    if(hasPaperFilter()){
+      x.globalCompositeOperation='multiply';x.drawImage(grainC,0,0);x.globalCompositeOperation='source-over';
+    }
+    return c;
+  }
+
+  /* =============== 画像贴进通缉令 =============== */
+  var photoImg=null;        // 玩家直接上传的通缉照
+  function mountPhoto(){return photoImg||composeArt();}
+  function drawSlot(){
+    var w=slotC.width,h=slotC.height,sc=slotC.getContext('2d');
+    sc.clearRect(0,0,w,h);
+    var pg=sc.createLinearGradient(0,0,w,h);
+    pg.addColorStop(0,'#FFFDF6');pg.addColorStop(1,'#F1EAD8');
+    sc.fillStyle=pg;sc.fillRect(0,0,w,h);
+    var img=mountPhoto();
+    var dw=w-52, dh=h-56;                 // 相纸内缩，歪一点也不会被格子切边
+    var side=Math.min(dw,dh)-14;
+    sc.save();
+    sc.translate(w/2,h/2-2); sc.rotate(-2.2*Math.PI/180);
+    sc.shadowColor='rgba(70,50,20,.22)'; sc.shadowBlur=14; sc.shadowOffsetY=5;
+    sc.fillStyle='#FFFEF9'; sc.fillRect(-dw/2,-dh/2,dw,dh);
+    sc.shadowColor='rgba(70,50,20,.10)';sc.shadowBlur=6;sc.shadowOffsetY=0;
+    sc.strokeStyle='rgba(150,130,96,.18)';sc.lineWidth=1;
+    sc.strokeRect(-dw/2,-dh/2,dw,dh);sc.shadowBlur=0;sc.shadowOffsetY=0;
+    var oy=-dh/2+(dh-side)/2;
+    // 上传的是照片就裁满相框，手绘就整张放进去
+    if(photoImg){
+      var iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+      var s2=Math.max(side/iw,side/ih),dw2=iw*s2,dh2=ih*s2;
+      sc.save();
+      sc.beginPath();sc.rect(-side/2,oy,side,side);sc.clip();
+      sc.drawImage(photoImg,(-side/2)-(dw2-side)/2,oy-(dh2-side)/2,dw2,dh2);
+      sc.restore();
+    }else{
+      sc.drawImage(img,-side/2,oy,side,side);
+    }
+    sc.strokeStyle='rgba(120,96,60,.14)'; sc.lineWidth=1;
+    sc.strokeRect(-side/2,oy,side,side);
+    // 编号跟着相纸一起歪
+    sc.fillStyle='#8A7C60'; sc.font='10px "PingFang SC",sans-serif'; sc.textAlign='right';
+    sc.fillText(META.code,dw/2-8,dh/2-8);
+    sc.restore();
+  }
+  document.getElementById('toSlot').onclick=function(){
+    drawSlot();
+    slot.classList.remove('empty');slot.classList.add('filled');
+    document.getElementById('unSlot').disabled=false;
+    toast('画像已贴上，可以直接保存分享');
+  };
+  document.getElementById('unSlot').onclick=function(){
+    slot.classList.add('empty');slot.classList.remove('filled');this.disabled=true;
+  };
+
+  /* =============== 通缉令数据（由站点卡片传入） =============== */
+  var META={name:'吕 良',code:'ND-WANTED-009',danger:'B 级',faction:'原吕家成员',
+            skill:'明魂术',lastSeen:'行踪不明',status:'在逃',reward:'￥300,000',
+            note:'掌握记忆相关异术，具有较高情报价值。'};
+  var PAD_ID='';
+  function escHTML(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function spacedName(n){return String(n||'').replace(/\s+/g,'').split('').join(' ');}
+  function cleanCode(c){return String(c||'ND-WANTED-009').replace(/^NO\.?\s*/i,'').trim()||'ND-WANTED-009';}
+  function setMeta(m){
+    if(!m||typeof m!=='object')return;
+    Object.keys(m).forEach(function(k){
+      var v=m[k];
+      if(v!==undefined&&v!==null&&String(v)!=='')META[k]=String(v);
+    });
+    META.code=cleanCode(META.code);
+    var nameEl=document.getElementById('pName');if(nameEl)nameEl.textContent=spacedName(META.name);
+    var codeEl=document.getElementById('pCode');if(codeEl)codeEl.textContent='NO. '+META.code;
+    var info=document.getElementById('pInfo');
+    if(info){
+      var rows=[['危险等级',META.danger],['所属势力',META.faction],['异术特征',META.skill],
+                ['最后线索',META.lastSeen],['当前状态',META.status],['悬赏金额',META.reward]];
+      info.innerHTML=rows.map(function(r){
+        return '<div class="kv"><span>'+escHTML(r[0])+'</span><b'+
+               (r[0]==='悬赏金额'?' class="rew"':'')+'>'+escHTML(r[1])+'</b></div>';
+      }).join('');
+    }
+    var tip=document.getElementById('pTip');if(tip)tip.textContent=META.note;
+    if(document.getElementById('slot').classList.contains('filled'))drawSlot();
+  }
+  window.__padSetMeta=setMeta;
+
+  /* =============== 导出整张通缉令 =============== */
+  var POSTER={w:900,h:952};
+  function renderPoster(hasPhoto){
+    var c=document.createElement('canvas');c.width=POSTER.w;c.height=POSTER.h;
+    var x=c.getContext('2d'),m=64;
+    x.fillStyle='#FFFFFF';x.fillRect(0,0,POSTER.w,POSTER.h);
+    x.strokeStyle='#E9ECF2';x.lineWidth=2;x.strokeRect(28,28,POSTER.w-56,POSTER.h-56);
+    // 顶部
+    x.fillStyle='#9AA0AE';x.font='19px "PingFang SC",sans-serif';x.textAlign='left';
+    x.fillText('ND-TONG / WANTED',m,m+16);
+    x.textAlign='right';x.fillText('NO. '+META.code,POSTER.w-m,m+16);
+    x.strokeStyle='#EDEFF4';x.lineWidth=1;x.beginPath();
+    x.moveTo(m,m+34);x.lineTo(POSTER.w-m,m+34);x.stroke();
+    // 标题
+    x.textAlign='center';x.fillStyle='#8C2D22';x.font='600 22px "PingFang SC",sans-serif';
+    spacedText(x,'在 逃 通 缉',POSTER.w/2,m+96,22,1.5);
+    // 姓名
+    x.fillStyle='#101828';x.font='800 62px "PingFang SC",sans-serif';
+    spacedText(x,META.name,POSTER.w/2,m+188,62);
+    // 画像
+    var pw=316,ph=404,px=m+6,py=m+240;
+    if(hasPhoto){
+      var img=mountPhoto();
+      x.save();x.translate(px+pw/2,py+ph/2);x.rotate(-2.2*Math.PI/180);
+      x.shadowColor='rgba(70,50,20,.20)';x.shadowBlur=14;x.shadowOffsetY=6;
+      x.fillStyle='#FFFEF9';x.fillRect(-pw/2,-ph/2,pw,ph);
+      x.shadowBlur=0;x.shadowOffsetY=0;
+      var side=Math.min(pw,ph)-14;
+      var ox=-side/2, oy=-ph/2+(ph-side)/2+4;
+      if(photoImg){
+        var iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+        var s3=Math.max(side/iw,side/ih),dw3=iw*s3,dh3=ih*s3;
+        x.save();x.beginPath();x.rect(ox,oy,side,side);x.clip();
+        x.drawImage(photoImg,ox-(dw3-side)/2,oy-(dh3-side)/2,dw3,dh3);
+        x.restore();
+      }else{
+        x.drawImage(img,ox,oy,side,side);
+      }
+      x.strokeStyle='rgba(120,96,60,.14)';x.lineWidth=1;x.strokeRect(ox,oy,side,side);
+      // 编号跟着相纸一起歪
+      x.fillStyle='#8A7C60';x.font='13px "PingFang SC",sans-serif';x.textAlign='right';
+      x.fillText(META.code,pw/2-9,ph/2-9);
+      x.restore();
+    }else{
+      // 缺画像：只留一个「暂无」
+      x.strokeStyle='#E3DDCE';x.setLineDash([8,8]);x.lineWidth=1.5;
+      x.strokeRect(px,py,pw,ph);x.setLineDash([]);
+      x.fillStyle='#C2B9A2';x.font='26px "PingFang SC",sans-serif';x.textAlign='center';
+      x.fillText('暂无',px+pw/2,py+ph/2+9);
+    }
+    // 信息
+    var ix=m+pw+56, iy=m+250;
+    var rows=[['危险等级',META.danger],['所属势力',META.faction],
+              ['异术特征',META.skill],['最后线索',META.lastSeen],
+              ['当前状态',META.status],['悬赏金额',META.reward]];
+    x.textAlign='left';
+    rows.forEach(function(r,i){
+      var ry=iy+i*76;
+      x.fillStyle='#9AA0AE';x.font='17px "PingFang SC",sans-serif';
+      x.fillText(r[0],ix,ry);
+      if(r[0]==='悬赏金额'){
+        x.fillStyle='#8C2D22';x.font='800 34px "PingFang SC",sans-serif';
+      }else{
+        x.fillStyle='#101828';x.font='600 24px "PingFang SC",sans-serif';
+      }
+      x.fillText(r[1],ix,ry+38);
+    });
+    // 提示条
+    var ty=m+240+ph+70;
+    x.fillStyle='#FDF3F0';x.fillRect(m,ty,POSTER.w-m*2,64);
+    x.fillStyle='#C98C7C';x.fillRect(m,ty,5,64);
+    x.fillStyle='#7A5A50';x.font='18px "PingFang SC",sans-serif';x.textAlign='left';
+    var noteTxt=META.note||'';
+    while(noteTxt.length>24&&x.measureText(noteTxt).width>POSTER.w-m*2-48){noteTxt=noteTxt.slice(0,-1);}
+    if(noteTxt!==META.note)noteTxt=noteTxt.replace(/\s+$/,'')+'…';
+    x.fillText(noteTxt,m+24,ty+39);
+    // 落款
+    x.fillStyle='#A6ADBA';x.font='15px "PingFang SC",sans-serif';x.textAlign='center';
+    x.fillText('异人内网 · 哪都通情报课 · 本图为同人娱乐作品',POSTER.w/2,POSTER.h-52);
+    // 淡章（右上空白处，别压文字条）
+    x.save();x.translate(POSTER.w-m-58,m+186);x.rotate(-.14);x.globalAlpha=.38;
+    x.strokeStyle='#A32C22';x.lineWidth=3.4;x.beginPath();x.arc(0,0,40,0,Math.PI*2);x.stroke();
+    x.fillStyle='#A32C22';x.font='33px "KaiTi","STKaiti",serif';x.textAlign='center';x.textBaseline='middle';
+    x.fillText('缉',0,2);x.restore();
+    return c;
+  }
+  function spacedText(ctx,txt,cx,y,size,k){
+    var chars=txt.replace(/ /g,'').split('');
+    var gap=size*(k||1.06), total=gap*(chars.length-1);
+    var start=cx-total/2;
+    chars.forEach(function(ch,i){ctx.fillText(ch,start+i*gap,y);});
+  }
+  function posterHasPhoto(){return slot.classList.contains('filled');}
+
+  function sendToParent(msg){
+    try{ if(window.parent&&window.parent!==window)window.parent.postMessage(msg,'*'); }catch(e){}
+  }
+  document.getElementById('padClose').onclick=function(){ sendToParent({type:'ndt-pad-close'}); };
+
+  function artCanvas(){
+    if(photoImg){
+      var c=newCanvas(),cx=c.getContext('2d');
+      var iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+      var s=Math.max(W/iw,H/ih),dw=iw*s,dh=ih*s;
+      cx.drawImage(photoImg,(W-dw)/2,(H-dh)/2,dw,dh);
+      return c;
+    }
+    return composeArt();
+  }
+  document.getElementById('saveArt').onclick=function(){
+    var url=artCanvas().toDataURL('image/png');
+    var a=document.createElement('a');
+    a.href=url;a.download='哪都通-通缉照-'+META.name.replace(/\s/g,'')+'.png';
+    document.body.appendChild(a);a.click();a.remove();
+    toast('已保存单张通缉照');
+    sendToParent({type:'ndt-pad-saved',kind:'art'});
+  };
+  document.getElementById('savePng').onclick=function(){
+    var url=renderPoster(posterHasPhoto()).toDataURL('image/png');
+    var a=document.createElement('a');
+    a.href=url;a.download='哪都通-通缉令-'+META.code+'.png';
+    document.body.appendChild(a);a.click();a.remove();
+    toast('已保存通缉令图片');
+    sendToParent({type:'ndt-pad-saved',kind:'poster'});
+  };
+  document.getElementById('sharePng').onclick=function(){
+    var c=renderPoster(posterHasPhoto());
+    c.toBlob(function(blob){
+      var file=new File([blob],'哪都通-通缉令-'+META.code+'.png',{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:'哪都通 · 在逃通缉',text:'异人内网 · 通缉令'})
+          .catch(function(){});
+      }else{
+        var a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);a.download=file.name;
+        document.body.appendChild(a);a.click();a.remove();
+        toast('当前环境不支持直接分享，已保存图片');
+      }
+    },'image/png');
+  };
+  document.getElementById('stickCard').onclick=function(){
+    var src=artCanvas();
+    var tw=360, th=Math.round(tw*src.height/src.width);
+    var t=newCanvas(tw,th),tx=t.getContext('2d');
+    tx.fillStyle='#FFFFFF';tx.fillRect(0,0,tw,th);
+    tx.drawImage(src,0,0,tw,th);
+    sendToParent({type:'ndt-pad-stick',id:PAD_ID,data:t.toDataURL('image/jpeg',.86)});
+    toast('已设为这张通缉令的画像');
+  };
+
+  /* 站点把卡片资料传进来 */
+  window.addEventListener('message',function(e){
+    var d=e.data||{};
+    if(d.type==='ndt-pad-meta'){PAD_ID=d.id||'';setMeta(d.meta||{});}
+    if(d.type==='ndt-pad-photo'&&d.data){
+      var im=new Image();
+      im.onload=function(){photoImg=im;drawSlot();
+        slot.classList.remove('empty');slot.classList.add('filled');
+        document.getElementById('unSlot').disabled=false;};
+      im.src=d.data;
+    }
+  });
+  sendToParent({type:'ndt-pad-ready'});
+
+  /* =============== 小提示 =============== */
+  var tEl=null,tTimer=null;
+  function toast(msg){
+    if(!tEl){
+      tEl=document.createElement('div');
+      tEl.style.cssText='position:fixed;left:50%;bottom:38px;transform:translateX(-50%);'+
+        'background:rgba(26,32,48,.92);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:9px;'+
+        'z-index:99;pointer-events:none;opacity:0;transition:.2s';
+      document.body.appendChild(tEl);
+    }
+    tEl.textContent=msg;tEl.style.opacity='1';
+    clearTimeout(tTimer);tTimer=setTimeout(function(){tEl.style.opacity='0';},1600);
+  }
+
+  /* =============== 初始化 =============== */
+  drawPaper(paperKind);
+  addLayer('画像线稿');addLayer('印章');active=0;
+  renderLayers();composite(true);
+
+  // 示例：线稿画在底层，章盖在上层（接入站点时保持空白起笔，故不执行）
+  (function demo(){
+    if(true)return;
+    var l0=layers[0],ctx=l0.ctx;
+    function line(ax,ay,bx,by,wd,col){
+      ctx.strokeStyle=col||'#241C12';ctx.lineCap='round';ctx.shadowColor=col||'#241C12';
+      ctx.shadowBlur=2.4;ctx.globalAlpha=.9;
+      var px=ax,py=ay;
+      for(var i=1;i<=14;i++){
+        var t=i/14,x=ax+(bx-ax)*t+Math.sin(t*6)*2,y=ay+(by-ay)*t,w=wd*(.78+Math.sin(t*3.1)*.34);
+        ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.stroke();
+        px=x;py=y;
+      }
+      ctx.shadowBlur=0;ctx.globalAlpha=1;
+    }
+    line(255,250,300,205,7,'#3A2A1C');line(300,205,392,198,7,'#3A2A1C');
+    line(392,198,452,245,7,'#3A2A1C');line(452,245,468,340,7,'#3A2A1C');
+    line(468,340,458,430,7,'#3A2A1C');line(458,430,404,486,7,'#3A2A1C');
+    line(404,486,322,492,7,'#3A2A1C');line(322,492,266,440,7,'#3A2A1C');
+    line(266,440,252,340,7,'#3A2A1C');line(252,340,255,250,7,'#3A2A1C');
+    for(var k=0;k<9;k++) line(258+k*22,214-k*3,270+k*24,300+((k%3)*14),3.6,'#241C12');
+    line(292,300,348,292,5,'#241C12');line(378,292,432,302,5,'#241C12');
+    line(300,326,344,330,3.6,'#241C12');line(382,330,426,326,3.6,'#241C12');
+    line(362,330,352,388,3.2,'#3A2A1C');
+    line(322,432,364,438,4,'#5E3A22');line(364,438,406,430,4,'#5E3A22');
+    line(408,352,428,386,2.4,'#8C2D22');
+    erodeInk(ctx,.34,6.5);
+    composite(true);
+  })();
+
+  window.__sketch={
+    layers:function(){return layers;},active:function(){return active;},
+    addSticker:addSticker,seal:getSeal,compose:composeArt,renderPoster:renderPoster,
+    addLayer:addLayer,setActive:function(i){active=i;renderLayers();},
+    drawSlot:drawSlot,setPhoto:function(img){photoImg=img||null;},
+    hasPhoto:function(){return !!photoImg;},
+    setSize:function(v){baseSize=v;document.getElementById('sizeRange').value=v;document.getElementById('sizeNum').textContent=v;}
+  };
+})();
+</script>
+</body>
+</html>

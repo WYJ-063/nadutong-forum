@@ -2,11 +2,11 @@
    注意：正式发布新版本时，把下面的 v1 改成 v2、v3……
    旧缓存会被自动清掉，用户下次打开就是新文件。
    index.html 走"网络优先"，所以新部署能被立刻感知，不会卡在旧版本。 */
-const ASSET_CACHE = 'ndt-assets-v107';
+const ASSET_CACHE = 'ndt-assets-v108';
 /* 页面留一份缓存只作兜底：网络不通 / 超时才用它，正常有网一律取最新的。
    （早先写成"缓存优先、后台更新"，结果是不会清缓存的用户永远停在上一个版本，
      这条路是错的，改回网络优先。） */
-const PAGE_CACHE = 'ndt-pages-v107';
+const PAGE_CACHE = 'ndt-pages-v108';
 const PAGE_NET_TIMEOUT = 3500;
 
 /* 首屏必须用到的文件：装好 SW 后主动下载一份。
@@ -15,9 +15,10 @@ const PAGE_NET_TIMEOUT = 3500;
    单个文件失败不影响整体：失败的那个下次访问会再补。 */
 const CORE_ASSETS = [
   './index.html',
-  './assets/css/app.bundle.css?v=107',
-  './assets/js/app.bundle.js?v=107',
-  './assets/js/preloader-tone.js?v=107',
+  './assets/css/app.bundle.css?v=108',
+  './assets/js/app.bundle.js?v=108',
+  './assets/js/preloader-tone.js?v=108',
+  './assets/pad.html',
   './assets/logo.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
