@@ -4508,7 +4508,7 @@ viewService = function(){ return viewShipForm(); };
   });
 })();
 
-/* === v108 sketchpad overlay === */
+/* === v109 sketchpad overlay === */
 /* ============================================================
    v108 · 在逃异人「手绘通缉画像」入口
    —— 追加在 app.bundle.js 末尾，不新增任何请求（画板页按需加载）
@@ -4533,18 +4533,21 @@ viewService = function(){ return viewShipForm(); };
     '@media (min-width:900px){.ndt-pad-mask{padding:2.2vh 2vw}.ndt-pad-frame{max-width:1180px;max-height:96vh;border-radius:14px}}',
     'html.ndt-pad-lock,body.ndt-pad-lock{overflow:hidden!important}',
     '.ndt-wcard-art{display:flex;align-items:center;gap:12px;margin:12px 0 10px;padding:10px 12px;',
-    'border:1px solid #EDEFF5;border-radius:9px;background:#FAFBFD;flex-wrap:wrap}',
+    'border:1px solid #EDEFF5;border-radius:9px;background:#FAFBFD;flex-wrap:wrap;max-width:100%;box-sizing:border-box}',
+    '.ndt-wcard-art.empty{padding:0;border:0;background:transparent;margin:10px 0 12px}',
     '.ndt-art-thumb{width:60px;height:74px;border-radius:6px;overflow:hidden;flex:none;',
     'display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#FBFAF6,#F3F0E7);',
     'box-shadow:inset 0 0 0 1px #E7E2D3}',
     '.ndt-art-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
     '.ndt-art-thumb.empty span{font-size:11px;color:#B0A794;letter-spacing:.22em;text-indent:.22em}',
-    '.ndt-art-txt{display:flex;flex-direction:column;gap:3px;min-width:0}',
+    '.ndt-art-txt{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 120px}',
     '.ndt-art-txt b{font-size:12.5px;color:#2C3346;font-weight:600}',
     '.ndt-art-txt span{font-size:11px;color:#8D95A6;line-height:1.5}',
-    '.ndt-pad-open{margin-left:auto;flex:none;white-space:nowrap}',
-    '@media (max-width:520px){.ndt-wcard-art{gap:10px;padding:9px 10px}.ndt-art-thumb{width:52px;height:64px}',
-    '.ndt-art-txt span{display:none}.ndt-pad-open{font-size:12px;padding:6px 10px}}',
+    '.ndt-pad-open{margin-left:auto;flex:none;white-space:nowrap;max-width:100%}',
+    '.ndt-wcard-art.empty .ndt-pad-open{margin-left:0;width:100%;display:block}',
+    '@media (max-width:680px){.ndt-wcard-art{gap:10px;padding:9px 10px}.ndt-art-thumb{width:52px;height:64px}',
+    '.ndt-art-txt{flex:1 1 90px}.ndt-art-txt span{display:none}',
+    '.ndt-wcard-art:not(.empty) .ndt-pad-open{flex-basis:100%;width:100%;margin:8px 0 0;text-align:center}}',
     '.ndt-pad-toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:2147483001;',
     'background:rgba(24,30,46,.94);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:9px;',
     'opacity:0;transition:.2s;pointer-events:none;max-width:80vw;text-align:center}',
@@ -4679,23 +4682,26 @@ viewService = function(){ return viewShipForm(); };
   }, true);
 
   /* ---------- 卡片上的画像位 ---------- */
-  function thumbHTML(id) {
+  /* 有画像才显示「相纸 + 说明」，没有画像只留一个画/重画的按钮 */
+  function blockHTML(id) {
     var art = getArt(id);
-    return '<div class="ndt-art-thumb' + (art ? '' : ' empty') + '">' +
-      (art ? '<img alt="本地通缉画像" src="' + art + '">' : '<span>暂无</span>') +
-      '</div>';
+    if (!art) {
+      return '<button type="button" class="btn btn-sm btn-ghost ndt-pad-open">＋ 画通缉像</button>';
+    }
+    return '<div class="ndt-art-thumb"><img alt="本地通缉画像" src="' + art + '"></div>' +
+      '<div class="ndt-art-txt"><b>本地通缉画像</b><span>手绘或上传，只存在这台设备</span></div>' +
+      '<button type="button" class="btn btn-sm btn-ghost ndt-pad-open">重画</button>';
   }
 
   function paintCard(id) {
     var cards = document.querySelectorAll('.wanted-card');
     for (var i = 0; i < cards.length; i++) {
       if (cards[i].getAttribute('data-ndt-id') !== id) continue;
-      var thumb = cards[i].querySelector('.ndt-art-thumb');
-      if (thumb) {
-        var art = getArt(id);
-        thumb.className = 'ndt-art-thumb' + (art ? '' : ' empty');
-        thumb.innerHTML = art ? '<img alt="本地通缉画像" src="' + art + '">' : '<span>暂无</span>';
-      }
+      var box = cards[i].querySelector('.ndt-wcard-art');
+      if (!box) continue;
+      var art = getArt(id);
+      box.className = 'ndt-wcard-art' + (art ? '' : ' empty');
+      box.innerHTML = blockHTML(id);
     }
   }
 
@@ -4708,11 +4714,10 @@ viewService = function(){ return viewShipForm(); };
     card.setAttribute('data-ndt-done', '1');
     card.setAttribute('data-ndt-id', id);
 
+    var art = getArt(id);
     var box = document.createElement('div');
-    box.className = 'ndt-wcard-art';
-    box.innerHTML = thumbHTML(id) +
-      '<div class="ndt-art-txt"><b>本地通缉画像</b><span>手绘或上传，只存在这台设备</span></div>' +
-      '<button type="button" class="btn btn-sm btn-ghost ndt-pad-open">画通缉像</button>';
+    box.className = 'ndt-wcard-art' + (art ? '' : ' empty');
+    box.innerHTML = blockHTML(id);
     var actions = card.querySelector('.wanted-actions');
     if (actions && actions.parentNode === card) card.insertBefore(box, actions);
     else card.appendChild(box);

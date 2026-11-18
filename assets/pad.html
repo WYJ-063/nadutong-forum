@@ -709,11 +709,11 @@
     txCtx.globalCompositeOperation='source-over';txCtx.globalAlpha=1;
     txCtx.drawImage(liveC,0,0);
     if(B.body>0) applyGrain(txCtx,B.body,avgW*(B.gsz||.8),Math.floor(Math.random()*1e6));
-    // ② 晕开：一层很淡的模糊墨晕，压在颗粒下面
+    // ② 晕开：一层很淡的模糊墨晕，压在颗粒下面（加重）
     hcCtx.clearRect(0,0,W,H);
     hcCtx.globalCompositeOperation='source-over';hcCtx.globalAlpha=1;
     hcCtx.save();
-    try{hcCtx.filter='blur('+Math.max(2.2,avgW*.55)+'px)';}catch(e){}
+    try{hcCtx.filter='blur('+Math.max(3.4,avgW*.72)+'px)';}catch(e){}
     hcCtx.drawImage(liveC,0,0);
     hcCtx.filter='none';
     hcCtx.restore();
@@ -731,10 +731,11 @@
 
     spCtx.clearRect(0,0,W,H);
     spCtx.globalCompositeOperation='source-over';
-    var n=1100,base=Math.max(1,avgW*.11);
+    // 颗粒固定细小：不随笔刷变粗，粗笔也只是"点更多"，不会变成大圆点
+    var n=1500,base=.95;
     for(var i=0;i<n;i++){
-      spCtx.globalAlpha=.32+Math.random()*.68;
-      var rr=base*(.45+Math.random()*1.55);
+      spCtx.globalAlpha=.3+Math.random()*.7;
+      var rr=base*(.35+Math.random()*1.15);
       spCtx.beginPath();spCtx.arc(Math.random()*W,Math.random()*H,rr,0,Math.PI*2);spCtx.fillStyle=color;spCtx.fill();
     }
     spCtx.globalAlpha=1;
@@ -745,7 +746,7 @@
     l.ctx.save();
     l.ctx.globalCompositeOperation='multiply';
     if(B.fringe>0){
-      l.ctx.globalAlpha=Math.min(.5,B.alpha*.22);          // 晕：淡
+      l.ctx.globalAlpha=Math.min(.68,B.alpha*.34);          // 晕：更明显
       l.ctx.drawImage(hcC,0,0);
       l.ctx.globalAlpha=Math.min(1,B.alpha*B.fringe*2);     // 颗粒：重
       l.ctx.drawImage(spC,0,0);
@@ -1089,7 +1090,8 @@
   document.getElementById('stickCard').onclick=function(){
     var src=artCanvas();
     var tw=360, th=Math.round(tw*src.height/src.width);
-    var t=newCanvas(tw,th),tx=t.getContext('2d');
+    var t=document.createElement('canvas');t.width=tw;t.height=th;
+    var tx=t.getContext('2d');
     tx.fillStyle='#FFFFFF';tx.fillRect(0,0,tw,th);
     tx.drawImage(src,0,0,tw,th);
     sendToParent({type:'ndt-pad-stick',id:PAD_ID,data:t.toDataURL('image/jpeg',.86)});
