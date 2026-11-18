@@ -1089,12 +1089,13 @@
   };
   document.getElementById('stickCard').onclick=function(){
     var src=artCanvas();
-    var tw=360, th=Math.round(tw*src.height/src.width);
+    // 存一份够大的（720 宽），卡片上按小尺寸显示，点开能单独看大图
+    var tw=720, th=Math.round(tw*src.height/src.width);
     var t=document.createElement('canvas');t.width=tw;t.height=th;
     var tx=t.getContext('2d');
     tx.fillStyle='#FFFFFF';tx.fillRect(0,0,tw,th);
     tx.drawImage(src,0,0,tw,th);
-    sendToParent({type:'ndt-pad-stick',id:PAD_ID,data:t.toDataURL('image/jpeg',.86)});
+    sendToParent({type:'ndt-pad-stick',id:PAD_ID,data:t.toDataURL('image/jpeg',.9)});
     toast('已设为这张通缉令的画像');
   };
 

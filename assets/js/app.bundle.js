@@ -4508,7 +4508,7 @@ viewService = function(){ return viewShipForm(); };
   });
 })();
 
-/* === v109 sketchpad overlay === */
+/* === v110 sketchpad overlay === */
 /* ============================================================
    v108 · 在逃异人「手绘通缉画像」入口
    —— 追加在 app.bundle.js 末尾，不新增任何请求（画板页按需加载）
@@ -4532,22 +4532,26 @@ viewService = function(){ return viewShipForm(); };
     'box-shadow:0 24px 64px rgba(10,16,36,.36)}',
     '@media (min-width:900px){.ndt-pad-mask{padding:2.2vh 2vw}.ndt-pad-frame{max-width:1180px;max-height:96vh;border-radius:14px}}',
     'html.ndt-pad-lock,body.ndt-pad-lock{overflow:hidden!important}',
-    '.ndt-wcard-art{display:flex;align-items:center;gap:12px;margin:12px 0 10px;padding:10px 12px;',
-    'border:1px solid #EDEFF5;border-radius:9px;background:#FAFBFD;flex-wrap:wrap;max-width:100%;box-sizing:border-box}',
-    '.ndt-wcard-art.empty{padding:0;border:0;background:transparent;margin:10px 0 12px}',
-    '.ndt-art-thumb{width:60px;height:74px;border-radius:6px;overflow:hidden;flex:none;',
-    'display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#FBFAF6,#F3F0E7);',
-    'box-shadow:inset 0 0 0 1px #E7E2D3}',
-    '.ndt-art-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
-    '.ndt-art-thumb.empty span{font-size:11px;color:#B0A794;letter-spacing:.22em;text-indent:.22em}',
-    '.ndt-art-txt{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 120px}',
-    '.ndt-art-txt b{font-size:12.5px;color:#2C3346;font-weight:600}',
-    '.ndt-art-txt span{font-size:11px;color:#8D95A6;line-height:1.5}',
-    '.ndt-pad-open{margin-left:auto;flex:none;white-space:nowrap;max-width:100%}',
-    '.ndt-wcard-art.empty .ndt-pad-open{margin-left:0;width:100%;display:block}',
-    '@media (max-width:680px){.ndt-wcard-art{gap:10px;padding:9px 10px}.ndt-art-thumb{width:52px;height:64px}',
-    '.ndt-art-txt{flex:1 1 90px}.ndt-art-txt span{display:none}',
-    '.ndt-wcard-art:not(.empty) .ndt-pad-open{flex-basis:100%;width:100%;margin:8px 0 0;text-align:center}}',
+    '.ndt-wcard-photo{margin:14px auto 2px;display:flex;flex-direction:column;align-items:center}',
+    '.ndt-photo-frame{position:relative;background:#FFFEF9;padding:9px 9px 26px;border-radius:2px;',
+    'box-shadow:0 8px 20px rgba(70,50,20,.18);transform:rotate(-1.6deg)}',
+    '.ndt-photo-frame img{display:block;width:138px;height:166px;object-fit:cover;background:#fff;',
+    'box-shadow:inset 0 0 0 1px rgba(120,96,60,.14)}',
+    '.ndt-photo-no{position:absolute;right:11px;bottom:7px;font-size:9.5px;color:#8A7C60;letter-spacing:.02em}',
+    '.ndt-photo-frame{cursor:zoom-in}',
+    '.ndt-view-mask{position:fixed;inset:0;z-index:2147483002;background:rgba(10,14,24,.86);',
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}',
+    '.ndt-view-box{max-width:88vw;max-height:70vh;background:#fff;padding:10px;border-radius:3px;',
+    'box-shadow:0 18px 48px rgba(0,0,0,.45)}',
+    '.ndt-view-box img{display:block;max-width:88vw;max-height:70vh;object-fit:contain}',
+    '.ndt-view-ops{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}',
+    '.ndt-view-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;',
+    'font-size:13px;padding:9px 20px;border-radius:22px;cursor:pointer;-webkit-backdrop-filter:blur(6px);',
+    'backdrop-filter:blur(6px)}',
+    '.ndt-view-btn.primary{background:#fff;color:#1F2433;border-color:#fff}',
+    '.ndt-pad-open{flex:none;white-space:nowrap;max-width:100%}',
+    '@media (max-width:680px){.ndt-photo-frame img{width:112px;height:136px}.ndt-photo-frame{padding:7px 7px 22px}',
+    '.ndt-wcard-photo{margin:12px auto 0}.ndt-pad-open{width:100%;display:block;text-align:center}}',
     '.ndt-pad-toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:2147483001;',
     'background:rgba(24,30,46,.94);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:9px;',
     'opacity:0;transition:.2s;pointer-events:none;max-width:80vw;text-align:center}',
@@ -4681,27 +4685,103 @@ viewService = function(){ return viewShipForm(); };
     if (e.key === 'Escape' && mask) closePad();
   }, true);
 
-  /* ---------- 卡片上的画像位 ---------- */
-  /* 有画像才显示「相纸 + 说明」，没有画像只留一个画/重画的按钮 */
-  function blockHTML(id) {
-    var art = getArt(id);
-    if (!art) {
-      return '<button type="button" class="btn btn-sm btn-ghost ndt-pad-open">＋ 画通缉像</button>';
+  /* ---------- 点相纸看大图 ---------- */
+  function openViewer(src, code) {
+    var mask = document.createElement('div');
+    mask.className = 'ndt-view-mask';
+    mask.innerHTML = '<div class="ndt-view-box"><img alt="通缉照" src="' + src + '"></div>' +
+      '<div class="ndt-view-ops">' +
+      '<button type="button" class="ndt-view-btn primary" data-act="save">保存图片</button>' +
+      '<button type="button" class="ndt-view-btn" data-act="share">分享</button>' +
+      '<button type="button" class="ndt-view-btn" data-act="close">关闭</button>' +
+      '</div>';
+    document.body.appendChild(mask);
+
+    function close() {
+      if (mask.parentNode) mask.parentNode.removeChild(mask);
     }
-    return '<div class="ndt-art-thumb"><img alt="本地通缉画像" src="' + art + '"></div>' +
-      '<div class="ndt-art-txt"><b>本地通缉画像</b><span>手绘或上传，只存在这台设备</span></div>' +
-      '<button type="button" class="btn btn-sm btn-ghost ndt-pad-open">重画</button>';
+    mask.addEventListener('click', function (e) {
+      var act = e.target && e.target.getAttribute ? e.target.getAttribute('data-act') : '';
+      if (act === 'close') { close(); return; }
+      if (e.target === mask) { close(); return; }
+      if (act === 'save') {
+        var a = document.createElement('a');
+        a.href = src;
+        a.download = '哪都通-通缉照-' + (code || 'ND-WANTED') + '.jpg';
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('通缉照已保存');
+        return;
+      }
+      if (act === 'share') {
+        fetch(src).then(function (r) { return r.blob(); }).then(function (blob) {
+          var file = new File([blob], '哪都通-通缉照-' + (code || 'ND-WANTED') + '.jpg', { type: 'image/jpeg' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: '哪都通 · 通缉照' }).catch(function () {});
+          } else {
+            var a = document.createElement('a');
+            a.href = src; a.download = file.name;
+            document.body.appendChild(a); a.click(); a.remove();
+            toast('当前环境不支持直接分享，已保存图片');
+          }
+        }).catch(function () {});
+      }
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var img = e.target && e.target.closest ? e.target.closest('.ndt-photo-frame img') : null;
+    if (!img) return;
+    var card = img.closest('.wanted-card');
+    var id = card ? card.getAttribute('data-ndt-id') : '';
+    var art = id ? getArt(id) : img.src;
+    e.preventDefault();
+    openViewer(art || img.src, card ? (card.querySelector('.wanted-top b') || {}).textContent : '');
+  });
+
+  /* ---------- 卡片：按钮进操作栏；有画像才出相纸，并重排卡片 ---------- */
+  function cardCode(card, id) {
+    var el = card.querySelector('.wanted-top b');
+    return el ? (el.textContent || '').trim() : id;
+  }
+
+  function applyCard(card, id) {
+    var art = getArt(id);
+    var photo = card.querySelector('.ndt-wcard-photo');
+    var fields = card.querySelector('.wanted-fields');
+
+    if (art) {
+      if (!photo) {
+        photo = document.createElement('div');
+        photo.className = 'ndt-wcard-photo';
+        if (fields && fields.parentNode === card) card.insertBefore(photo, fields);
+        else card.appendChild(photo);
+      }
+      photo.innerHTML = '<div class="ndt-photo-frame"><img alt="本地通缉画像" src="' + art + '">' +
+        '<span class="ndt-photo-no">' + cardCode(card, id) + '</span></div>';
+      card.classList.add('ndt-has-art');
+    } else {
+      if (photo && photo.parentNode) photo.parentNode.removeChild(photo);
+      card.classList.remove('ndt-has-art');
+    }
+
+    var actions = card.querySelector('.wanted-actions');
+    if (actions) {
+      var btn = actions.querySelector('.ndt-pad-open');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-ghost ndt-pad-open';
+        actions.appendChild(btn);
+      }
+      btn.textContent = art ? '重画通缉像' : '画通缉像';
+    }
   }
 
   function paintCard(id) {
     var cards = document.querySelectorAll('.wanted-card');
     for (var i = 0; i < cards.length; i++) {
       if (cards[i].getAttribute('data-ndt-id') !== id) continue;
-      var box = cards[i].querySelector('.ndt-wcard-art');
-      if (!box) continue;
-      var art = getArt(id);
-      box.className = 'ndt-wcard-art' + (art ? '' : ' empty');
-      box.innerHTML = blockHTML(id);
+      applyCard(cards[i], id);
     }
   }
 
@@ -4713,14 +4793,7 @@ viewService = function(){ return viewShipForm(); };
     if (!id) return;
     card.setAttribute('data-ndt-done', '1');
     card.setAttribute('data-ndt-id', id);
-
-    var art = getArt(id);
-    var box = document.createElement('div');
-    box.className = 'ndt-wcard-art' + (art ? '' : ' empty');
-    box.innerHTML = blockHTML(id);
-    var actions = card.querySelector('.wanted-actions');
-    if (actions && actions.parentNode === card) card.insertBefore(box, actions);
-    else card.appendChild(box);
+    applyCard(card, id);
   }
 
   function scan(root) {
