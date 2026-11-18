@@ -4431,14 +4431,72 @@ viewService = function(){ return viewShipForm(); };
       '</div></div>' + surfaceFooter();
   };
 
+  /* ---------------- 任意 NDT 单号都能查（v107） ----------------
+     不再强校验位数与校验位：只要 NDT 开头，后面几位随便编都能出一份仿真轨迹；
+     伪单的种子来自单号本身，所以同一个号每次打开内容一致。 */
+  function pseudoRecOf(code) {
+    var C = String(code || "").toUpperCase().replace(/\s/g, "");
+    var h = hashP(C);
+    var PROVS = [["山东省", "青岛市"], ["山东省", "济南市"], ["山东省", "烟台市"], ["广东省", "广州市"], ["广东省", "深圳市"],
+      ["浙江省", "杭州市"], ["江苏省", "南京市"], ["四川省", "成都市"], ["湖北省", "武汉市"], ["陕西省", "西安市"],
+      ["北京市", "北京市"], ["上海市", "上海市"], ["湖南省", "长沙市"], ["福建省", "厦门市"], ["河南省", "郑州市"], ["辽宁省", "沈阳市"]];
+    var a = PROVS[h % PROVS.length];
+    var b = PROVS[(h >>> 5) % PROVS.length];
+    if (b[1] === a[1]) b = PROVS[(PROVS.indexOf(b) + 3) % PROVS.length];
+    var svcs = ["标准快递", "标准快递", "标准快递", "航空快运", "同城急送"];
+    var svc = b[1] === a[1] ? "同城急送" : svcs[(h >>> 9) % svcs.length];
+    var w = [1, 1.5, 2, 3, 4.2, 5][(h >>> 13) % 6];
+    var n = 1 + ((h >>> 17) % 3);
+    var goods = ["文件资料", "服装鞋帽", "数码配件", "同人手办", "家用百货", "书籍文具"][(h >>> 11) % 6];
+    var day = new Date(); day.setHours(0, 0, 0, 0);
+    var backDays = (h >>> 21) % 3;
+    var hh = 7 + ((h >>> 3) % 14);
+    var at = day.getTime() - backDays * 86400000 + hh * 3600000 + ((h >>> 7) % 60) * 60000;
+    var rec = {
+      code: C, at: at, seed: (hashP(C + "|pseudo") ^ 0x9e3779b9) >>> 0,
+      fromProv: a[0], fromCity: a[1], toProv: b[0], toCity: b[1],
+      service: svc, weight: w, count: n, goods: goods,
+      sName: NAME_POOL[(h >>> 19) % NAME_POOL.length], rName: NAME_POOL[(h >>> 23) % NAME_POOL.length],
+      pack: "none", packFee: 0, remoteFee: 0
+    };
+    try { rec.fee = __shipFee({ service: svc, weight: w, insureValue: 0, pack: "none", toProv: b[0] }).total; } catch (e) { rec.fee = 15; }
+    return rec;
+  }
+
+  var __prevViewTrack = window.viewTrack;
+  window.viewTrack = function (code) {
+    var raw = String(code == null ? "" : code).trim();
+    var C = raw.replace(/\s/g, "").toUpperCase();
+    var rec = null, unknown = false;
+    if (C) {
+      try { rec = shipFind(C); } catch (e) { rec = null; }
+      if (!rec) {
+        if (/^NDT/.test(C)) rec = pseudoRecOf(C);
+        else unknown = true;
+      }
+    }
+    var body;
+    if (rec) body = (typeof window.trackHtml === "function") ? window.trackHtml(shipAsTrack(rec)) : "";
+    else if (unknown) body = '<div class="trk-card trk-empty"><div class="trk-empty-ico">📦</div><p>运单号以「NDT」开头，后面几位随便填都可以查询。<br>例如 NDT053111180898 或 NDT123456</p></div>';
+    else body = '<div class="trk-card trk-empty"><div class="trk-empty-ico">📦</div><p>输入运单号即可查询包裹动态，NDT 开头的单号都能查。</p></div>';
+    return surfaceHeader("track") +
+      '<div class="page-head"><div class="wrap"><h1>快递查询</h1><p>输入运单号，实时查询包裹动态</p></div></div>' +
+      '<div class="section"><div class="wrap">' +
+      '<div class="track-box" style="max-width:none;margin:0 0 24px">' +
+      '<input id="tb-code" placeholder="请输入运单号，如 NDT7770001234" value="' + shipEscAttr(raw) + '">' +
+      '<button class="btn btn-orange" id="tb-go">查询</button></div>' +
+      '<div id="track-result">' + body + '</div>' +
+      '</div></div>' + surfaceFooter();
+  };
+
   document.addEventListener("click", function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
     if (!t.closest("#tb-go")) return;
     var inp = document.getElementById("tb-code");
     var v = ((inp && inp.value) || "").replace(/\s/g, "").toUpperCase();
-    if (/^NDT\d{12}$/.test(v) && !shipCodeValid(v)) {
-      setTimeout(function () { shipToastThrottled("运单号校验未通过，可能录入有误", "warn"); }, 0);
+    if (v && !/^NDT/.test(v)) {
+      setTimeout(function () { shipToastThrottled("运单号以 NDT 开头，后面几位随意", "warn"); }, 0);
     }
   }, true);
 
