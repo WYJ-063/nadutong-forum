@@ -3748,3 +3748,704 @@ viewService = function(){ return viewShipForm(); };
     if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
   }catch(e){}
 })();
+
+/* =====================================================================
+   寄件 / 物流仿真增强 v105（覆盖层）
+   ---------------------------------------------------------------------
+   叠加在 v104 的寄件模块之上，只重定义函数，不改原有 DOM 结构：
+     1) 运单号：NDT + 网点码(4) + 下单日期MMDD(4) + 流水(3) + Luhn 校验位(1)
+     2) 运费：续重按 1kg 进位（不足 1kg 按 1kg）、包装费、偏远附加、保价上限 500
+     3) 时效：同城 / 同省 / 跨省 / 偏远 / 航空 各走各自班次，夜间不发派送
+     4) 异常：派送失败次日重派（约 6%）、航空安检退回（约 1.5%）
+     5) 去重：每单一个种子，网点/人名/车牌/航班/签收方式/分钟抖动全部不同且固定
+   ===================================================================== */
+(function () {
+  "use strict";
+
+  /* ---------------- 基础工具 ---------------- */
+  function n2(n) { return n < 10 ? "0" + n : String(n); }
+  function stampOf(d) { return d.getFullYear() + "-" + n2(d.getMonth() + 1) + "-" + n2(d.getDate()) + " " + n2(d.getHours()) + ":" + n2(d.getMinutes()); }
+  function hhmmOf(d) { return n2(d.getHours()) + ":" + n2(d.getMinutes()); }
+  function addMin(d, m) { return new Date(d.getTime() + m * 60000); }
+  function addDays(d, n) { return new Date(d.getTime() + n * 86400000); }
+  function atHm(d, h, m) { var x = new Date(d.getTime()); x.setHours(h, m || 0, 0, 0); return x; }
+  function laterThan(base, t, gapMin) { var g = addMin(base, gapMin); return t > g ? t : g; }
+  function hashP(s) { for (var h = 0, i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) >>> 0; return h; }
+  function rngFrom(seed) {
+    var t = seed >>> 0;
+    return function () {
+      t += 0x6D2B79F5;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(rnd, arr) { return arr[Math.floor(rnd() * arr.length) % arr.length]; }
+  function shortCity(c) { return String(c || "").replace(/市$|区$|县$/g, ""); }
+  function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+  /* ---------------- 静态数据 ---------------- */
+  var NET4 = {
+    "北京市": "0100", "上海市": "0210", "天津市": "0220", "重庆市": "0230",
+    "广州市": "0200", "深圳市": "0755", "杭州市": "0571", "南京市": "0250",
+    "苏州市": "0512", "成都市": "0280", "武汉市": "0270", "西安市": "0290",
+    "青岛市": "0532", "济南市": "0531", "长沙市": "0731", "郑州市": "0371",
+    "厦门市": "0592", "福州市": "0591", "昆明市": "0871", "沈阳市": "0240",
+    "合肥市": "0551", "哈尔滨市": "0451", "长春市": "0431", "石家庄市": "0311",
+    "太原市": "0351", "南昌市": "0791", "南宁市": "0888", "海口市": "0898",
+    "兰州市": "0931", "西宁市": "0971", "银川市": "0951", "乌鲁木齐市": "0991",
+    "呼和浩特市": "0471", "拉萨市": "0891", "烟台市": "0535", "潍坊市": "0536",
+    "临沂市": "0539", "东莞市": "0769", "佛山市": "0757", "昆山市": "0512",
+    "义乌市": "0579", "浦东新区": "0210", "朝阳区": "0100", "海淀区": "0100",
+    "天河区": "0200", "雁塔区": "0290", "武侯区": "0280"
+  };
+  var AREAS = {
+    "北京": ["朝阳", "海淀", "丰台", "通州"], "上海": ["徐汇", "浦东", "静安", "闵行"],
+    "广州": ["天河", "海珠", "番禺"], "深圳": ["南山", "福田", "龙岗"],
+    "成都": ["武侯", "锦江", "金牛"], "杭州": ["西湖", "滨江", "余杭"],
+    "南京": ["鼓楼", "江宁", "秦淮"], "武汉": ["洪山", "江汉", "武昌"],
+    "西安": ["雁塔", "碑林", "未央"], "重庆": ["渝北", "江北", "九龙坡"],
+    "青岛": ["市南", "崂山", "李沧"], "天津": ["南开", "河西", "和平"],
+    "苏州": ["姑苏", "吴中"], "长沙": ["岳麓", "芙蓉"], "郑州": ["金水", "二七"],
+    "厦门": ["思明", "湖里"], "昆明": ["五华", "官渡"], "沈阳": ["沈河", "铁西"],
+    "合肥": ["蜀山", "庐阳"], "济南": ["历下", "市中", "槐荫"],
+    "福州": ["鼓楼", "台江"], "哈尔滨": ["南岗", "道里"], "长春": ["朝阳", "绿园"],
+    "石家庄": ["桥西", "长安"], "太原": ["小店", "迎泽"], "南昌": ["青山湖", "红谷滩"],
+    "南宁": ["青秀", "西乡塘"], "海口": ["龙华", "美兰"], "兰州": ["城关", "七里河"],
+    "西宁": ["城东", "城中"], "银川": ["兴庆", "金凤"], "乌鲁木齐": ["天山", "沙依巴克"],
+    "呼和浩特": ["新城", "回民"], "拉萨": ["城关", "堆龙德庆"], "烟台": ["芝罘", "福山"],
+    "潍坊": ["奎文", "潍城"], "临沂": ["兰山", "河东"], "东莞": ["南城", "厚街"],
+    "佛山": ["禅城", "南海"], "昆山": ["玉山", "花桥"], "义乌": ["稠城", "北苑"]
+  };
+  var SUFFIX = ["一部", "二部", "三部", "四部"];
+  var PROV_REGION = {
+    "北京市": "华北", "天津市": "华北", "河北省": "华北", "山西省": "华北", "内蒙古自治区": "华北",
+    "辽宁省": "东北", "吉林省": "东北", "黑龙江省": "东北",
+    "上海市": "华东", "江苏省": "华东", "浙江省": "华东", "安徽省": "华东", "福建省": "华东", "江西省": "华东", "山东省": "华东",
+    "河南省": "华中", "湖北省": "华中", "湖南省": "华中",
+    "广东省": "华南", "广西壮族自治区": "华南", "海南省": "华南",
+    "重庆市": "西南", "四川省": "西南", "贵州省": "西南", "云南省": "西南", "西藏自治区": "西南",
+    "陕西省": "西北", "甘肃省": "西北", "青海省": "西北", "宁夏回族自治区": "西北", "新疆维吾尔自治区": "西北",
+    "香港特别行政区": "华南", "澳门特别行政区": "华南", "台湾省": "华东"
+  };
+  var PROV_HUB = {
+    "北京市": "北京", "天津市": "天津", "河北省": "石家庄", "山西省": "太原", "内蒙古自治区": "呼和浩特",
+    "辽宁省": "沈阳", "吉林省": "长春", "黑龙江省": "哈尔滨",
+    "上海市": "上海", "江苏省": "南京", "浙江省": "杭州", "安徽省": "合肥", "福建省": "福州", "江西省": "南昌", "山东省": "济南",
+    "河南省": "郑州", "湖北省": "武汉", "湖南省": "长沙",
+    "广东省": "广州", "广西壮族自治区": "南宁", "海南省": "海口",
+    "重庆市": "重庆", "四川省": "成都", "贵州省": "贵阳", "云南省": "昆明", "西藏自治区": "拉萨",
+    "陕西省": "西安", "甘肃省": "兰州", "青海省": "西宁", "宁夏回族自治区": "银川", "新疆维吾尔自治区": "乌鲁木齐",
+    "香港特别行政区": "香港", "澳门特别行政区": "澳门", "台湾省": "台北"
+  };
+  var REGION_MID = { "华北": "北京", "东北": "沈阳", "华东": "上海", "华中": "武汉", "华南": "广州", "西南": "成都", "西北": "西安" };
+  var FAR = { "新疆维吾尔自治区": 1, "西藏自治区": 1, "海南省": 1, "青海省": 1, "内蒙古自治区": 1 };
+  var REMOTE = {
+    "新疆维吾尔自治区": { fee: 12, name: "新疆" }, "西藏自治区": { fee: 15, name: "西藏" },
+    "青海省": { fee: 8, name: "青海" }, "内蒙古自治区": { fee: 6, name: "内蒙古" },
+    "宁夏回族自治区": { fee: 5, name: "宁夏" }, "甘肃省": { fee: 5, name: "甘肃" },
+    "海南省": { fee: 4, name: "海南" }, "云南省": { fee: 3, name: "云南" }, "贵州省": { fee: 3, name: "贵州" }
+  };
+  function remoteOf(prov) { return REMOTE[String(prov || "")] || { fee: 0, name: "" }; }
+  var PACK = { none: { name: "自备包装", fee: 0 }, box: { name: "纸箱包装", fee: 6 }, wood: { name: "木架包装", fee: 15 } };
+  var RATE105 = {
+    "同城急送": { first: 12, extra: 1.8, eta: "当日达" },
+    "标准快递": { first: 10, extra: 2.6, eta: "1–3 日" },
+    "航空快运": { first: 23, extra: 4.2, eta: "次日达" }
+  };
+  var NAME_POOL = ["张伟", "王强", "李娜", "刘洋", "陈晨", "赵磊", "周涛", "吴迪", "孙鹏", "郑凯",
+    "冯波", "韩旭", "杨帆", "许诺", "郭亮", "马超", "高翔", "林峰", "罗宇", "梁宇",
+    "宋佳", "唐磊", "何鑫", "曾辉", "邓超", "曹阳", "彭飞", "潘磊", "袁野", "于洋",
+    "董明", "苏杭", "叶楠", "吕强", "姚远", "卢凯", "蒋涛", "蔡亮", "余乐", "杜鹏"];
+  var PLATE_LETTER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  var PLATE_CHAR = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  var PROV_ABBR = {
+    "北京市": "京", "天津市": "津", "河北省": "冀", "山西省": "晋", "内蒙古自治区": "蒙",
+    "辽宁省": "辽", "吉林省": "吉", "黑龙江省": "黑", "上海市": "沪", "江苏省": "苏",
+    "浙江省": "浙", "安徽省": "皖", "福建省": "闽", "江西省": "赣", "山东省": "鲁",
+    "河南省": "豫", "湖北省": "鄂", "湖南省": "湘", "广东省": "粤", "广西壮族自治区": "桂",
+    "海南省": "琼", "重庆市": "渝", "四川省": "川", "贵州省": "贵", "云南省": "云",
+    "西藏自治区": "藏", "陕西省": "陕", "甘肃省": "甘", "青海省": "青", "宁夏回族自治区": "宁",
+    "新疆维吾尔自治区": "新", "香港特别行政区": "港", "澳门特别行政区": "澳", "台湾省": "台"
+  };
+  var AIRLINE = ["SC", "MU", "CA", "CZ", "3U", "HU", "MF", "ZH"];
+  var SIGN_MODES = ["本人签收", "家人代收", "门卫代收", "前台代收", "丰巢智能柜", "菜鸟驿站"];
+
+  /* ---------------- 单号 ---------------- */
+  function luhnSum(digits) {
+    var sum = 0;
+    for (var i = digits.length - 1, pos = 0; i >= 0; i--, pos++) {
+      var d = Number(digits.charAt(i));
+      if (pos % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+    }
+    return sum;
+  }
+  function checkDigitOf(d11) {
+    var sum = 0;
+    for (var i = d11.length - 1, pos = 1; i >= 0; i--, pos++) {
+      var d = Number(d11.charAt(i));
+      if (pos % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+    }
+    return (10 - (sum % 10)) % 10;
+  }
+  function shipCodeValid(code) {
+    var d = String(code || "").toUpperCase().replace(/^NDT/, "").replace(/\s/g, "");
+    return /^\d{12}$/.test(d) ? (luhnSum(d) % 10) === 0 : false;
+  }
+  window.shipCodeValid = shipCodeValid;
+
+  var GEN_CODES = {};
+  var __shipNewCode = function (prov, city) {
+    var list = [];
+    try { list = shipAll(); } catch (e) { list = []; }
+    var used = {};
+    for (var i = 0; i < list.length; i++) used[String(list[i].code || "").toUpperCase()] = 1;
+    for (var g in GEN_CODES) if (GEN_CODES.hasOwnProperty(g)) used[g] = 1;
+    var net = NET4[city] || NET4[prov];
+    if (!net) net = String(1000 + hashP(String(prov || "") + "|" + String(city || "")) % 8999);
+    var now = new Date();
+    var mmdd = n2(now.getMonth() + 1) + n2(now.getDate());
+    for (var k = 0; k < 40; k++) {
+      var seq = String(Math.floor(Math.random() * 1000));
+      while (seq.length < 3) seq = "0" + seq;
+      var d11 = net + mmdd + seq;
+      var code = "NDT" + d11 + String(checkDigitOf(d11));
+      if (!used[code]) { GEN_CODES[code] = 1; return code; }
+    }
+    return null;
+  };
+
+  /* ---------------- 运费 ---------------- */
+  var __shipFee = function (o) {
+    o = o || {};
+    var rate = RATE105[o.service] || RATE105["标准快递"];
+    var w = Math.max(0, Number(o.weight) || 0);
+    var overKg = w > 1 ? Math.ceil(w - 1) : 0;
+    var extra = round2(overKg * rate.extra);
+    var pack = PACK[o.pack] || PACK.none;
+    var remote = remoteOf(o.toProv);
+    var value = Math.max(0, Number(o.insureValue) || 0);
+    var insure = value > 0 ? Math.min(500, Math.max(1, round2(value * 0.005))) : 0;
+    return {
+      first: rate.first, overKg: overKg, extra: extra,
+      pack: pack.fee, packName: pack.name,
+      remote: remote.fee, remoteName: remote.name,
+      insure: insure, rate: rate,
+      total: round2(rate.first + extra + pack.fee + remote.fee + insure)
+    };
+  };
+
+  var __shipFeeRows = function (fee, svc) {
+    var out = '<div class="ship-fr"><span>' + shipEscAttr(svc) + ' · 首重 1kg</span><b>¥ ' + shipMoney(fee.first) + '</b></div>';
+    out += fee.overKg > 0
+      ? '<div class="ship-fr"><span>续重 ' + fee.overKg + 'kg（不足 1kg 按 1kg）× ¥' + (RATE105[svc] ? RATE105[svc].extra : 2.6) + '</span><b>¥ ' + shipMoney(fee.extra) + '</b></div>'
+      : '<div class="ship-fr"><span>首重内（≤1kg 不计续重）</span><b>¥ 0.00</b></div>';
+    if (fee.pack > 0) out += '<div class="ship-fr"><span>' + shipEscAttr(fee.packName) + '</span><b>¥ ' + shipMoney(fee.pack) + '</b></div>';
+    if (fee.remote > 0) out += '<div class="ship-fr"><span>偏远地区附加（' + shipEscAttr(fee.remoteName) + '）</span><b>¥ ' + shipMoney(fee.remote) + '</b></div>';
+    out += '<div class="ship-fr"><span>保价费（0.5%，最低 1 元，上限 500 元）</span><b>¥ ' + shipMoney(fee.insure) + '</b></div>';
+    out += '<div class="ship-total"><span>预计费用</span><b><small>¥</small>' + shipMoney(fee.total) + '</b></div>';
+    return out;
+  };
+
+  var __shipRecalc = function () {
+    var box = $("#ship-fee"), dock = $("#ship-dock-amt");
+    if (!box) return;
+    var svc = "标准快递", on = $(".ship-svc.on");
+    if (on) svc = on.getAttribute("data-svc");
+    var w = $("#s-weight") ? $("#s-weight").value : 0;
+    var ins = ($("#s-insure") && $("#s-insure").checked && $("#s-insure-val")) ? $("#s-insure-val").value : 0;
+    var pack = $("#s-pack") ? $("#s-pack").value : "none";
+    var toProv = $("#r-prov") ? $("#r-prov").value : "";
+    var fee = __shipFee({ service: svc, weight: w, insureValue: ins, pack: pack, toProv: toProv });
+    box.innerHTML = __shipFeeRows(fee, svc);
+    if (dock) dock.innerHTML = shipMoney(fee.total);
+    return fee;
+  };
+
+  /* ---------------- 每单种子 / 固定事实 ---------------- */
+  function seedOf(rec) {
+    if (rec && rec.seed) return (Number(rec.seed) >>> 0);
+    return (hashP(String((rec && rec.code) || "")) ^ hashP(String(Number((rec && rec.at) || 0)))) >>> 0;
+  }
+  function depotOf(prov, city, rnd) {
+    var sc = shortCity(city) || shortCity(prov) || "中转";
+    var areas = AREAS[sc];
+    var area = areas ? pick(rnd, areas) : "中心";
+    return sc + area + pick(rnd, SUFFIX);
+  }
+  function telOf(rnd) {
+    var pre = ["138", "139", "136", "137", "150", "151", "158", "159", "186", "187", "188", "189", "135", "133"][Math.floor(rnd() * 14) % 14];
+    var mid = String(1000 + Math.floor(rnd() * 9000));
+    return { mask: pre + "****" + mid, full: pre + mid + String(100 + Math.floor(rnd() * 900)) };
+  }
+  function plateOf(prov, rnd) {
+    var abbr = PROV_ABBR[prov] || "鲁";
+    var letter = PLATE_LETTER.charAt(Math.floor(rnd() * PLATE_LETTER.length));
+    var body = "";
+    for (var i = 0; i < 5; i++) body += PLATE_CHAR.charAt(Math.floor(rnd() * PLATE_CHAR.length));
+    return abbr + letter + "·" + body;
+  }
+  function flightOf(rnd) { return pick(rnd, AIRLINE) + String(1000 + Math.floor(rnd() * 8000)); }
+  function signModeOf(rec) { return pick(rngFrom(seedOf(rec) ^ 0x5bf03635), SIGN_MODES); }
+
+  /* 同一单固定不变的：网点、人员、车牌、航班 */
+  function factsOf(rec) {
+    var rnd = rngFrom(seedOf(rec));
+    var f = {};
+    f.depotS = depotOf(rec.fromProv, rec.fromCity, rnd);
+    f.depotT = depotOf(rec.toProv, rec.toCity, rnd);
+    f.picker = pick(rnd, NAME_POOL);
+    f.deliverer = pick(rnd, NAME_POOL);
+    if (f.deliverer === f.picker) f.deliverer = NAME_POOL[(NAME_POOL.indexOf(f.picker) + 7) % NAME_POOL.length];
+    f.telP = telOf(rnd); f.telD = telOf(rnd); f.telR = telOf(rnd);
+    f.plate1 = plateOf(rec.fromProv, rnd);
+    f.plate2 = plateOf(rec.toProv, rnd);
+    f.flight = flightOf(rnd);
+    return f;
+  }
+
+  /* ---------------- 时效模型 ---------------- */
+  function planTimes(rec, rnd) {
+    var at = new Date(Number(rec.at) || Date.now());
+    var svc = rec.service || "标准快递";
+    var sameCity = String(rec.fromCity || "") === String(rec.toCity || "");
+    var sameProv = String(rec.fromProv || "") === String(rec.toProv || "");
+    var rFrom = PROV_REGION[rec.fromProv] || "华东";
+    var rTo = PROV_REGION[rec.toProv] || "华东";
+    var far = !!(FAR[rec.toProv] || FAR[rec.fromProv]);
+    var tier = sameCity ? 0 : sameProv ? 1 : (rFrom === rTo ? 2 : (far ? 4 : 3));
+    var T = {}, h = at.getHours();
+
+    var pick;
+    if (svc === "航空快运" && h >= 17 && h < 21) {
+      pick = addMin(at, 25 + Math.floor(rnd() * 35));
+    } else if (h >= 22 || h < 7) pick = atHm(addDays(at, 1), 8, 20 + Math.floor(rnd() * 35));
+    else {
+      pick = addMin(at, sameCity ? 25 + Math.floor(rnd() * 20) : 45 + Math.floor(rnd() * 75));
+      if (h >= 11 && h < 14) pick = addMin(pick, 50);
+      if (svc === "航空快运" && h >= 20) pick = atHm(addDays(at, 1), 8, 10 + Math.floor(rnd() * 25));
+    }
+    T.pick = pick;
+
+    if (tier === 0) {
+      T.netOut = laterThan(pick, addMin(pick, 35 + Math.floor(rnd() * 15)), 30);
+      T.destNet = laterThan(T.netOut, addMin(T.netOut, 95 + Math.floor(rnd() * 45)), 80);
+      T.dispatch = laterThan(T.destNet, addMin(T.destNet, 20 + Math.floor(rnd() * 20)), 15);
+      T.sign = laterThan(T.dispatch, addMin(T.dispatch, 45 + Math.floor(rnd() * 90)), 40);
+      T.eta = T.sign;
+      return { tier: tier, svc: svc, at: at, T: T, region: rTo, far: far };
+    }
+
+    function nextShift(base) {
+      var cands = [[18, 0], [21, 0], [1, 20]], best = null;
+      for (var i = 0; i < cands.length; i++) {
+        var t = atHm(base, cands[i][0], cands[i][1]);
+        if (t <= addMin(base, 40)) t = addDays(t, 1);
+        if (!best || t < best) best = t;
+      }
+      return best;
+    }
+    function nextWindow(base, h, m, span) {
+      var mm = m + Math.floor(rnd() * span);
+      var t = atHm(base, h, mm);
+      if (t <= base) t = atHm(addDays(base, 1), h, mm);
+      return t;
+    }
+    var shift1 = nextShift(pick);
+    T.netOut = shift1;
+    T.hubFromIn = addMin(shift1, 15 + Math.floor(rnd() * 25));
+
+    if (tier === 1) {
+      T.hubToIn = laterThan(T.hubFromIn, nextWindow(T.hubFromIn, 3, 40, 70), 120);
+      T.destNet = laterThan(T.hubToIn, nextWindow(T.hubToIn, 6, 30, 40), 80);
+      T.dispatch = laterThan(T.destNet, nextWindow(T.destNet, 8, 20, 30), 50);
+      T.sign = laterThan(T.dispatch, addMin(T.dispatch, 90 + Math.floor(rnd() * 380)), 80);
+    } else {
+      T.midIn = laterThan(T.hubFromIn, addMin(T.hubFromIn, 320 + Math.floor(rnd() * 190)), 0);
+      T.midOut = laterThan(T.midIn, nextWindow(T.midIn, 9, 0, 60), 95);
+      T.hubToIn = laterThan(T.midOut, addMin(T.midOut, 830 + Math.floor(rnd() * 250)), 0);
+      if (tier >= 4) T.hubToIn = addDays(T.hubToIn, 1);
+      T.destNet = laterThan(T.hubToIn, nextWindow(T.hubToIn, 6, 30, 40), 85);
+      T.dispatch = laterThan(T.destNet, nextWindow(T.destNet, 8, 20, 30), 50);
+      T.sign = laterThan(T.dispatch, addMin(T.dispatch, 100 + Math.floor(rnd() * 400)), 90);
+    }
+
+    if (svc === "航空快运") {
+      T.netOut = laterThan(pick, atHm(pick, 20, 40 + Math.floor(rnd() * 30)), 45);
+      T.airport = laterThan(T.netOut, addMin(T.netOut, 55 + Math.floor(rnd() * 30)), 40);
+      T.flight = laterThan(T.airport, atHm(T.airport, 23, 20 + Math.floor(rnd() * 60)), 60);
+      T.airportTo = addMin(T.flight, 150 + Math.floor(rnd() * 40));
+      T.destIn = addMin(T.airportTo, 35 + Math.floor(rnd() * 25));
+      T.destNet = laterThan(T.destIn, atHm(T.airportTo, 6, 30 + Math.floor(rnd() * 30)), 40);
+      T.dispatch = laterThan(T.destNet, atHm(T.destNet, 8, 40 + Math.floor(rnd() * 25)), 60);
+      T.sign = laterThan(T.dispatch, addMin(T.dispatch, 90 + Math.floor(rnd() * 240)), 70);
+    }
+    T.eta = T.sign;
+    return { tier: tier, svc: svc, at: at, T: T, region: rTo, far: far };
+  }
+
+  /* ---------------- 轨迹生成 ---------------- */
+  function buildNodes(rec) {
+    var seed = seedOf(rec);
+    var f = factsOf(rec);
+    var p = planTimes(rec, rngFrom(seed ^ 0xA5A5A5A5));
+    var tr = rngFrom(seed ^ 0x2545F491);
+    var T = p.T;
+    var fromProv = rec.fromProv || "山东省", toProv = rec.toProv || "山东省";
+    var w = Number(rec.weight) || 0, count = Number(rec.count) || 1;
+    var hubFrom = PROV_HUB[fromProv] || shortCity(rec.fromCity) || "始发";
+    var hubTo = PROV_HUB[toProv] || shortCity(rec.toCity) || "目的";
+    if (hubFrom === hubTo) hubFrom = shortCity(rec.fromCity) || hubFrom;
+    var mid = REGION_MID[p.region] || "郑州";
+    if (mid === hubFrom || mid === hubTo) mid = "郑州";
+    var signMode = signModeOf(rec);
+    var signPerson = signMode === "本人签收" ? (rec.rName || "收件人") : pick(tr, NAME_POOL);
+
+    var rejectAir = (p.svc === "航空快运") && (tr() < 0.015);
+    var deliverFail = !rejectAir && (tr() < 0.06);
+    var opId = String(1000 + Math.floor(tr() * 9000));
+    var opId2 = String(1000 + Math.floor(tr() * 9000));
+    var batch = "B" + String(100 + Math.floor(tr() * 900));
+
+    var nodes = [];
+    function push(kind, t, title, desc) { nodes.push({ kind: kind, t: t, title: title, desc: desc }); }
+
+    push("order", p.at, "已下单", pick(tr, [
+      "【" + f.depotS + "】订单已受理，快递员 " + f.picker + " 将在 " + hhmmOf(addMin(p.at, 120)) + " 前上门取件。",
+      "【" + f.depotS + "】您的寄件订单已提交，已派单给快递员 " + f.picker + "（" + f.telP.mask + "），请保持电话畅通。",
+      "【" + f.depotS + "】寄件订单已生成，快递员 " + f.picker + " 将在 2 小时内联系您取件。"
+    ]));
+
+    push("pick", T.pick, "已揽收", pick(tr, [
+      "【" + f.depotS + "】快递员 " + f.picker + "（" + f.telP.mask + "）已揽收，计费重量 " + w + "kg，共 " + count + " 件。",
+      "【" + f.depotS + "】已揽收您的快件，实称 " + w + "kg，外包装完好，面单已贴。",
+      "【" + f.depotS + "】" + f.picker + " 已取件并称重 " + w + "kg，收件人信息已核对。"
+    ]));
+
+    if (p.svc === "航空快运") {
+      push("transit", T.netOut, "运输中", pick(tr, [
+        "【" + f.depotS + "】航空件已由专车发往 " + (rec.fromCity || "始发") + "机场货站，车牌 " + f.plate1 + "。",
+        "【" + f.depotS + "】快件已完成称重复核，转交机场专线，车牌 " + f.plate1 + "。"
+      ]));
+      if (rejectAir) {
+        push("reject", T.airport, "安检退回", pick(tr, [
+          "【" + (rec.fromCity || "始发") + "机场货站】安检未通过（内含锂电池/液体），快件已办理退回，将原路退回寄件人。",
+          "【" + (rec.fromCity || "始发") + "机场货站】安检退回：物品不符合空运要求，已转陆运退回 " + f.depotS + "。"
+        ]));
+        return nodes;
+      }
+      push("transit", T.airport, "运输中", "【" + (rec.fromCity || "始发") + "机场货站】安检通过，已称重打板，等待航班 " + f.flight + "（" + hhmmOf(T.flight) + " 起飞）。");
+      push("transit", T.flight, "运输中", "【航班 " + f.flight + "】已装机起飞，" + (rec.fromCity || "始发") + " → " + (rec.toCity || "目的") + "，预计 " + hhmmOf(T.airportTo) + " 落地。");
+      push("transit", T.airportTo, "运输中", "【" + (rec.toCity || "目的") + "机场货站】航班 " + f.flight + " 已落地，卸机扫描完成，操作员 " + opId + "。");
+      push("transit", T.destIn, "运输中", "【" + (rec.toCity || "目的") + "机场货站】快件已提货出库，正在运往 " + f.depotT + "，预计 " + hhmmOf(addMin(T.destIn, 70)) + " 到达。");
+      push("transit", T.destNet, "运输中", pick(tr, [
+        "【" + f.depotT + "】快件已到达派送网点，正在分拣入柜，预计 " + hhmmOf(addMin(T.destNet, 45)) + " 前派送。",
+        "【" + f.depotT + "】到件扫描完成（工号 " + opId2 + "），已分配派件员 " + f.deliverer + "。"
+      ]));
+    } else if (p.tier === 0) {
+      push("transit", T.netOut, "运输中", pick(tr, [
+        "【" + f.depotS + "】同城件已分拣出仓，由 " + f.picker + " 直送 " + f.depotT + "。",
+        "【" + f.depotS + "】同城急送已交接，" + f.picker + " 正在前往 " + (rec.toCity || "目的地") + "。"
+      ]));
+      push("transit", T.destNet, "运输中",
+        "【" + f.depotT + "】快件已到达派送网点，正在分拣入柜（批次 " + batch + "），预计 " + hhmmOf(addMin(T.destNet, 30)) + " 前派送。");
+    } else {
+      push("transit", T.netOut, "运输中", pick(tr, [
+        "【" + f.depotS + "】快件已装车，发往 " + hubFrom + "转运中心，车牌 " + f.plate1 + "。",
+        "【" + f.depotS + "】网点集包完成，本班次已发往 " + hubFrom + "转运中心，车牌 " + f.plate1 + "。"
+      ]));
+      push("transit", T.hubFromIn, "运输中", pick(tr, [
+        "【" + hubFrom + "转运中心】快件已到达，正在分拣（批次 " + batch + "），预计 " + hhmmOf(addMin(T.hubFromIn, 90)) + " 完成。",
+        "【" + hubFrom + "转运中心】卸车扫描完成，操作员 " + opId + "，快件进入自动分拣线。",
+        "【" + hubFrom + "转运中心】已扫描入库，批次 " + batch + " 分拣位 " + (1 + Math.floor(tr() * 24)) + " 号。"
+      ]));
+      if (p.tier >= 3) {
+        push("transit", T.midIn, "运输中", "【" + mid + "转运中心】快件已到达区域中转，正在按流向分拣，批次 " + batch + "。");
+        push("transit", T.midOut, "运输中", pick(tr, [
+          "【" + mid + "转运中心】快件已装车，发往 " + hubTo + "转运中心，车牌 " + f.plate2 + "。",
+          "【" + mid + "转运中心】已发往 " + hubTo + "转运中心，操作员 " + opId2 + "，预计 " + hhmmOf(addMin(T.midOut, 300)) + " 到达。"
+        ]));
+      }
+      push("transit", T.hubToIn, "运输中", pick(tr, [
+        "【" + hubTo + "转运中心】快件已到达，正在分拣（批次 " + batch + "），即将发往末端网点 " + f.depotT + "。",
+        "【" + hubTo + "转运中心】卸车扫描完成，操作员 " + opId2 + "，即将分往下游网点。"
+      ]));
+      push("transit", T.destNet, "运输中", pick(tr, [
+        "【" + f.depotT + "】快件已到达派送网点，正在分拣入柜，预计 " + hhmmOf(addMin(T.destNet, 60)) + " 前派送。",
+        "【" + f.depotT + "】到件扫描完成（工号 " + opId + "），已分配派件员 " + f.deliverer + "。",
+        "【" + f.depotT + "】到件入库，货架位 " + (1 + Math.floor(tr() * 30)) + " 号，即将安排派送。"
+      ]));
+    }
+
+    push("dispatch", T.dispatch, "派送中", pick(tr, [
+      "【" + f.depotT + "】快递员 " + f.deliverer + "（" + f.telD.mask + "）正在为您派送，请保持电话畅通。",
+      "【" + f.depotT + "】您的快件已出仓，派件员 " + f.deliverer + " 预计 " + hhmmOf(addMin(T.dispatch, 60)) + " 送达。"
+    ]));
+
+    if (deliverFail) {
+      var failAt = addMin(T.dispatch, 45 + Math.floor(tr() * 60));
+      push("fail", failAt, "派送异常", pick(tr, [
+        "【" + f.depotT + "】派送失败：收件人电话未接通（" + f.telR.mask + "），快件已带回网点，次日再次派送。",
+        "【" + f.depotT + "】联系不上收件人，快件暂存网点，已短信通知，将于次日重新派送。"
+      ]));
+      var retryAt = atHm(addDays(failAt, 1), 8, 40 + Math.floor(tr() * 20));
+      push("dispatch", retryAt, "派送中",
+        "【" + f.depotT + "】快件重新出仓，快递员 " + f.deliverer + "（" + f.telD.mask + "）再次派送。");
+      push("sign", addMin(retryAt, 90 + Math.floor(tr() * 300)), "已签收",
+        "【" + f.depotT + "】快件已签收，签收方式：" + signMode + "，签收人：" + signPerson + "。感谢使用哪都通快递。");
+      return nodes;
+    }
+
+    push("sign", T.sign, "已签收", pick(tr, [
+      "【" + f.depotT + "】快件已由 " + signMode + " 签收，签收人：" + signPerson + "。感谢使用哪都通快递，期待再次为您服务。",
+      "【" + f.depotT + "】已签收，签收方式：" + signMode + "，如需签收回单请在 24 小时内联系网点。"
+    ]));
+    return nodes;
+  }
+
+  var NCACHE = {};
+  function nodesOf(rec) {
+    var key = String(rec.code || "") + "|" + String(rec.seed || "") + "|" + String(rec.at || "");
+    if (!NCACHE[key]) { try { NCACHE[key] = buildNodes(rec); } catch (e) { NCACHE[key] = []; } }
+    return NCACHE[key];
+  }
+  function nodesNow(rec) {
+    var now = Date.now(), out = [], all = nodesOf(rec);
+    for (var i = 0; i < all.length; i++) {
+      var tt = all[i].t instanceof Date ? all[i].t.getTime() : new Date(all[i].t).getTime();
+      if (tt <= now) out.push(all[i]);
+    }
+    return out;
+  }
+  var STATE_OF_KIND = {
+    order: { key: "待揽收", cls: "wait", tab: "wait" },
+    pick: { key: "已揽收", cls: "wait", tab: "wait" },
+    transit: { key: "运输中", cls: "move", tab: "move" },
+    dispatch: { key: "派送中", cls: "move", tab: "move" },
+    fail: { key: "派送异常", cls: "bad", tab: "bad" },
+    reject: { key: "已退回", cls: "bad", tab: "bad" },
+    sign: { key: "已签收", cls: "done", tab: "done" }
+  };
+  function shipStateInfo(rec) {
+    var vis = nodesNow(rec);
+    var last = vis.length ? vis[vis.length - 1].kind : "order";
+    return STATE_OF_KIND[last] || STATE_OF_KIND.order;
+  }
+  window.shipStateInfo = shipStateInfo;
+
+  /* ---------------- 覆盖原函数 ---------------- */
+  shipNewCode = window.shipNewCode = __shipNewCode;
+  shipFee = window.shipFee = __shipFee;
+  shipFeeRows = window.shipFeeRows = __shipFeeRows;
+  shipRecalc = window.shipRecalc = __shipRecalc;
+
+  shipStageOf = window.shipStageOf = function (rec) {
+    var info = shipStateInfo(rec);
+    if (info.key === "待揽收") return 0;
+    if (info.key === "已揽收") return 1;
+    if (info.key === "运输中") return 2;
+    if (info.key === "已签收") return 4;
+    return 3;
+  };
+
+  var __origViewForm = viewShipForm;
+  viewShipForm = window.viewShipForm = function () {
+    var html = __origViewForm.apply(this, arguments);
+    if (String(html).indexOf('id="s-pack"') < 0) {
+      var block = '<label class="fl">包装服务</label>' +
+        '<select class="field" id="s-pack">' +
+        '<option value="none">自备包装（不收费）</option>' +
+        '<option value="box">纸箱包装 +¥6</option>' +
+        '<option value="wood">木架包装 +¥15</option>' +
+        '</select>' +
+        '<p class="muted" style="font-size:11.5px;line-height:1.7;margin:6px 0 2px">易碎品建议纸箱；超 5kg 或贵重物品建议木架。偏远地区（新疆、西藏等）运费另计。</p>';
+      html = String(html).replace('<label class="fl">备注（选填）</label>', block + '<label class="fl">备注（选填）</label>');
+    }
+    return html;
+  };
+
+  var __origSubmit = shipSubmit;
+  shipSubmit = window.shipSubmit = function () {
+    if (window.__shipBusy) return;
+    window.__shipBusy = 1;
+    setTimeout(function () { window.__shipBusy = 0; }, 1400);
+    var v = function (id) { var el = $("#" + id); return el ? String(el.value || "").trim() : ""; };
+    var sName = v("s-name"), sTel = v("s-tel").replace(/\s|-/g, ""),
+      rName = v("r-name"), rTel = v("r-tel").replace(/\s|-/g, ""),
+      sAddr = v("s-addr"), rAddr = v("r-addr"),
+      goods = v("s-goods"), count = parseInt(v("s-count") || "0", 10),
+      weight = Number(v("s-weight"));
+    var svcEl = $(".ship-svc.on");
+    var svc = svcEl ? svcEl.getAttribute("data-svc") : "标准快递";
+
+    if (!sName) return shipToastThrottled("请填写寄件人姓名", "warn");
+    var sErr = shipTelError(sTel); if (sErr) return shipToastThrottled("寄件人手机号" + sErr, "warn");
+    if (!sAddr) return shipToastThrottled("请填写取件详细地址", "warn");
+    if (!rName) return shipToastThrottled("请填写收件人姓名", "warn");
+    var rErr = shipTelError(rTel); if (rErr) return shipToastThrottled("收件人手机号" + rErr, "warn");
+    if (!rAddr) return shipToastThrottled("请填写收件详细地址", "warn");
+    if (!goods) return shipToastThrottled("请填写物品名称", "warn");
+    if (!count || count < 1) return shipToastThrottled("件数至少 1 件", "warn");
+    if (!weight || weight <= 0) return shipToastThrottled("请填写重量，按 kg 计", "warn");
+    if (weight > 50) return shipToastThrottled("超过 50kg 请走企业物流", "warn");
+
+    var insureOn = $("#s-insure") && $("#s-insure").checked;
+    var insureValue = insureOn ? Math.max(0, Number(v("s-insure-val")) || 0) : 0;
+    var pack = $("#s-pack") ? $("#s-pack").value : "none";
+    if (!PACK[pack]) pack = "none";
+    var toProv = v("r-prov"), fromProv = v("s-prov");
+    var fee = __shipFee({ service: svc, weight: weight, insureValue: insureValue, pack: pack, toProv: toProv });
+
+    var code = __shipNewCode(fromProv, v("s-city"));
+    if (!code) return shipToastThrottled("单号生成失败，请重试", "warn");
+    var rec = {
+      code: code, at: Date.now(),
+      seed: (hashP(code + "|" + String(Math.random()).slice(2)) ^ 0x9e3779b9) >>> 0,
+      service: svc,
+      sName: sName, sTel: sTel,
+      fromProv: fromProv, fromCity: v("s-city"), fromAddr: sAddr,
+      rName: rName, rTel: rTel,
+      toProv: toProv, toCity: v("r-city"), toAddr: rAddr,
+      goods: goods, type: v("s-type"), count: count, weight: weight,
+      pack: pack, packName: PACK[pack].name, remoteName: fee.remoteName, remoteFee: fee.remote,
+      insureValue: insureValue, fee: fee.total, note: v("s-note")
+    };
+    var list = shipAll();
+    list.unshift(rec);
+    shipSave(list);
+    try { sessionStorage.setItem("ndt_ship_prefill", JSON.stringify(rec)); } catch (e) { }
+    location.hash = "#/ship-ok/" + encodeURIComponent(rec.code);
+  };
+
+  shipAsTrack = window.shipAsTrack = function (rec) {
+    var info = shipStateInfo(rec);
+    var all = nodesOf(rec);
+    var f = factsOf(rec);
+    var visible = nodesNow(rec).slice().reverse();
+    var etaNode = null;
+    for (var j = all.length - 1; j >= 0; j--) if (all[j].kind === "sign") { etaNode = all[j]; break; }
+    return {
+      code: String(rec.code || "").toUpperCase(),
+      status: info.key,
+      service: rec.service || "标准快递",
+      goods: rec.goods || "日用品",
+      fee: shipMoney(rec.fee || 0),
+      weight: (rec.weight || 0) + " kg",
+      count: rec.count || 1,
+      fromCity: rec.fromCity || "始发", toCity: rec.toCity || "目的地",
+      from: f.depotS, to: f.depotT,
+      eta: stampOf(etaNode ? etaNode.t : addMin(new Date(Number(rec.at) || Date.now()), 2880 * 60000)),
+      timeline: visible.map(function (n, idx) {
+        return { t: stampOf(n.t), title: n.title, desc: n.desc, state: idx === 0 ? "cur" : "done" };
+      }),
+      __shipPk: true,
+      _recv: f.picker, _tel: f.telP.mask,
+      deposit: { receiver: f.deliverer, rtel: f.telD.mask, depot: f.depotT, sign: info.key === "已签收" ? signModeOf(rec) : "" }
+    };
+  };
+
+  var __origTrackHtml = window.trackHtml;
+  window.trackHtml = function (pk) {
+    if (!pk || !pk.__shipPk || typeof __origTrackHtml !== "function") {
+      return typeof __origTrackHtml === "function" ? __origTrackHtml.apply(this, arguments) : "";
+    }
+    var status = pk.status || "运输中";
+    var isSigned = status === "已签收";
+    var isBad = status === "派送异常" || status === "已退回";
+    var etaText;
+    if (isSigned) {
+      var st = (pk.timeline[0] && pk.timeline[0].t) || "";
+      etaText = st ? "已于 " + st.slice(5) + " 送达" : "已送达";
+    } else if (isBad) {
+      etaText = status === "已退回" ? "已退回寄件人" : "派送异常 · 次日重新派送";
+    } else {
+      etaText = pk.eta ? "预计 <b>" + pk.eta.slice(5) + " 前</b> 送达" : "预计送达时间待更新";
+    }
+    var rows = (pk.timeline || []).map(function (x) {
+      return '<div class="tl-item ' + (x.state || "") + (x.state === "cur" ? " current" : "") + '">' +
+        '<div class="t">' + esc(x.t || "") + '</div><h4>' + esc(x.title) + '</h4><p>' + esc(x.desc || "") + '</p></div>';
+    }).join("") || '<div class="empty">暂无物流轨迹</div>';
+    var dep = pk.deposit || {};
+    return '<div class="trk-hero"><div class="trk-top">' +
+      '<div class="trk-status' + (isSigned ? "" : " on") + '">' + esc(status) + '</div>' +
+      '<div class="trk-eta">' + etaText + '</div></div>' +
+      '<div class="trk-meta"><span class="trk-code">' + esc(pk.code) + '</span><span class="trk-dot"></span><span>' + esc(pk.service) + '</span><span class="trk-dot"></span><span>' + esc(pk.weight) + " · " + esc(pk.count) + ' 件</span></div>' +
+      '<div class="trk-route"><span class="trk-city"><b>' + esc(pk.fromCity) + '</b><i>' + esc(pk.from) + '</i></span><span class="trk-line"></span>' +
+      '<span class="trk-city r"><b>' + esc(pk.toCity) + '</b><i>' + esc(pk.to) + '</i></span></div></div>' +
+      '<div class="trk-card"><div class="trk-head"><span class="trk-title">物流轨迹</span><span class="trk-sublabel">共 ' + esc((pk.timeline || []).length) + ' 条</span></div><div class="tl">' + rows + '</div></div>' +
+      '<div class="trk-card"><div class="trk-head"><span class="trk-title">面单信息</span><span class="trk-sublabel">' + esc(pk.code) + '</span></div><div class="trk-fields">' +
+      '<div><span>物品</span><b>' + esc(pk.goods) + '</b></div>' +
+      '<div><span>件数 / 重量</span><b>' + esc(pk.count) + " 件 · " + esc(pk.weight) + '</b></div>' +
+      '<div><span>服务产品</span><b>' + esc(pk.service) + '</b></div>' +
+      '<div><span>运费</span><b>￥' + esc(pk.fee) + '</b></div>' +
+      '<div><span>揽件员</span><b>' + esc(pk._recv) + " · " + esc(pk._tel) + '</b></div>' +
+      '<div><span>派件员</span><b>' + esc(dep.receiver || "待分配") + " · " + esc(dep.rtel || "待分配") + '</b></div>' +
+      '<div><span>派件网点</span><b>' + esc(dep.depot || "待分配") + '</b></div>' +
+      '<div><span>签收方式</span><b>' + esc(dep.sign || "待签收") + '</b></div>' +
+      '</div></div>';
+  };
+
+  window.viewMyShipments = viewMyShipments = function (filter) {
+    SHIP_FILTER = filter || "all";
+    var all = shipAll(), f = SHIP_FILTER;
+    var cnt = { all: all.length, wait: 0, move: 0, done: 0, bad: 0 };
+    var infos = [];
+    for (var i = 0; i < all.length; i++) {
+      var info = shipStateInfo(all[i]);
+      infos.push(info);
+      cnt[info.tab] = (cnt[info.tab] || 0) + 1;
+    }
+    var list = [];
+    for (var k = 0; k < all.length; k++) if (f === "all" || infos[k].tab === f) list.push({ rec: all[k], info: infos[k] });
+    var tabs = [["all", "全部"], ["wait", "待揽收"], ["move", "运输中"], ["done", "已签收"], ["bad", "异常"]].map(function (t) {
+      return '<a href="javascript:void(0)" data-ship-tab="' + t[0] + '" class="' + (f === t[0] ? "on" : "") + '">' + t[1] + ' ' + (cnt[t[0]] || 0) + '</a>';
+    }).join("");
+
+    var body;
+    if (!list.length) {
+      body = '<div class="ship-empty"><div class="es">📦</div>' + (all.length ? "这个状态下还没有寄件" : "还没有寄件记录<br><span>在「寄件服务」下一单，这里就能看到进度</span>") + '</div>';
+    } else {
+      body = list.map(function (it) {
+        var r = it.rec, info = it.info;
+        var act = info.tab === "done"
+          ? '<a href="javascript:void(0)" class="ship-go js-ship-again">再寄一件 ›</a>'
+          : '<a href="#/track/' + encodeURIComponent(r.code) + '" class="ship-go">查看物流 ›</a>';
+        return '<div class="ship-ord">' +
+          '<div class="ship-top"><span class="ship-no">' + esc(shipShowCode(r.code)) + '</span>' +
+          '<span class="ship-tag ' + info.cls + '">' + esc(info.key) + '</span></div>' +
+          '<div class="ship-rt">' + esc(r.fromCity) + ' <i>→</i> ' + esc(r.toCity) + '</div>' +
+          '<div class="ship-meta">' + esc(r.goods) + ' · ' + esc(r.weight) + 'kg · ' + esc(r.service) + ' · ' + esc(shipShortStamp(r.at)) + ' 下单</div>' +
+          '<div class="ship-foot"><span class="ship-fee">¥ ' + shipMoney(r.fee) + '</span>' + act + '</div></div>';
+      }).join("");
+    }
+
+    return surfaceHeader("my-ship") +
+      '<div class="page-head"><div class="wrap"><h1>我的寄件</h1><p>这台设备上下过的单，可随时查看物流</p></div></div>' +
+      '<div class="section"><div class="wrap" style="max-width:860px">' +
+      '<div class="card-box" style="padding-top:6px"><div class="ship-tabs">' + tabs + '</div>' + body + '</div>' +
+      '<div class="card-box" style="margin-top:18px"><h3 style="margin-bottom:6px">寄件小贴士</h3>' +
+      '<p class="muted" style="font-size:13px;line-height:1.9">单号可在「查快递」查询。记录只保存在本机，卸载 App 或清除数据后清空，重要单号请自行保存。' +
+      (all.length ? ' <a href="javascript:void(0)" id="ship-clear" style="color:#8892AA;text-decoration:underline">清空记录</a>' : '') + '</p></div>' +
+      '</div></div>' + surfaceFooter();
+  };
+
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (!t.closest("#tb-go")) return;
+    var inp = document.getElementById("tb-code");
+    var v = ((inp && inp.value) || "").replace(/\s/g, "").toUpperCase();
+    if (/^NDT\d{12}$/.test(v) && !shipCodeValid(v)) {
+      setTimeout(function () { shipToastThrottled("运单号校验未通过，可能录入有误", "warn"); }, 0);
+    }
+  }, true);
+
+  document.addEventListener("change", function (e) {
+    if (!e.target || !e.target.id) return;
+    if (e.target.id === "s-pack" || e.target.id === "r-prov" || e.target.id === "s-prov") {
+      try { __shipRecalc(); } catch (err) { }
+    }
+  });
+})();
