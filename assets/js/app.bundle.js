@@ -4508,7 +4508,7 @@ viewService = function(){ return viewShipForm(); };
   });
 })();
 
-/* === v110 sketchpad overlay === */
+/* === v111 sketchpad overlay === */
 /* ============================================================
    v108 · 在逃异人「手绘通缉画像」入口
    —— 追加在 app.bundle.js 末尾，不新增任何请求（画板页按需加载）
@@ -4532,13 +4532,41 @@ viewService = function(){ return viewShipForm(); };
     'box-shadow:0 24px 64px rgba(10,16,36,.36)}',
     '@media (min-width:900px){.ndt-pad-mask{padding:2.2vh 2vw}.ndt-pad-frame{max-width:1180px;max-height:96vh;border-radius:14px}}',
     'html.ndt-pad-lock,body.ndt-pad-lock{overflow:hidden!important}',
-    '.ndt-wcard-photo{margin:14px auto 2px;display:flex;flex-direction:column;align-items:center}',
-    '.ndt-photo-frame{position:relative;background:#FFFEF9;padding:9px 9px 26px;border-radius:2px;',
-    'box-shadow:0 8px 20px rgba(70,50,20,.18);transform:rotate(-1.6deg)}',
-    '.ndt-photo-frame img{display:block;width:138px;height:166px;object-fit:cover;background:#fff;',
+    /* —— 带画像的卡片：桌面两栏海报 —— */
+    '.ndt-poster{display:grid;grid-template-columns:162px 1fr;gap:22px;align-items:start;margin-top:6px}',
+    '.ndt-poster .ndt-photo{position:relative;background:#FFFEF9;padding:9px 9px 25px;border-radius:2px;',
+    'box-shadow:0 10px 22px rgba(70,50,20,.2);transform:rotate(-1.6deg);cursor:zoom-in}',
+    '.ndt-poster .ndt-photo img{display:block;width:144px;height:174px;object-fit:cover;background:#fff;',
     'box-shadow:inset 0 0 0 1px rgba(120,96,60,.14)}',
-    '.ndt-photo-no{position:absolute;right:11px;bottom:7px;font-size:9.5px;color:#8A7C60;letter-spacing:.02em}',
-    '.ndt-photo-frame{cursor:zoom-in}',
+    '.ndt-poster .ndt-code{position:absolute;right:10px;bottom:6px;font-size:9.5px;color:#8A7C60;letter-spacing:.02em}',
+    '.ndt-info{min-width:0}',
+    '.ndt-info .wanted-banner{text-align:left;font-size:19px;letter-spacing:7px;margin:0 0 8px;line-height:1}',
+    '.ndt-info .wanted-name{text-align:left;font-size:29px;font-weight:900;letter-spacing:2px;line-height:1.1}',
+    '.ndt-info .wanted-reward{text-align:left;display:flex;align-items:baseline;gap:8px;',
+    'font-size:11.5px;color:#8D95A6;margin:9px 0 12px}',
+    '.ndt-info .wanted-reward strong{display:inline;font-size:26px;font-weight:800;',
+    'color:#8C2D22;font-variant-numeric:tabular-nums;letter-spacing:.5px}',
+    '.ndt-info .wanted-fields{border-top:1px solid #EDEFF4;padding-top:12px;gap:9px 16px}',
+    '.ndt-info .wanted-fields p{font-size:11.5px;line-height:1.5}',
+    /* 手机：左图右文，字段压成短行 */
+    '@media (max-width:680px){',
+    '.ndt-poster{grid-template-columns:100px 1fr;gap:13px;margin-top:0}',
+    '.ndt-poster .ndt-photo{padding:6px 6px 19px}',
+    '.ndt-poster .ndt-photo img{width:88px;height:106px}',
+    '.ndt-poster .ndt-code{font-size:7px;right:6px;bottom:4px;letter-spacing:0}',
+    '.ndt-info .wanted-name{font-size:23px;letter-spacing:1.5px}',
+    '.ndt-info .wanted-reward{display:block;margin:5px 0 9px;font-size:10.5px}',
+    '.ndt-info .wanted-reward strong{display:block;font-size:20px;margin-top:1px}',
+    '.ndt-has-art .wanted-banner{text-align:center;font-size:17px;letter-spacing:5px;margin:12px 0 8px}',
+    '.ndt-kvs{margin:2px 0 0}',
+    '.ndt-kvs p{display:flex;gap:6px;font-size:11px;line-height:1.55;margin:0 0 5px!important}',
+    '.ndt-kvs p b{display:inline!important;color:#9AA0AE!important;font-weight:500!important;',
+    'font-size:10.5px!important;flex:none;margin:0!important;padding-top:1px}',
+    '.ndt-rest{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:11px}',
+    '.ndt-rest p{font-size:11px;margin:0}',
+    '.ndt-rest p b{display:block;font-size:9.5px;color:#9AA0AE;font-weight:500;margin-bottom:1px}',
+    '.ndt-pad-open{width:100%;display:block;text-align:center}}',
+    /* —— 看大图 —— */
     '.ndt-view-mask{position:fixed;inset:0;z-index:2147483002;background:rgba(10,14,24,.86);',
     'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}',
     '.ndt-view-box{max-width:88vw;max-height:70vh;background:#fff;padding:10px;border-radius:3px;',
@@ -4550,8 +4578,6 @@ viewService = function(){ return viewShipForm(); };
     'backdrop-filter:blur(6px)}',
     '.ndt-view-btn.primary{background:#fff;color:#1F2433;border-color:#fff}',
     '.ndt-pad-open{flex:none;white-space:nowrap;max-width:100%}',
-    '@media (max-width:680px){.ndt-photo-frame img{width:112px;height:136px}.ndt-photo-frame{padding:7px 7px 22px}',
-    '.ndt-wcard-photo{margin:12px auto 0}.ndt-pad-open{width:100%;display:block;text-align:center}}',
     '.ndt-pad-toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:2147483001;',
     'background:rgba(24,30,46,.94);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:9px;',
     'opacity:0;transition:.2s;pointer-events:none;max-width:80vw;text-align:center}',
@@ -4729,7 +4755,7 @@ viewService = function(){ return viewShipForm(); };
   }
 
   document.addEventListener('click', function (e) {
-    var img = e.target && e.target.closest ? e.target.closest('.ndt-photo-frame img') : null;
+    var img = e.target && e.target.closest ? e.target.closest('.ndt-photo img') : null;
     if (!img) return;
     var card = img.closest('.wanted-card');
     var id = card ? card.getAttribute('data-ndt-id') : '';
@@ -4738,30 +4764,94 @@ viewService = function(){ return viewShipForm(); };
     openViewer(art || img.src, card ? (card.querySelector('.wanted-top b') || {}).textContent : '');
   });
 
-  /* ---------- 卡片：按钮进操作栏；有画像才出相纸，并重排卡片 ---------- */
+  /* ---------- 卡片：按钮进操作栏；有画像才重排成「左图右文」 ---------- */
   function cardCode(card, id) {
     var el = card.querySelector('.wanted-top b');
     return el ? (el.textContent || '').trim() : id;
   }
 
+  function isNarrow() {
+    return !!(window.matchMedia && window.matchMedia('(max-width:680px)').matches);
+  }
+
+  /* 把卡片拆回原始结构 */
+  function restoreCard(card) {
+    var poster = card.querySelector('.ndt-poster');
+    if (!poster) return;
+    var info = poster.querySelector('.ndt-info');
+    var note = card.querySelector('.wanted-note');
+    ['banner', 'name', 'reward'].forEach(function (k) {
+      var el = info.querySelector('.wanted-' + k);
+      if (el) card.insertBefore(el, note);
+    });
+    var kvs = info.querySelector('.ndt-kvs');
+    var fields = info.querySelector('.wanted-fields');
+    var rest = card.querySelector('.ndt-rest');
+    if (kvs) {                                   // 手机：字段被拆成两段
+      while (kvs.firstChild) fields.appendChild(kvs.firstChild);
+      fields.className = 'wanted-fields';
+      fields.style.cssText = '';
+      card.insertBefore(fields, note);
+    } else if (fields) {
+      card.insertBefore(fields, note);
+    }
+    if (rest && rest.parentNode) {
+      while (rest.firstChild) fields.appendChild(rest.firstChild);
+      rest.parentNode.removeChild(rest);
+    }
+    if (fields) card.insertBefore(fields, note);
+    if (poster.parentNode) poster.parentNode.removeChild(poster);
+    card.classList.remove('ndt-has-art');
+  }
+
   function applyCard(card, id) {
     var art = getArt(id);
-    var photo = card.querySelector('.ndt-wcard-photo');
-    var fields = card.querySelector('.wanted-fields');
+    var narrow = isNarrow();
+
+    // 先还原，再按当前宽度重排（保证 resize / 重画都正确）
+    restoreCard(card);
 
     if (art) {
-      if (!photo) {
-        photo = document.createElement('div');
-        photo.className = 'ndt-wcard-photo';
-        if (fields && fields.parentNode === card) card.insertBefore(photo, fields);
-        else card.appendChild(photo);
+      var note = card.querySelector('.wanted-note');
+      var banner = card.querySelector('.wanted-banner');
+      var name = card.querySelector('.wanted-name');
+      var reward = card.querySelector('.wanted-reward');
+      var fields = card.querySelector('.wanted-fields');
+
+      var poster = document.createElement('div');
+      poster.className = 'ndt-poster';
+      poster.innerHTML = '<div class="ndt-photo"><img alt="本地通缉画像" src="' + art + '">' +
+        '<span class="ndt-code"></span></div><div class="ndt-info"></div>';
+      poster.querySelector('.ndt-code').textContent = cardCode(card, id);
+      var info = poster.querySelector('.ndt-info');
+
+      // 手机保留居中的「在 逃 通 缉」标题在上方，桌面则并进右栏
+      if (!narrow && banner) info.appendChild(banner);
+      if (name) info.appendChild(name);
+      if (reward) info.appendChild(reward);
+
+      if (fields) {
+        if (narrow) {
+          var kvs = document.createElement('div');
+          kvs.className = 'ndt-kvs';
+          while (fields.firstChild && kvs.children.length < 3) kvs.appendChild(fields.firstChild);
+          info.appendChild(kvs);
+          var rest = document.createElement('div');
+          rest.className = 'ndt-rest';
+          while (fields.firstChild) rest.appendChild(fields.firstChild);
+          card.insertBefore(rest, note);
+          fields.className = 'wanted-fields ndt-fields-hold';
+          fields.style.display = 'none';
+          card.insertBefore(fields, note);
+          card.insertBefore(poster, rest);
+        } else {
+          info.appendChild(fields);
+          card.insertBefore(poster, note);
+        }
+      } else {
+        card.insertBefore(poster, note);
       }
-      photo.innerHTML = '<div class="ndt-photo-frame"><img alt="本地通缉画像" src="' + art + '">' +
-        '<span class="ndt-photo-no">' + cardCode(card, id) + '</span></div>';
       card.classList.add('ndt-has-art');
-    } else {
-      if (photo && photo.parentNode) photo.parentNode.removeChild(photo);
-      card.classList.remove('ndt-has-art');
     }
 
     var actions = card.querySelector('.wanted-actions');
@@ -4795,6 +4885,20 @@ viewService = function(){ return viewShipForm(); };
     card.setAttribute('data-ndt-id', id);
     applyCard(card, id);
   }
+
+  /* 视口宽度变化时按新宽度重排一次 */
+  var rzTimer = 0, lastNarrow = isNarrow();
+  window.addEventListener('resize', function () {
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(function () {
+      if (isNarrow() === lastNarrow) return;
+      lastNarrow = isNarrow();
+      var cards = document.querySelectorAll('.wanted-card[data-ndt-id]');
+      for (var i = 0; i < cards.length; i++) {
+        try { applyCard(cards[i], cards[i].getAttribute('data-ndt-id')); } catch (e) {}
+      }
+    }, 220);
+  });
 
   function scan(root) {
     var cards = (root || document).querySelectorAll('.wanted-card');
