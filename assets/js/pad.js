@@ -260,6 +260,7 @@
       var old = hist.shift(); histBytes -= old.bytes || 0; pos--;
     }
     if (pos < 0) pos = 0;
+    if (typeof ANIM !== 'undefined' && ANIM) { ANIM.cache = []; ANIM.sig = ''; }
     syncUndo();
   }
   function syncUndo() {
@@ -287,7 +288,7 @@
     if (op.kind === 'patch') applyPatch(op.layer, op.before, op.bx, op.by, op.bw, op.bh);
     else if (op.kind === 'objs') { op.layer.objects.length = 0; op.before.forEach(function (o) { op.layer.objects.push(o); }); }
     else if (op.kind === 'full') { op.layer.ctx.clearRect(0, 0, W, H); op.layer.ctx.drawImage(op.before, 0, 0); }
-    pos--; syncUndo(); composite(true); renderLayers();
+    pos--; if (typeof ANIM !== 'undefined' && ANIM) { ANIM.cache = []; ANIM.sig = ''; } syncUndo(); composite(true); renderLayers();
   }
   function redo() {
     if (pos + 1 >= hist.length) return;
@@ -296,6 +297,7 @@
     if (op.kind === 'patch') applyPatch(op.layer, op.after, op.bx, op.by, op.bw, op.bh);
     else if (op.kind === 'objs') { op.layer.objects.length = 0; op.after.forEach(function (o) { op.layer.objects.push(o); }); }
     else if (op.kind === 'full') { op.layer.ctx.clearRect(0, 0, W, H); if (op.after) op.layer.ctx.drawImage(op.after, 0, 0); }
+    if (typeof ANIM !== 'undefined' && ANIM) { ANIM.cache = []; ANIM.sig = ''; }
     syncUndo(); composite(true); renderLayers();
   }
   function beginSnapshot() {
@@ -1281,32 +1283,74 @@
       return ((t ^ t >>> 14) >>> 0) / 4294967296;
     };
   }
+  // 连续场的轻微位移：整幅一次性采样，不留任何拼接缝（不会再出十字格）
   function warpLayer(src, frame, ampPx, dens) {
     var out = nc(W, H), o = out.getContext('2d');
-    var cols = Math.max(4, Math.round(dens));
-    var rows = Math.max(3, Math.round(dens * H / W));
-    var cw = W / cols, ch = H / rows, pad = ampPx + 2;
-    for (var r = 0; r < rows; r++) {
-      for (var c = 0; c < cols; c++) {
-        var rnd = mulberry32((r * 1973 + c * 9277 + frame * 15486071) | 0);
-        var dx = (rnd() - .5) * 2 * ampPx, dy = (rnd() - .5) * 2 * ampPx;
-        var sx = c * cw, sy = r * ch;
-        o.drawImage(src, sx - pad, sy - pad, cw + pad * 2, ch + pad * 2,
-          sx + dx - pad, sy + dy - pad, cw + pad * 2, ch + pad * 2);
+    var sx = src.getContext('2d');
+    var sd = sx.getImageData(0, 0, W, H);
+    var dd = o.createImageData(W, H);
+    var sa = sd.data, da = dd.data;
+    var f = frame * 1.9 + 0.7, TAU = 6.2831853;
+    var kR = dens * 0.62, kC = dens * 0.48;
+    var rowX = new Float32Array(H), rowY = new Float32Array(H);
+    var colX = new Float32Array(W), colY = new Float32Array(W);
+    for (var y0 = 0; y0 < H; y0++) {
+      var a0 = y0 / H * TAU * kR;
+      rowX[y0] = Math.sin(a0 + f * 1.35) * .5 + Math.sin(a0 * 2.31 - f * 2.1) * .22;
+      rowY[y0] = Math.cos(a0 * 1.07 + f * 1.7) * .5 + Math.cos(a0 * 2.71 + f * 2.6) * .22;
+    }
+    for (var x0 = 0; x0 < W; x0++) {
+      var b0 = x0 / W * TAU * kC;
+      colX[x0] = Math.sin(b0 * 1.13 - f * 1.9) * .38 + Math.sin(b0 * 2.62 + f * 1.1) * .18;
+      colY[x0] = Math.cos(b0 * 1.29 + f * 2.2) * .38 + Math.cos(b0 * 2.41 - f * 1.4) * .18;
+    }
+    var ax = ampPx * .95;
+    for (var y = 0; y < H; y++) {
+      var baseY = y * W;
+      for (var x = 0; x < W; x++) {
+        var ix = Math.round(x + ax * (rowX[y] + colX[x]));
+        var iy = Math.round(y + ax * (rowY[y] + colY[ix < 0 ? 0 : (ix >= W ? W - 1 : ix)]));
+        var di = (baseY + x) * 4;
+        if (ix < 0 || iy < 0 || ix >= W || iy >= H) { da[di + 3] = 0; continue; }
+        var si = (iy * W + ix) * 4;
+        da[di] = sa[si]; da[di + 1] = sa[si + 1]; da[di + 2] = sa[si + 2]; da[di + 3] = sa[si + 3];
       }
     }
+    o.putImageData(dd, 0, 0);
     return out;
   }
   function artFrame(i, ampPx, dens) {
-    var c = nc(W, H), x = c.getContext('2d');
+    // 先把所有「画像」层合成成一张，再整体做连续场抖动，
+    // 这样每帧只有一次整幅位移，不会出现平铺拼接的格子
+    var art = nc(W, H), a = art.getContext('2d'), hasArt = false;
     for (var k = 0; k < layers.length; k++) {
       var l = layers[k];
-      if (!l.visible) continue;
-      var src = isArt(l) ? warpLayer(l.ink, i, ampPx, dens) : l.ink;
-      x.globalCompositeOperation = l.mode === 'multiply' ? 'multiply' : 'source-over';
-      x.drawImage(src, 0, 0);
-      x.globalCompositeOperation = 'source-over';
-      drawObjects(x, l.objects);
+      if (!l.visible || !isArt(l)) continue;
+      hasArt = true;
+      a.globalCompositeOperation = 'source-over';
+      a.globalAlpha = (l.alpha == null ? 1 : l.alpha);
+      a.drawImage(l.ink, 0, 0);
+      drawObjects(a, l.objects);
+    }
+    a.globalAlpha = 1; a.globalCompositeOperation = 'source-over';
+    var warp = hasArt ? warpLayer(art, i, ampPx, dens) : null;
+
+    var c = nc(W, H), x = c.getContext('2d'), drewArt = false;
+    for (var j = 0; j < layers.length; j++) {
+      var l2 = layers[j];
+      if (!l2.visible) continue;
+      if (isArt(l2)) {
+        if (drewArt || !warp) continue;
+        drewArt = true;
+        x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+        x.drawImage(warp, 0, 0);
+        continue;
+      }
+      x.globalCompositeOperation = l2.mode === 'multiply' ? 'multiply' : 'source-over';
+      x.globalAlpha = (l2.alpha == null ? 1 : l2.alpha);
+      x.drawImage(l2.ink, 0, 0);
+      x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+      drawObjects(x, l2.objects);
     }
     return c;
   }
