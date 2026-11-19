@@ -899,6 +899,150 @@
     if (OPTS.onStick) OPTS.onStick(CUR_ID, data);
     toast('已设为这张通缉令的画像');
   }
+  function artHasInk() {
+    var c = nc(240, 192), x = c.getContext('2d');
+    var v = viewCanvas();
+    x.drawImage(v, 0, 0, 240, 192);
+    var d = x.getImageData(0, 0, 240, 192).data;
+    for (var i = 0; i < d.length; i += 4) {
+      if (d[i] < 226 || d[i + 1] < 226 || d[i + 2] < 226) return true;
+    }
+    return false;
+  }
+  function spaced(x, text, cx, cy, size, gap) {
+    x.font = '700 ' + size + 'px "Songti SC","STSong","SimSun",serif';
+    var total = 0;
+    for (var i = 0; i < text.length; i++) total += x.measureText(text[i]).width + gap;
+    total -= gap;
+    var px = cx - total / 2;
+    for (var k = 0; k < text.length; k++) {
+      x.fillText(text[k], px, cy);
+      px += x.measureText(text[k]).width + gap;
+    }
+  }
+  function posterCanvas() {
+    var PW = 900;
+    var note = META.note || '';
+    var noteY = 120 + 412 + 46;
+    var PH = noteY + (note ? 92 : 0) + 148;
+    var c = nc(PW, PH), x = c.getContext('2d');
+    x.fillStyle = '#FCFAF5'; x.fillRect(0, 0, PW, PH);
+    // 纸面颗粒（很淡）
+    var rnd = mulberry(9317);
+    for (var i = 0; i < 2600; i++) {
+      x.fillStyle = 'rgba(' + (150 + Math.floor(rnd() * 60)) + ',' + (140 + Math.floor(rnd() * 50)) + ',' + (120 + Math.floor(rnd() * 40)) + ',' + (.02 + rnd() * .04) + ')';
+      x.fillRect(rnd() * PW, rnd() * PH, 1 + rnd() * 2, 1 + rnd() * 2);
+    }
+    x.strokeStyle = '#DCD3C0'; x.lineWidth = 1.6;
+    x.strokeRect(30, 30, PW - 60, PH - 60);
+    x.strokeStyle = 'rgba(140,45,34,.22)'; x.lineWidth = 1;
+    x.strokeRect(39, 39, PW - 78, PH - 78);
+
+    x.fillStyle = '#8C8676'; x.font = '500 13px ui-monospace,Menlo,consolas,monospace';
+    x.fillText('ND-TONG / WANTED', 62, 82);
+    x.textAlign = 'right';
+    x.fillText(META.code || 'ND-WANTED', PW - 62, 82);
+    x.textAlign = 'left';
+    x.strokeStyle = '#E4DCCB'; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(62, 96); x.lineTo(PW - 62, 96); x.stroke();
+
+    // 画像
+    var iw = 330, ih = 412, ix = 62, iy = 120;
+    x.fillStyle = '#FFFFFF'; x.fillRect(ix, iy, iw, ih);
+    x.strokeStyle = '#E2DACA'; x.strokeRect(ix, iy, iw, ih);
+    if (artHasInk()) {
+      x.drawImage(viewCanvas(), ix + 7, iy + 7, iw - 14, ih - 14);
+    } else {
+      x.strokeStyle = '#E8E1D2'; x.setLineDash([5, 6]);
+      x.strokeRect(ix + 24, iy + 24, iw - 48, ih - 48);
+      x.setLineDash([]);
+    }
+    x.fillStyle = '#9A9384'; x.font = '500 11px ui-monospace,Menlo,monospace';
+    x.textAlign = 'right'; x.fillText(META.code || '', ix + iw - 8, iy + ih - 10); x.textAlign = 'left';
+
+    // 右栏
+    var tx = ix + iw + 46;
+    x.fillStyle = '#B0553F';
+    spaced(x, '在逃通缉', tx + 152, 158, 22, 12);
+    x.fillStyle = '#171A20';
+    x.font = '900 52px "Songti SC","STSong","SimSun",serif';
+    x.fillText((META.name || '—').replace(/\s/g, ''), tx, 214);
+    x.fillStyle = '#8D8574'; x.font = '500 12px system-ui,sans-serif';
+    x.fillText('悬赏金额', tx, 250);
+    x.fillStyle = '#8C2D22';
+    x.font = '800 40px ui-monospace,Menlo,consolas,monospace';
+    x.fillText(META.reward || '—', tx, 292);
+
+    x.strokeStyle = '#E6DFCF'; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(tx, 320); x.lineTo(PW - 62, 320); x.stroke();
+
+    // 字段（两列）
+    var rows = [
+      ['危险等级', META.danger], ['所属势力', META.faction],
+      ['异术特征', META.skill], ['最后线索', META.lastSeen],
+      ['当前状态', META.status]
+    ];
+    var fy = 350;
+    for (var r = 0; r < rows.length; r++) {
+      var col = r % 2, row = Math.floor(r / 2);
+      var fx = tx + col * 232, fyy = fy + row * 52;
+      if (!rows[r][1]) continue;
+      x.fillStyle = '#9A9384'; x.font = '500 11px system-ui,sans-serif';
+      x.fillText(rows[r][0], fx, fyy);
+      x.fillStyle = '#2B3038'; x.font = '600 16px system-ui,"PingFang SC",sans-serif';
+      x.fillText(String(rows[r][1]).slice(0, 12), fx, fyy + 21);
+    }
+
+    // 案情说明
+    if (note) {
+      var ny = noteY;
+      x.fillStyle = 'rgba(140,45,34,.05)';
+      x.fillRect(62, ny, PW - 124, 92);
+      x.fillStyle = '#8C2D22';
+      x.fillRect(62, ny, 3, 92);
+      x.fillStyle = '#5C5546'; x.font = '500 15px system-ui,"PingFang SC",sans-serif';
+      var line = '', ly = ny + 34;
+      for (var n = 0; n < note.length; n++) {
+        if (x.measureText(line + note[n]).width > PW - 160) {
+          x.fillText(line, 84, ly); line = ''; ly += 26;
+        }
+        line += note[n];
+      }
+      if (line) x.fillText(line, 84, ly);
+    }
+
+    // 底部署名
+    x.fillStyle = '#B2AC9D'; x.font = '500 11px system-ui,sans-serif';
+    x.fillText('哪都通 · 异人内网 · 情报档案', 62, PH - 54);
+    x.textAlign = 'right';
+    x.fillText('本图在本机生成', PW - 62, PH - 54);
+    x.textAlign = 'left';
+    return c;
+  }
+  function exportViewGif() {
+    var outW = 520;
+    var frames = [];
+    for (var i = 0; i < 4; i++) {
+      var full = nc(W, H), fx = full.getContext('2d');
+      fx.drawImage(paperC, 0, 0);
+      fx.globalCompositeOperation = 'multiply';
+      fx.drawImage(artFrame(i, ANIM.amp * (W / 1000), ANIM.dens), 0, 0);
+      if (hasFilter()) fx.drawImage(grainC, 0, 0);
+      fx.globalCompositeOperation = 'source-over';
+      var cw = Math.round(view.w), ch = Math.round(view.h);
+      var sc = nc(outW, Math.round(outW * ch / cw)), sx = sc.getContext('2d');
+      sx.drawImage(full, Math.round(view.x), Math.round(view.y), cw, ch, 0, 0, sc.width, sc.height);
+      frames.push(sx.getImageData(0, 0, sc.width, sc.height));
+    }
+    var bytes = gifBytes(frames, frames[0].width, frames[0].height, Math.max(4, Math.round(100 / ANIM.fps)));
+    var blob = new Blob([bytes], { type: 'image/gif' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '哪都通-通缉照-' + String(META.name || '').replace(/\s/g, '') + '.gif';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
 
   /* ---------------- 动效：线条抖动 + GIF ---------------- */
   var ANIM = { on: false, amp: 1.2, dens: 34, fps: 8, idx: 0, timer: 0, cache: [], sig: '' };
@@ -960,10 +1104,16 @@
     actx.clearRect(0, 0, W, H);
     actx.drawImage(f, 0, 0);
   }
+  function syncSaveLabel() {
+    if (!root) return;
+    var b = root.querySelector('#npSaveArt');
+    if (b) b.textContent = ANIM.on ? '保存通缉照 · GIF' : '保存通缉照';
+  }
   function animPlay() {
     if (ANIM.on) { animStop(); return; }
     ANIM.on = true;
     animShow(0);
+    syncSaveLabel();
     root.querySelector('#npAnimPlay').textContent = '停止';
     var last = 0;
     function loop(t) {
@@ -982,6 +1132,7 @@
     ANIM.timer = 0;
     var btn = root.querySelector('#npAnimPlay');
     if (btn) btn.textContent = '预览';
+    syncSaveLabel();
     composite(true);
   }
   function composeAnim(i, outW) {
@@ -1479,20 +1630,36 @@
     };
     root.querySelector('#npStick').onclick = stickCard;
     root.querySelector('#npSaveArt').onclick = function () {
-      download(viewCanvas(), '哪都通-通缉照-' + String(META.name || '').replace(/\s/g, '') + '.png', 'image/png');
+      var nm = String(META.name || '').replace(/\s/g, '');
+      if (ANIM.on) {
+        exportViewGif();
+        toast('已保存 GIF 通缉照（4 帧循环）');
+        if (OPTS.onSaved) OPTS.onSaved('art-gif');
+        return;
+      }
+      download(viewCanvas(), '哪都通-通缉照-' + nm + '.png', 'image/png');
       toast('已保存单张通缉照');
       if (OPTS.onSaved) OPTS.onSaved('art');
     };
     root.querySelector('#npShare').onclick = function () {
-      viewCanvas().toBlob(function (blob) {
-        var file = new File([blob], '哪都通-通缉照.png', { type: 'image/png' });
+      var nm = String(META.name || '').replace(/\s/g, '');
+      var code = String(META.code || 'ND-WANTED').replace(/[^\w-]/g, '');
+      var c = posterCanvas();
+      c.toBlob(function (blob) {
+        if (!blob) return toast('通缉令生成失败');
+        var file = new File([blob], '哪都通-通缉令-' + code + '.jpg', { type: 'image/jpeg' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], title: '哪都通 · 在逃通缉', text: '异人内网 · 通缉画像' }).catch(function () { });
+          navigator.share({ files: [file], title: '哪都通 · 在逃通缉令', text: (META.name || '') + ' ' + (META.code || '') })
+            .catch(function () { });
         } else {
-          download(viewCanvas(), '哪都通-通缉照.png', 'image/png');
-          toast('当前环境不支持直接分享，已保存图片');
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+          toast('当前环境不支持直接分享，已保存整张通缉令');
         }
-      }, 'image/png');
+      }, 'image/jpeg', .92);
     };
     root.querySelector('#npClose').onclick = function () {
       askConfirm('要关闭画板吗？', '关闭前会把当前进度自动存一份草稿，下次点开「画通缉像」能接着画。四个存档位里的内容不受影响。',
@@ -1740,6 +1907,7 @@
     isOpen: function () { return !!root && root.classList.contains('on'); },
     setMeta: function (m) { if (root) setMeta(m); },
     _animState: function () { return { on: ANIM.on, idx: ANIM.idx, amp: ANIM.amp, dens: ANIM.dens, fps: ANIM.fps }; },
+    _poster: function () { return posterCanvas().toDataURL('image/jpeg', .92); },
     _debug: function (w) {
       var c = composeAnim(0, w || 480);
       var d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
