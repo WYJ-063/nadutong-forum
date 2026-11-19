@@ -208,15 +208,15 @@
 
   /* ---------------- 笔 ---------------- */
   var BRUSHES = {
-    pen: { label: '钢笔', w: .95, alpha: .96, bleed: 0, fringe: .55, body: .12, gsz: .7 },
-    ball: { label: '圆珠笔', w: .62, alpha: .9, bleed: 0, fringe: .30, body: .24, gsz: .6 },
-    pencil: { label: '铅笔', w: .68, alpha: .7, bleed: .10, fringe: .45, body: .34, gsz: 1.0 },
-    charcoal: { label: '炭笔', w: 1.35, alpha: .86, bleed: .16, fringe: .55, body: .18, gsz: .7, rough: 2 },
-    brush: { label: '毛笔', w: 1.2, alpha: .9, bleed: .6, fringe: .5, body: .14, gsz: .9 },
-    marker: { label: '马克笔', w: 1.75, alpha: .4, bleed: .06, fringe: .22, body: .1, gsz: .9, flat: true },
+    pen: { label: '钢笔', w: .95, alpha: 1, bleed: 0, fringe: .55, body: .05, gsz: .7 },
+    ball: { label: '圆珠笔', w: .92, alpha: 1, bleed: 0, fringe: .30, body: .12, gsz: .6 },
+    pencil: { label: '铅笔', w: .72, alpha: 1, bleed: .10, fringe: .45, body: .14, gsz: 1.0 },
+    charcoal: { label: '炭笔', w: 1.35, alpha: 1, bleed: .16, fringe: .55, body: .14, gsz: .7, rough: 2 },
+    brush: { label: '毛笔', w: 1.2, alpha: 1, bleed: .6, fringe: .5, body: .12, gsz: .9 },
+    marker: { label: '马克笔', w: 1.75, alpha: 1, bleed: .06, fringe: .22, body: .04, gsz: .9, flat: true },
     eraser: { label: '橡皮', w: 1, alpha: 1, erase: 'hard' },
-    air: { label: '柔边喷枪', w: 2.2, alpha: .055, air: true },
-    airErase: { label: '喷枪橡皮', w: 2.4, alpha: .07, erase: 'soft' }
+    air: { label: '柔边喷枪', w: 2.2, alpha: 1, air: true },
+    airErase: { label: '喷枪橡皮', w: 2.4, alpha: 1, erase: 'soft' }
   };
   var SIZES = { pen: 4, ball: 3, pencil: 4.5, charcoal: 7, brush: 8, marker: 11, eraser: 30, air: 46, airErase: 56 };
   var brush = 'pen', usePressure = true, color = '#241C12';
@@ -230,6 +230,7 @@
   var layers = [], active = 0, uid = 0, paperKind = 'pure';
   var liveC, liveCtx, txC, txCtx, frC, frCtx, spC, spCtx, hcC, hcCtx, beforeBuf, beforeCtx;
   var stroking = false, drawing = false, lastPt = null, lastT = 0, strokeBox = null, strokeSum = 0, strokeN = 0;
+  var smPt = null, smW = 0, lastRaw = null, prevP = null, prevM = null;
   var selObj = null, dragObj = null;
   var photoImg = null;
   var META = { name: '吕 良', code: 'ND-WANTED-009', danger: 'B 级', faction: '原吕家成员', skill: '明魂术', lastSeen: '行踪不明', status: '在逃', reward: '￥300,000', note: '掌握记忆相关异术，具有较高情报价值。' };
@@ -408,8 +409,8 @@
       actx.drawImage(t, 0, 0);
     }
     if (stroking && liveC) {
-      actx.globalAlpha = (B().air ? 1 : B().alpha);
-      actx.globalCompositeOperation = 'multiply';
+      actx.globalAlpha = 1;
+      actx.globalCompositeOperation = 'source-over';
       actx.drawImage(liveC, 0, 0);
       actx.globalAlpha = 1;
     }
@@ -623,29 +624,34 @@
     var c = layer.ctx;
     c.save(); c.globalCompositeOperation = 'multiply';
     if (b.fringe > 0) {
-      c.globalAlpha = Math.min(.68, b.alpha * .34); c.drawImage(hcC, 0, 0);
-      c.globalAlpha = Math.min(1, b.alpha * b.fringe * 2); c.drawImage(spC, 0, 0);
+      c.globalAlpha = Math.min(.42, b.fringe * .3); c.drawImage(hcC, 0, 0);
+      c.globalAlpha = Math.min(.9, b.fringe * 1.5); c.drawImage(spC, 0, 0);
     }
     if (b.bleed > 0) {
-      c.globalAlpha = b.alpha * b.bleed;
+      c.globalAlpha = Math.min(.5, b.bleed * .8);
       try { c.filter = 'blur(' + Math.max(1.2, avgW * .34) + 'px)'; } catch (e) { }
       c.drawImage(txC, 0, 0); c.filter = 'none';
     }
-    c.globalAlpha = b.alpha; c.drawImage(txC, 0, 0);
+    c.globalAlpha = 1; c.drawImage(txC, 0, 0);
     c.restore();
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   }
   function airStamp(ctx, x, y, r, alpha, erase) {
     var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    // 核心实心、外圈羽化：单笔不发灰，叠涂也不吃色
     if (erase) {
-      g.addColorStop(0, 'rgba(0,0,0,' + alpha + ')');
-      g.addColorStop(.55, 'rgba(0,0,0,' + (alpha * .55) + ')');
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(.24, 'rgba(0,0,0,.97)');
+      g.addColorStop(.52, 'rgba(0,0,0,.6)');
+      g.addColorStop(.8, 'rgba(0,0,0,.2)');
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.globalCompositeOperation = 'destination-out';
     } else {
       var rgb = hexRGB(color);
-      g.addColorStop(0, 'rgba(' + rgb + ',' + alpha + ')');
-      g.addColorStop(.5, 'rgba(' + rgb + ',' + (alpha * .6) + ')');
+      g.addColorStop(0, 'rgba(' + rgb + ',1)');
+      g.addColorStop(.24, 'rgba(' + rgb + ',.97)');
+      g.addColorStop(.52, 'rgba(' + rgb + ',.6)');
+      g.addColorStop(.8, 'rgba(' + rgb + ',.2)');
       g.addColorStop(1, 'rgba(' + rgb + ',0)');
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -661,22 +667,28 @@
   }
   function eraseHard(ctx, x, y, w) {
     ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; ctx.fillStyle = '#000';
-    ctx.lineCap = 'round'; ctx.lineWidth = w;
+    ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3, w);
     ctx.beginPath(); ctx.arc(x, y, Math.max(3, w / 2), 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function eraseSeg(ctx, x0, y0, x1, y1, w) {
+    ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; ctx.strokeStyle = '#000';
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, w);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
 
   /* ---------------- 指针 ---------------- */
-  var dwellTimer = 0;
+  var dwellTimer = 0, dwellAt = null;
   function stampAir(obj) {
     var b = B();
     var r = Math.max(4, curSize() * (b.w || 1) * .5);
     if (b.erase === 'soft') {
-      airStamp(activeLayer().ctx, obj.x, obj.y, r, b.alpha, true);
+      airStamp(activeLayer().ctx, obj.x, obj.y, r, 1, true);
       markBox(obj.x, obj.y, r + 4);
       composite(true);
     } else {
-      airStamp(liveCtx, obj.x, obj.y, r, b.alpha, false);
+      airStamp(liveCtx, obj.x, obj.y, r, 1, false);
       markBox(obj.x, obj.y, r + 4);
       composite();
     }
@@ -699,21 +711,28 @@
     beginSnapshot();
     strokeBox = null; strokeSum = 0; strokeN = 0;
     drawing = true; lastPt = p; lastT = performance.now();
+    smPt = { x: p.x, y: p.y }; smW = 0; prevP = { x: p.x, y: p.y }; prevM = { x: p.x, y: p.y };
     var b = B();
     if (b.air) {
       stroking = true; liveCtx.clearRect(0, 0, W, H);
       stampAir(p); strokeSum = curSize(); strokeN = 1;
       clearInterval(dwellTimer);
+      dwellAt = { x: lastPt.x, y: lastPt.y };
       dwellTimer = setInterval(function () {
         if (!drawing || !lastPt) return;
-        stampAir({ x: lastPt.x, y: lastPt.y });
+        // 只有按住不动才继续补膏，移动时不额外加印，避免笔画起头鼓包
+        if (Math.hypot(lastPt.x - dwellAt.x, lastPt.y - dwellAt.y) < 3) {
+          stampAir({ x: lastPt.x, y: lastPt.y });
+        } else {
+          dwellAt = { x: lastPt.x, y: lastPt.y };
+        }
       }, 90);
     } else if (b.erase === 'hard') {
       eraseHard(l.ctx, p.x, p.y, curSize());
       markBox(p.x, p.y, curSize() + 4);
     } else if (b.erase === 'soft') {
       var r = Math.max(4, curSize() * (b.w || 1) * .5);
-      airStamp(l.ctx, p.x, p.y, r, b.alpha, true);
+      airStamp(l.ctx, p.x, p.y, r, 1, true);
       markBox(p.x, p.y, r + 4);
     } else {
       stroking = true; liveCtx.clearRect(0, 0, W, H);
@@ -724,6 +743,30 @@
     }
     composite();
   }
+  // 沿两点之间按固定步长细分，配合输入平滑，笔触连贯不起棱
+  // 以「中点-中点」二次曲线取样，手抖和稀疏采样点都被抹平
+  function quadPts(x0, y0, cx, cy, x1, y1, step) {
+    var approx = (Math.hypot(x0 - cx, y0 - cy) + Math.hypot(cx - x1, cy - y1)) / 2;
+    var n = Math.max(2, Math.min(240, Math.ceil(approx / step)));
+    var out = [];
+    for (var i = 1; i <= n; i++) {
+      var t = i / n, u = 1 - t;
+      out.push({
+        x: u * u * x0 + 2 * u * t * cx + t * t * x1,
+        y: u * u * y0 + 2 * u * t * cy + t * t * y1
+      });
+    }
+    return out;
+  }
+  function segPts(x0, y0, x1, y1, step) {
+    var d = Math.hypot(x1 - x0, y1 - y0);
+    var n = Math.max(1, Math.ceil(d / step)), out = [];
+    for (var i = 1; i <= n; i++) {
+      var t = i / n;
+      out.push({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t });
+    }
+    return out;
+  }
   function move(e) {
     var p = canvasPos(e);
     if (dragObj) { dragObj.o.x = p.x - dragObj.dx; dragObj.o.y = p.y - dragObj.dy; composite(true); return; }
@@ -732,36 +775,85 @@
     var b = B();
     var evts = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     if (!evts.length) evts = [e];
+    var cur = prevM || lastPt;
     for (var i = 0; i < evts.length; i++) {
-      var q = canvasPos(evts[i]);
+      var raw = canvasPos(evts[i]);
+      lastRaw = { x: raw.x, y: raw.y };
+      var P = raw;
+      var M = { x: (prevP.x + P.x) / 2, y: (prevP.y + P.y) / 2 };
+      var ctrl = prevP;
       var now = performance.now(), dt = Math.max(1, now - lastT);
-      var dist = Math.hypot(q.x - lastPt.x, q.y - lastPt.y), speed = dist / dt;
+      var speed = Math.hypot(P.x - lastPt.x, P.y - lastPt.y) / dt;
+
       if (b.air) {
-        var step = Math.max(2, curSize() * .18), seg = Math.max(1, Math.round(dist / step));
-        for (var s = 1; s <= seg; s++) {
-          var t = s / seg, mx = lastPt.x + (q.x - lastPt.x) * t, my = lastPt.y + (q.y - lastPt.y) * t;
-          stampAir({ x: mx, y: my });
-        }
+        var aR = Math.max(4, curSize() * (b.w || 1) * .5);
+        var aPts = quadPts(cur.x, cur.y, ctrl.x, ctrl.y, M.x, M.y, Math.max(2, aR * .16));
+        for (var a = 0; a < aPts.length; a++) stampAir(aPts[a]);
       } else if (b.erase === 'hard') {
-        eraseHard(l.ctx, q.x, q.y, curSize());
-        markBox(q.x, q.y, curSize() + 4);
+        var ePts = quadPts(cur.x, cur.y, ctrl.x, ctrl.y, M.x, M.y, Math.max(2, curSize() * .22));
+        var ex0 = cur.x, ey0 = cur.y;
+        for (var k = 0; k < ePts.length; k++) {
+          eraseSeg(l.ctx, ex0, ey0, ePts[k].x, ePts[k].y, curSize());
+          ex0 = ePts[k].x; ey0 = ePts[k].y;
+        }
+        markBox(M.x, M.y, curSize() + 4);
       } else if (b.erase === 'soft') {
         var rr = Math.max(4, curSize() * (b.w || 1) * .5);
-        airStamp(l.ctx, q.x, q.y, rr, b.alpha, true);
-        markBox(q.x, q.y, rr + 4);
+        var sPts = quadPts(cur.x, cur.y, ctrl.x, ctrl.y, M.x, M.y, Math.max(2, rr * .3));
+        for (var m = 0; m < sPts.length; m++) airStamp(l.ctx, sPts[m].x, sPts[m].y, rr, 1, true);
+        markBox(M.x, M.y, rr + 4);
       } else {
         var wv = widthFor(evts[i], speed);
-        paint(liveCtx, lastPt.x, lastPt.y, q.x, q.y, wv);
-        strokeSum += wv; strokeN++;
-        markBox(q.x, q.y, wv + 6);
+        smW = smW ? smW * .7 + wv * .3 : wv;
+        var pPts = quadPts(cur.x, cur.y, ctrl.x, ctrl.y, M.x, M.y, Math.max(.8, smW * .16));
+        var px0 = cur.x, py0 = cur.y;
+        for (var j = 0; j < pPts.length; j++) {
+          paint(liveCtx, px0, py0, pPts[j].x, pPts[j].y, Math.max(.6, smW));
+          px0 = pPts[j].x; py0 = pPts[j].y;
+        }
+        strokeSum += smW; strokeN++;
+        markBox(M.x, M.y, smW + 6);
       }
-      lastPt = q; lastT = now;
+      cur = M; prevM = M; prevP = P;
+      lastPt = { x: P.x, y: P.y }; lastT = now;
     }
     composite();
   }
   function up() {
     if (dragObj) { dragObj = null; return; }
     if (!drawing) return;
+    // 补画平滑滞后剩下的最后一小段，避免尾巴缺一截
+    var l0 = activeLayer(), b0 = B();
+    if (l0 && lastRaw && smPt && lastPt) {
+      var from = prevM || lastPt;
+      var tail = Math.hypot(lastRaw.x - from.x, lastRaw.y - from.y);
+      if (tail > .8) {
+        if (b0.air) {
+          var tAirR = Math.max(4, curSize() * (b0.w || 1) * .5);
+          var tp = segPts(from.x, from.y, lastRaw.x, lastRaw.y, Math.max(2, tAirR * .16));
+          for (var ti = 0; ti < tp.length; ti++) { stampAir(tp[ti]); }
+          markBox(lastRaw.x, lastRaw.y, curSize() + 6);
+        } else if (b0.erase === 'hard') {
+          eraseSeg(l0.ctx, from.x, from.y, lastRaw.x, lastRaw.y, curSize());
+          markBox(lastRaw.x, lastRaw.y, curSize() + 4);
+        } else if (b0.erase === 'soft') {
+          var tr = Math.max(4, curSize() * (b0.w || 1) * .5);
+          var tsp = segPts(from.x, from.y, lastRaw.x, lastRaw.y, Math.max(2, tr * .5));
+          for (var tj = 0; tj < tsp.length; tj++) airStamp(l0.ctx, tsp[tj].x, tsp[tj].y, tr, 1, true);
+          markBox(lastRaw.x, lastRaw.y, tr + 4);
+        } else if (stroking && liveCtx) {
+          var tstep = Math.max(.9, (smW || curSize()) * .16);
+          var tpp = segPts(from.x, from.y, lastRaw.x, lastRaw.y, tstep);
+          var qx = from.x, qy = from.y;
+          for (var tk = 0; tk < tpp.length; tk++) {
+            paint(liveCtx, qx, qy, tpp[tk].x, tpp[tk].y, Math.max(.6, smW || curSize()));
+            qx = tpp[tk].x; qy = tpp[tk].y;
+          }
+          markBox(lastRaw.x, lastRaw.y, (smW || curSize()) + 6);
+        }
+      }
+    }
+    lastRaw = null;
     drawing = false;
     clearInterval(dwellTimer);
     var l = activeLayer();
