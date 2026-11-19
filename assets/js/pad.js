@@ -111,6 +111,10 @@
     '.np-btn:disabled{opacity:.42;cursor:not-allowed}' +
     '.np-acts{display:flex;gap:7px;flex-wrap:wrap}' +
     '.np-acts .np-btn{flex:1;min-width:74px;text-align:center;padding:8px 8px}' +
+    '.np-opath{display:flex;align-items:center;gap:8px;padding:7px 9px 6px;border-top:1px solid #EEF1F6;font-size:11px;color:#6C7688;min-width:0}' +
+    '.np-opath>span{flex:none;white-space:nowrap}' +
+    '.np-opath input{flex:1 1 auto;min-width:40px;width:auto}' +
+    '.np-opath code{flex:none;font-size:10.5px;color:#8A93A3;min-width:34px;text-align:right}' +
     '.np-layers{border:1px solid #E6EAF2;border-radius:9px;overflow:hidden;background:#FAFBFD}' +
     '.np-lhead{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid #EDF0F6}' +
     '.np-lhead b{font-size:11.5px;letter-spacing:.08em;color:#5A6373}' +
@@ -145,11 +149,12 @@
     '.np-close{padding:6px 12px;font-size:11.5px}' +
     '.np-body{padding:0;gap:0}' +
     '.np-stage{flex:0 0 auto;min-height:0;padding:8px 8px 6px}' +
-    '.np-side{width:100%;flex:1 1 auto;max-height:none;padding:10px 12px 20px;border-top:1px solid #E7EAF1;' +
+    '.np-side{width:100%;flex:1 1 auto;max-height:none;display:block;padding:10px 12px 20px;border-top:1px solid #E7EAF1;' +
     'border-radius:14px 14px 0 0;background:#fff;box-shadow:0 -10px 26px rgba(16,24,40,.08);' +
     'overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}' +
     '.np-mobset{display:block}' +
     '.np-brushes{flex-wrap:wrap}' +
+    '@media(max-width:680px){.np-side>*+*{margin-top:8px}}' +
     '.np-chip,.np-mini{min-height:30px}' +
     '.np-btn{padding:10px 12px}' +
     '}' +
@@ -213,13 +218,16 @@
     pencil: { label: '铅笔', w: .72, alpha: 1, bleed: .10, fringe: .45, body: .14, gsz: 1.0 },
     charcoal: { label: '炭笔', w: 1.35, alpha: 1, bleed: .16, fringe: .55, body: .14, gsz: .7, rough: 2 },
     brush: { label: '毛笔', w: 1.2, alpha: 1, bleed: .6, fringe: .5, body: .12, gsz: .9 },
-    marker: { label: '马克笔', w: 1.75, alpha: 1, bleed: .06, fringe: .22, body: .04, gsz: .9, flat: true },
+    marker: { label: '马克笔', w: 1.75, alpha: .42, bleed: 0, fringe: .07, body: .02, gsz: .9, flat: true },
     eraser: { label: '橡皮', w: 1, alpha: 1, erase: 'hard' },
-    air: { label: '柔边喷枪', w: 2.2, alpha: 1, air: true },
-    airErase: { label: '喷枪橡皮', w: 2.4, alpha: 1, erase: 'soft' }
+    air: { label: '柔边喷枪', w: 3.0, alpha: 1, air: true },
+    airErase: { label: '喷枪橡皮', w: 3.1, alpha: 1, erase: 'soft' }
   };
   var SIZES = { pen: 4, ball: 3, pencil: 4.5, charcoal: 7, brush: 8, marker: 11, eraser: 30, air: 46, airErase: 56 };
   var brush = 'pen', usePressure = true, color = '#241C12';
+  var bleedLv = 50, fringeLv = 50; // 50 = 默认力度，100 ≈ 2.3 倍（很明显），0 = 关
+  function bleedK() { return bleedLv <= 50 ? bleedLv / 50 : 1 + (bleedLv - 50) / 50 * 1.3; }
+  function fringeK() { return fringeLv <= 50 ? fringeLv / 50 : 1 + (fringeLv - 50) / 50 * 1.3; }
   var PRESET_COLORS = ['#241C12', '#8C2D22', '#B4402B', '#3B4A6B', '#8A5B2A', '#5E3A22', '#6B6459', '#2F6B58'];
   function B() { return BRUSHES[brush]; }
   function curSize() { return SIZES[brush] || 4; }
@@ -377,7 +385,7 @@
   /* ---------------- 图层 ---------------- */
   function newLayer(name) {
     var c = nc(W, H);
-    return { id: ++uid, name: name, ink: c, ctx: c.getContext('2d'), objects: [], mode: 'multiply', visible: true, locked: false };
+    return { id: ++uid, name: name, ink: c, ctx: c.getContext('2d'), objects: [], mode: 'multiply', visible: true, locked: false, alpha: 1 };
   }
   function activeLayer() { return layers[active]; }
   function drawObjects(ctx, objs) {
@@ -406,15 +414,25 @@
       tc.drawImage(l.ink, 0, 0);
       drawObjects(tc, l.objects);
       actx.globalCompositeOperation = l.mode === 'multiply' ? 'multiply' : 'source-over';
+      actx.globalAlpha = (l.alpha == null ? 1 : l.alpha);
       actx.drawImage(t, 0, 0);
+      actx.globalAlpha = 1;
     }
     if (stroking && liveC) {
-      actx.globalAlpha = 1;
+      actx.globalAlpha = B().alpha;
       actx.globalCompositeOperation = 'source-over';
       actx.drawImage(liveC, 0, 0);
       actx.globalAlpha = 1;
     }
     actx.globalCompositeOperation = 'source-over';
+  }
+  function syncLayerAlpha() {
+    var rg = root.querySelector('#npLayerAlpha'), num = root.querySelector('#npLayerAlphaNum');
+    if (!rg) return;
+    var l = layers[active];
+    var v = l ? Math.round((l.alpha == null ? 1 : l.alpha) * 100) : 100;
+    rg.value = v;
+    if (num) num.textContent = v + '%';
   }
   function renderLayers() {
     var list = root.querySelector('#npLayerList');
@@ -441,6 +459,7 @@
         list.appendChild(row);
       })(i);
     }
+    syncLayerAlpha();
   }
   function structuralReset(msg) {
     hist.length = 0; pos = -1; histBytes = 0; syncUndo();
@@ -583,16 +602,19 @@
   }
   function finishStroke(layer, avgW) {
     var b = B(), bb = bboxArea();
+    var bK = bleedK(), fK = fringeK();
     // 只在笔画范围内算晕开/颗粒，2000 画布也不会卡
     txCtx.clearRect(0, 0, W, H);
     txCtx.globalCompositeOperation = 'source-over'; txCtx.globalAlpha = 1;
     txCtx.drawImage(liveC, 0, 0);
-    if (b.body > 0) applyGrain(txCtx, b.body, avgW * (b.gsz || .8), Math.floor(Math.random() * 1e6));
+    // 飞白拉满时颗粒成倍加强，出明显的干笔飞白
+    var gLv = fK <= 1 ? fK : Math.min(4, 1 + (fK - 1) * 2.2);
+    if (b.body > 0 && gLv > 0.02) applyGrain(txCtx, Math.min(1.3, b.body * gLv), avgW * (b.gsz || .8) * (0.85 + Math.min(3, gLv) * .28), Math.floor(Math.random() * 1e6));
 
     hcCtx.clearRect(0, 0, W, H);
     hcCtx.globalCompositeOperation = 'source-over'; hcCtx.globalAlpha = 1;
     hcCtx.save();
-    try { hcCtx.filter = 'blur(' + Math.max(3.4, avgW * .72) + 'px)'; } catch (e) { }
+    try { hcCtx.filter = 'blur(' + Math.max(2, avgW * .72 * (.55 + .9 * bK)) + 'px)'; } catch (e) { }
     hcCtx.drawImage(liveC, 0, 0);
     hcCtx.filter = 'none'; hcCtx.restore();
 
@@ -607,11 +629,11 @@
     frCtx.globalCompositeOperation = 'source-over';
 
     spCtx.clearRect(0, 0, W, H);
-    var n = Math.round(1200 * (bb.w * bb.h) / (720 * 720));
-    n = Math.max(400, Math.min(2400, n));
+    var n = Math.round(1200 * (bb.w * bb.h) / (720 * 720) * (.45 + fK * 1.05));
+    n = Math.max(120, Math.min(2600, n));
     for (var i = 0; i < n; i++) {
       spCtx.globalAlpha = .3 + Math.random() * .7;
-      var rr = .95 * (.35 + Math.random() * 1.15);
+      var rr = (.95 + Math.min(2.2, fK) * .55) * (.35 + Math.random() * 1.15);
       spCtx.beginPath();
       spCtx.arc(bb.x + Math.random() * bb.w, bb.y + Math.random() * bb.h, rr, 0, Math.PI * 2);
       spCtx.fillStyle = color; spCtx.fill();
@@ -624,15 +646,15 @@
     var c = layer.ctx;
     c.save(); c.globalCompositeOperation = 'multiply';
     if (b.fringe > 0) {
-      c.globalAlpha = Math.min(.42, b.fringe * .3); c.drawImage(hcC, 0, 0);
-      c.globalAlpha = Math.min(.9, b.fringe * 1.5); c.drawImage(spC, 0, 0);
+      c.globalAlpha = Math.min(.55, b.fringe * .3 * (.6 + bK * .9)); c.drawImage(hcC, 0, 0);
+      c.globalAlpha = Math.min(.95, b.fringe * 1.5 * Math.min(1, fK * 1.15)); c.drawImage(spC, 0, 0);
     }
     if (b.bleed > 0) {
-      c.globalAlpha = Math.min(.5, b.bleed * .8);
-      try { c.filter = 'blur(' + Math.max(1.2, avgW * .34) + 'px)'; } catch (e) { }
+      c.globalAlpha = Math.min(.6, b.bleed * .8 * Math.min(1.4, bK));
+      try { c.filter = 'blur(' + Math.max(1, avgW * .34 * (.55 + .9 * bK)) + 'px)'; } catch (e) { }
       c.drawImage(txC, 0, 0); c.filter = 'none';
     }
-    c.globalAlpha = 1; c.drawImage(txC, 0, 0);
+    c.globalAlpha = b.alpha; c.drawImage(txC, 0, 0);
     c.restore();
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   }
@@ -641,17 +663,19 @@
     // 核心实心、外圈羽化：单笔不发灰，叠涂也不吃色
     if (erase) {
       g.addColorStop(0, 'rgba(0,0,0,1)');
-      g.addColorStop(.24, 'rgba(0,0,0,.97)');
-      g.addColorStop(.52, 'rgba(0,0,0,.6)');
-      g.addColorStop(.8, 'rgba(0,0,0,.2)');
+      g.addColorStop(.16, 'rgba(0,0,0,1)');
+      g.addColorStop(.42, 'rgba(0,0,0,.72)');
+      g.addColorStop(.72, 'rgba(0,0,0,.3)');
+      g.addColorStop(.9, 'rgba(0,0,0,.1)');
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.globalCompositeOperation = 'destination-out';
     } else {
       var rgb = hexRGB(color);
       g.addColorStop(0, 'rgba(' + rgb + ',1)');
-      g.addColorStop(.24, 'rgba(' + rgb + ',.97)');
-      g.addColorStop(.52, 'rgba(' + rgb + ',.6)');
-      g.addColorStop(.8, 'rgba(' + rgb + ',.2)');
+      g.addColorStop(.16, 'rgba(' + rgb + ',1)');
+      g.addColorStop(.42, 'rgba(' + rgb + ',.72)');
+      g.addColorStop(.72, 'rgba(' + rgb + ',.3)');
+      g.addColorStop(.9, 'rgba(' + rgb + ',.1)');
       g.addColorStop(1, 'rgba(' + rgb + ',0)');
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -1487,6 +1511,7 @@
       layers: layers.map(function (l) {
         return {
           name: l.name, mode: l.mode, visible: l.visible, locked: l.locked,
+          alpha: (l.alpha == null ? 1 : l.alpha),
           ink: l.ink.toDataURL('image/png'),
           objs: l.objects.map(function (o) { return { x: o.x, y: o.y, w: o.w, rot: o.rot, img: imgURL(o.img) }; })
         };
@@ -1512,7 +1537,8 @@
       return {
         id: ++uid, name: l.name || '图层', ink: c, ctx: c.getContext('2d'),
         objects: [], mode: l.mode || 'multiply',
-        visible: l.visible !== false, locked: !!l.locked
+        visible: l.visible !== false, locked: !!l.locked,
+        alpha: (l.alpha == null ? 1 : l.alpha)
       };
     });
     layers = newLayers;
@@ -1579,6 +1605,16 @@
     '<input type="range" class="np-range" id="npSize" min="1" max="140" step="1" value="4">' +
     '<code class="np-num" id="npSizeNum">4</code>' +
     '<label class="np-toggle"><input type="checkbox" id="npPressure" checked>压感</label></div>' +
+    '<div class="np-row"><span class="np-lbl">晕染</span>' +
+    '<input type="range" class="np-range" id="npBleed" min="0" max="100" step="1" value="50">' +
+    '<code class="np-num" id="npBleedNum">50</code></div>' +
+    '<div class="np-row"><span class="np-lbl">飞白</span>' +
+    '<input type="range" class="np-range" id="npFringe" min="0" max="100" step="1" value="50">' +
+    '<code class="np-num" id="npFringeNum">50</code></div>' +
+    '<div class="np-row"><span class="np-lbl">笔触</span><div class="np-row" id="npFeel">' +
+    '<button class="np-mini" data-v="15">轻</button>' +
+    '<button class="np-mini on" data-v="50">标准</button>' +
+    '<button class="np-mini" data-v="100">重</button></div></div>' +
     '<div class="np-row"><span class="np-lbl">色</span><div class="np-row" id="npSwatches"></div>' +
     '<button class="np-pick" title="RGB 自选"><input type="color" id="npColor" value="#241C12"></button>' +
     '<code class="np-num" id="npHex" style="font-size:10.5px;color:#8A93A3;min-width:auto">#241C12</code></div>' +
@@ -1607,7 +1643,10 @@
     '<span class="tip" style="font-size:10.5px;color:#A6ADBA">点行切换 · ◉ 隐藏 · 锁</span>' +
     '<div class="ops"><button id="npUp">↑</button><button id="npDown">↓</button>' +
     '<button id="npAdd">＋</button><button id="npMerge">合并</button><button id="npDel">删除</button></div></div>' +
-    '<div id="npLayerList"></div></div>' +
+    '<div id="npLayerList"></div>' +
+    '<div class="np-opath"><span>图层透明度</span>' +
+    '<input type="range" class="np-range" id="npLayerAlpha" min="5" max="100" step="1" value="100">' +
+    '<code id="npLayerAlphaNum">100%</code></div></div>' +
     '</div></div>' +
     /* 动效面板 */
     '<div class="np-save" id="npAnim"><div class="np-savebox"><h4>线条抖动 · GIF</h4>' +
@@ -1702,6 +1741,41 @@
     });
     root.querySelector('#npColor').oninput = function (e) { setColor(e.target.value, null); };
     root.querySelector('#npPressure').onchange = function (e) { usePressure = e.target.checked; };
+    root.querySelector('#npBleed').oninput = function (e) {
+      bleedLv = +e.target.value;
+      root.querySelector('#npBleedNum').textContent = bleedLv;
+    };
+    root.querySelector('#npFringe').oninput = function (e) {
+      fringeLv = +e.target.value;
+      root.querySelector('#npFringeNum').textContent = fringeLv;
+      syncFeel();
+    };
+    root.querySelector('#npBleed').oninput = function (e) {
+      bleedLv = +e.target.value;
+      root.querySelector('#npBleedNum').textContent = bleedLv;
+      syncFeel();
+    };
+    function setFeel(v) {
+      bleedLv = v; fringeLv = v;
+      root.querySelector('#npBleed').value = v; root.querySelector('#npBleedNum').textContent = v;
+      root.querySelector('#npFringe').value = v; root.querySelector('#npFringeNum').textContent = v;
+      syncFeel();
+    }
+    function syncFeel() {
+      var feel = root.querySelector('#npFeel'); if (!feel) return;
+      [].forEach.call(feel.children, function (b) {
+        b.classList.toggle('on', +b.getAttribute('data-v') === bleedLv && bleedLv === fringeLv);
+      });
+    }
+    [].forEach.call(root.querySelector('#npFeel').children, function (b) {
+      b.onclick = function () { setFeel(+b.getAttribute('data-v')); };
+    });
+    root.querySelector('#npLayerAlpha').oninput = function (e) {
+      var l = layers[active]; if (!l) return;
+      l.alpha = (+e.target.value) / 100;
+      root.querySelector('#npLayerAlphaNum').textContent = e.target.value + '%';
+      composite(true);
+    };
 
     // 印章 + 贴纸 + 照片
     var stamps = root.querySelector('#npStamps');
