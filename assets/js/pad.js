@@ -567,25 +567,50 @@
     ctx.beginPath(); ctx.arc(x1, y1, Math.max(.5, w / 2), 0, Math.PI * 2); ctx.fill();
   }
   function grainMask(level, density, seed) {
-    var s = 64, c = nc(s, s), x = c.getContext('2d'), rnd = mulberry(seed || 777);
+    var s = 128, c = nc(s, s), x = c.getContext('2d'), rnd = mulberry(seed || 777);
     var img = x.createImageData(s, s), d = img.data;
     for (var i = 0; i < d.length; i += 4) {
       var v = rnd();
       d[i] = d[i + 1] = d[i + 2] = 0;
-      var th = Math.max(.18, .58 - (density || 0) * .62);
-      d[i + 3] = v > th ? Math.round((v - th) / (1 - th) * 238 * level) : 0;
+      var dv = density || 0;
+      var th = Math.max(.16, .95 - dv * dv * .78);
+      d[i + 3] = v > th ? Math.round(232 * Math.min(1, level)) : 0;
     }
     x.putImageData(img, 0, 0);
     var b = nc(128, 128), bx = b.getContext('2d');
     bx.imageSmoothingEnabled = true;
-    try { bx.filter = 'blur(.6px)'; } catch (e) { }
-    bx.drawImage(c, 0, 0, 128, 128);
+    try { bx.filter = 'blur(.3px)'; } catch (e) { }
+    bx.drawImage(c, 0, 0);
     return b;
   }
-  function applyGrain(ctx, level, px, density, seed) {
+  var gScratch = null, edgeC = null;
+  function applyGrain(ctx, level, px, density, seed, edgeMask) {
     var mask = grainMask(level, density, seed);
+    if (edgeMask) {
+      // 只在笔的边缘带上打孔：笔身内部保持实
+      if (!gScratch) gScratch = nc(W, H);
+      var g2 = gScratch.getContext('2d');
+      g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, W, H);
+      g2.globalCompositeOperation = 'source-over'; g2.globalAlpha = 1;
+      var p2 = g2.createPattern(mask, 'repeat');
+      var k2 = Math.max(.34, Math.min(1.0, (px || 6) / 9));
+      try {
+        var m2 = new DOMMatrix();
+        m2.translateSelf(Math.random() * 128, Math.random() * 128);
+        m2.scaleSelf(k2, k2); p2.setTransform(m2);
+      } catch (e) { }
+      g2.fillStyle = p2; g2.fillRect(0, 0, W, H);
+      g2.globalCompositeOperation = 'destination-in';
+      g2.drawImage(edgeMask, 0, 0);
+      g2.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1;
+      ctx.drawImage(gScratch, 0, 0);
+      ctx.restore();
+      return;
+    }
     var pat = ctx.createPattern(mask, 'repeat');
-    var k = Math.max(.62, Math.min(1.15, (px || 6) / 7));
+    var k = Math.max(.34, Math.min(1.0, (px || 6) / 9));
     try {
       var m = new DOMMatrix();
       m.translateSelf(Math.random() * 128, Math.random() * 128);
@@ -610,11 +635,25 @@
     txCtx.clearRect(0, 0, W, H);
     txCtx.globalCompositeOperation = 'source-over'; txCtx.globalAlpha = 1;
     txCtx.drawImage(liveC, 0, 0);
-    // 飞白：只加密度不加颗粒尺寸，颗粒恒定细，越重越密
-    var gLv = fK <= 1 ? fK : Math.min(6, 1 + (fK - 1) * 1.6);
-    var gpx = Math.max(4.2, Math.min(7.5, avgW * .34));
-    var gDens = Math.min(.58, .14 + .105 * Math.min(4.2, fK));
-    if (b.body > 0 && gLv > 0.02) applyGrain(txCtx, Math.min(1.02, b.body * gLv + .02), gpx, gDens, Math.floor(Math.random() * 1e6));
+    // 飞白只啃笔的边缘：笔身内部保持实，边缘越重越毛糙
+    var gLv = fK <= 1 ? fK : Math.min(8.5, 1 + (fK - 1) * 2.15);
+    var gpx = Math.max(2.3, Math.min(4.4, avgW * .19));
+    var gDens = Math.min(1, .14 + .19 * Math.min(4.8, fK));
+    var rimC = null;
+    if (b.body > 0 && gLv > 0.02) {
+      if (!edgeC) edgeC = nc(W, H);
+      var ec = edgeC.getContext('2d');
+      ec.setTransform(1, 0, 0, 1, 0, 0); ec.clearRect(0, 0, W, H);
+      ec.globalCompositeOperation = 'source-over'; ec.globalAlpha = 1;
+      ec.drawImage(liveC, 0, 0);
+      ec.globalCompositeOperation = 'destination-out';
+      var rimR = avgW * (.12 + .04 * Math.max(0, Math.min(2.3, fK - 1)));
+      try { ec.filter = 'blur(' + Math.max(1.8, rimR) + 'px)'; } catch (e) { }
+      ec.drawImage(liveC, 0, 0);
+      ec.filter = 'none'; ec.globalCompositeOperation = 'source-over';
+      rimC = edgeC;
+      applyGrain(txCtx, Math.min(1, b.body * gLv + .02), gpx, gDens, Math.floor(Math.random() * 1e6), rimC);
+    }
 
     hcCtx.clearRect(0, 0, W, H);
     hcCtx.globalCompositeOperation = 'source-over'; hcCtx.globalAlpha = 1;
@@ -998,6 +1037,7 @@
     frC = nc(W, H); frCtx = frC.getContext('2d');
     spC = nc(W, H); spCtx = spC.getContext('2d');
     hcC = nc(W, H); hcCtx = hcC.getContext('2d');
+    edgeC = nc(W, H); gScratch = null;
     beforeBuf = nc(W, H); beforeCtx = beforeBuf.getContext('2d');
   }
   function applySize(w, h, keep) {
