@@ -128,6 +128,31 @@
     'background:#fff;cursor:pointer;font-family:inherit}' +
     '.np-lyr .bd.mult{background:#1F2A44;color:#fff;border-color:#1F2A44}' +
     '.np-tip{font-size:10.5px;color:#A6ADBA;line-height:1.6}' +
+    '.np-mobset{display:none}' +
+    '.np-mobset{padding:10px;border:1px solid #E7EAF1;border-radius:10px;background:#FAFBFD;margin:2px 0 2px}' +
+    '.np-mobh{display:flex;align-items:center;gap:8px;margin-bottom:6px}' +
+    '.np-mobh b{font-size:12.5px}' +
+    '.np-mobh span{font-size:10.5px;color:#9AA0AE}' +
+    '.np-mobset .np-row{flex-wrap:wrap}' +
+    '.np-mobacts{display:flex;gap:8px;margin-top:8px}' +
+    'html.ndt-pad-lock,html.ndt-pad-lock body{overscroll-behavior:none;overscroll-behavior-y:none}' +
+    '#ndtpad{overscroll-behavior:none}' +
+    /* —— 手机：画布独占上方，笔刷/设置/图层在下并可滚动 —— */
+    '@media(max-width:680px){' +
+    '.np-head{padding:8px 10px;gap:6px;flex-wrap:nowrap}' +
+    '.np-head h3{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54vw}' +
+    '.np-headset,.np-mobhide{display:none!important}' +
+    '.np-close{padding:6px 12px;font-size:11.5px}' +
+    '.np-body{padding:0;gap:0}' +
+    '.np-stage{flex:0 0 auto;min-height:0;padding:8px 8px 6px}' +
+    '.np-side{width:100%;flex:1 1 auto;max-height:none;padding:10px 12px 20px;border-top:1px solid #E7EAF1;' +
+    'border-radius:14px 14px 0 0;background:#fff;box-shadow:0 -10px 26px rgba(16,24,40,.08);' +
+    'overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}' +
+    '.np-mobset{display:block}' +
+    '.np-brushes{flex-wrap:wrap}' +
+    '.np-chip,.np-mini{min-height:30px}' +
+    '.np-btn{padding:10px 12px}' +
+    '}' +
     '.np-toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);z-index:2147483001;' +
     'background:rgba(24,30,46,.94);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:9px;' +
     'opacity:0;transition:.2s;pointer-events:none;max-width:82vw;text-align:center}' +
@@ -843,6 +868,7 @@
     drawPaper();
     layoutView();
     structuralReset(keep ? '画布已按比例缩放，撤销记录已清空' : '画布尺寸已切换');
+    syncChips();
     composite(true);
     fitCanvas();
   }
@@ -852,7 +878,10 @@
     var availW = box.clientWidth, availH = box.clientHeight;
     var ratio = W / H;
     var w = availW, h = w / ratio;
-    if (h > availH) { h = availH; w = h * ratio; }
+    // 手机端：画布撑满宽度，高度按比例自然撑开，剩下的空间留给下方工具面板
+    if (window.innerWidth > 680) {
+      if (h > availH) { h = availH; w = h * ratio; }
+    }
     wrap.style.width = Math.floor(w) + 'px';
     wrap.style.height = Math.floor(h) + 'px';
     paintView();
@@ -1417,7 +1446,7 @@
     function tick() {
       if (--pending > 0) return;
       active = Math.min(st.active || 0, layers.length - 1);
-      drawPaper(); layoutView(); renderLayers(); structuralReset(); composite(true);
+      drawPaper(); layoutView(); renderLayers(); structuralReset(); syncChips(); composite(true);
       requestAnimationFrame(function () { fitCanvas(); });
       if (done) done();
     }
@@ -1440,10 +1469,10 @@
     '<div class="np-head">' +
     '<h3>绘制通缉画像 · <span id="npTitleName">吕良</span></h3>' +
     '<span class="sp"></span>' +
-    '<div class="np-row" id="npSizes"></div>' +
-    '<div class="np-row" id="npPapers"></div>' +
-    '<button class="np-slotbtn" id="npAnimOpen">动效</button>' +
-    '<button class="np-slotbtn" id="npSaveOpen">存档</button>' +
+    '<div class="np-row np-headset" id="npSizes"></div>' +
+    '<div class="np-row np-headset" id="npPapers"></div>' +
+    '<button class="np-slotbtn np-mobhide" id="npAnimOpen">动效</button>' +
+    '<button class="np-slotbtn np-mobhide" id="npSaveOpen">存档</button>' +
     '<button class="np-close" id="npClose">关闭</button>' +
     '</div>' +
     '<div class="np-body">' +
@@ -1468,6 +1497,12 @@
     '<input type="range" id="npStkSize" min="40" max="600" value="150">' +
     '<input type="range" id="npStkRot" min="-180" max="180" value="-8">' +
     '<button class="np-mini" id="npStkDel">删除</button><button class="np-mini" id="npStkDone">完成</button></div>' +
+    '<div class="np-mobset" id="npMobSet">' +
+    '<div class="np-mobh"><b>画布</b><span>尺寸 / 纸</span></div>' +
+    '<div class="np-row" id="npSizesM"></div>' +
+    '<div class="np-row" id="npPapersM"></div>' +
+    '<div class="np-mobacts"><button class="np-slotbtn" id="npAnimOpenM">动效</button>' +
+    '<button class="np-slotbtn" id="npSaveOpenM">存档</button></div></div>' +
     '<div class="np-acts">' +
     '<button class="np-btn" id="npUndo" disabled>上一步</button>' +
     '<button class="np-btn" id="npRedo" disabled>下一步</button>' +
@@ -1481,7 +1516,6 @@
     '<div class="ops"><button id="npUp">↑</button><button id="npDown">↓</button>' +
     '<button id="npAdd">＋</button><button id="npMerge">合并</button><button id="npDel">删除</button></div></div>' +
     '<div id="npLayerList"></div></div>' +
-    '<div class="np-tip">凑近看颗粒：包浆感来自笔刷本身。取景框内的部分才会进卡片。</div>' +
     '</div></div>' +
     /* 动效面板 */
     '<div class="np-save" id="npAnim"><div class="np-savebox"><h4>线条抖动 · GIF</h4>' +
@@ -1515,6 +1549,12 @@
     root.id = 'ndtpad';
     root.innerHTML = UI;
     document.body.appendChild(root);
+    // 画板内禁止「下拉刷新」手势，但右侧/下方面板仍可滚动
+    root.addEventListener('touchmove', function (e) {
+      var t = e.target;
+      if (t && t.closest && (t.closest('.np-side') || t.closest('.np-savebox') || t.closest('.np-cbox'))) return;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
 
     wrap = root.querySelector('#npWrap');
     paperC = root.querySelector('#npPaper'); artC = root.querySelector('#npArt'); grainC = root.querySelector('#npGrain');
@@ -1522,26 +1562,30 @@
     viewBox = root.querySelector('#npView');
     [paperC, artC, grainC].forEach(function (c) { c.width = W; c.height = H; });
 
-    // 尺寸档位
-    var sizesWrap = root.querySelector('#npSizes');
-    PRESETS.forEach(function (p, i) {
-      var b = el('button', 'np-mini' + (i === 0 ? ' on' : ''), p.label + ' ' + p.w + '×' + p.h);
-      b.onclick = function () {
-        [].forEach.call(sizesWrap.children, function (x) { x.classList.toggle('on', x === b); });
-        applySize(p.w, p.h, true);
-      };
-      sizesWrap.appendChild(b);
+    // 尺寸档位（桌面放顶部，手机放下方「画布」块，两套同步）
+    var sizeBoxes = [root.querySelector('#npSizes'), root.querySelector('#npSizesM')].filter(Boolean);
+    sizeBoxes.forEach(function (box) {
+      PRESETS.forEach(function (p) {
+        var b = el('button', 'np-mini', p.label + ' ' + p.w + '×' + p.h);
+        b.setAttribute('data-w', p.w);
+        b.setAttribute('data-h', p.h);
+        b.onclick = function () { applySize(p.w, p.h, true); };
+        box.appendChild(b);
+      });
     });
 
     // 纸
-    var papersWrap = root.querySelector('#npPapers');
-    [['pure', '纯白'], ['white', '素白'], ['note', '笔记本'], ['kraft', '牛皮纸']].forEach(function (pp, i) {
-      var b = el('button', 'np-mini' + (i === 0 ? ' on' : ''), pp[1]);
-      b.onclick = function () {
-        [].forEach.call(papersWrap.children, function (x) { x.classList.toggle('on', x === b); });
-        paperKind = pp[0]; drawPaper(); composite(true);
-      };
-      papersWrap.appendChild(b);
+    var PAPER_DEFS = [['pure', '纯白'], ['white', '素白'], ['note', '笔记本'], ['kraft', '牛皮纸']];
+    var paperBoxes = [root.querySelector('#npPapers'), root.querySelector('#npPapersM')].filter(Boolean);
+    paperBoxes.forEach(function (box) {
+      PAPER_DEFS.forEach(function (pp) {
+        var b = el('button', 'np-mini', pp[1]);
+        b.setAttribute('data-kind', pp[0]);
+        b.onclick = function () {
+          paperKind = pp[0]; drawPaper(); syncChips(); composite(true);
+        };
+        box.appendChild(b);
+      });
     });
 
     // 笔
@@ -1667,10 +1711,13 @@
     };
 
     /* ---- 存档位 ---- */
-    root.querySelector('#npAnimOpen').onclick = function () {
-      root.querySelector('#npAnim').classList.add('on');
-    };
+    function openAnimPanel() { root.querySelector('#npAnim').classList.add('on'); }
+    root.querySelector('#npAnimOpen').onclick = openAnimPanel;
+    var animM = root.querySelector('#npAnimOpenM');
+    if (animM) animM.onclick = openAnimPanel;
     root.querySelector('#npSaveOpen').onclick = function () { openSavePanel(); };
+    var saveM = root.querySelector('#npSaveOpenM');
+    if (saveM) saveM.onclick = function () { openSavePanel(); };
     root.querySelector('#npAnimShut').onclick = function () {
       root.querySelector('#npAnim').classList.remove('on');
     };
@@ -1756,6 +1803,17 @@
     root.querySelector('#npHex').textContent = c.toUpperCase();
     root.querySelector('#npColor').value = c;
     [].forEach.call(root.querySelector('#npSwatches').children, function (x) { x.classList.toggle('on', x === btn); });
+  }
+  function syncChips() {
+    if (!root) return;
+    var sz = root.querySelectorAll('#npSizes .np-mini, #npSizesM .np-mini');
+    [].forEach.call(sz, function (b) {
+      b.classList.toggle('on', +b.getAttribute('data-w') === W && +b.getAttribute('data-h') === H);
+    });
+    var pp = root.querySelectorAll('#npPapers .np-mini, #npPapersM .np-mini');
+    [].forEach.call(pp, function (b) {
+      b.classList.toggle('on', b.getAttribute('data-kind') === paperKind);
+    });
   }
   function syncSize() {
     var s = curSize();
@@ -1879,9 +1937,11 @@
         active = 0;
         renderLayers(); composite(true);
         layoutView();
+        syncChips();
       }
       setMeta(OPTS.meta || {});
       root.classList.add('on');
+      document.documentElement.classList.add('ndt-pad-lock');
       document.documentElement.style.overflow = 'hidden';
       requestAnimationFrame(function () {
         fitCanvas(); paintView(); syncSize(); syncUndo();
@@ -1901,6 +1961,7 @@
     close: function () {
       if (!root) return;
       root.classList.remove('on');
+      document.documentElement.classList.remove('ndt-pad-lock');
       document.documentElement.style.overflow = '';
       if (OPTS.onClose) OPTS.onClose();
     },
