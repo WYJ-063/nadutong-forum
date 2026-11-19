@@ -4655,7 +4655,7 @@ viewService = function(){ return viewShipForm(); };
     if (padLoading) { setTimeout(function () { ensurePad(cb); }, 150); return; }
     padLoading = true;
     var sc = document.createElement('script');
-    sc.src = './assets/js/pad.js?v=116';
+    sc.src = './assets/js/pad.js?v=117';
     sc.onload = function () { padLoading = false; cb(); };
     sc.onerror = function () { padLoading = false; toast('画板加载失败，检查网络后重试'); };
     document.head.appendChild(sc);

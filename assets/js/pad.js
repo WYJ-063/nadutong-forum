@@ -115,6 +115,7 @@
     '.np-opath>span{flex:none;white-space:nowrap}' +
     '.np-opath input{flex:1 1 auto;min-width:40px;width:auto}' +
     '.np-opath code{flex:none;font-size:10.5px;color:#8A93A3;min-width:34px;text-align:right}' +
+    '.np-select{flex:1;min-width:0;height:28px;border:1px solid #D9DEE8;border-radius:8px;background:#fff;color:#3A4354;font-size:12px;font-family:inherit;padding:0 8px;outline:none;cursor:pointer}' +
     '.np-layers{border:1px solid #E6EAF2;border-radius:9px;overflow:hidden;background:#FAFBFD}' +
     '.np-lhead{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid #EDF0F6}' +
     '.np-lhead b{font-size:11.5px;letter-spacing:.08em;color:#5A6373}' +
@@ -225,9 +226,10 @@
   };
   var SIZES = { pen: 4, ball: 3, pencil: 4.5, charcoal: 7, brush: 8, marker: 11, eraser: 30, air: 46, airErase: 56 };
   var brush = 'pen', usePressure = true, color = '#241C12';
-  var bleedLv = 50, fringeLv = 50; // 50 = 默认力度，100 ≈ 2.3 倍（很明显），0 = 关
-  function bleedK() { return bleedLv <= 50 ? bleedLv / 50 : 1 + (bleedLv - 50) / 50 * 1.3; }
-  function fringeK() { return fringeLv <= 50 ? fringeLv / 50 : 1 + (fringeLv - 50) / 50 * 1.3; }
+  var bleedLv = 50, fringeLv = 50; // 50 = 标准，200 ≈ 4.5 倍，0 = 关
+  var edgeMode = 0; // 0 无扩散 / 1 柔化 / 2 毛边 / 3 水渍
+  function bleedK() { return bleedLv <= 50 ? bleedLv / 50 : 1 + (bleedLv - 50) / 150 * 3.5; }
+  function fringeK() { return fringeLv <= 50 ? fringeLv / 50 : 1 + (fringeLv - 50) / 150 * 3.5; }
   var PRESET_COLORS = ['#241C12', '#8C2D22', '#B4402B', '#3B4A6B', '#8A5B2A', '#5E3A22', '#6B6459', '#2F6B58'];
   function B() { return BRUSHES[brush]; }
   function curSize() { return SIZES[brush] || 4; }
@@ -564,13 +566,14 @@
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(x1, y1, Math.max(.5, w / 2), 0, Math.PI * 2); ctx.fill();
   }
-  function grainMask(level, seed) {
+  function grainMask(level, density, seed) {
     var s = 64, c = nc(s, s), x = c.getContext('2d'), rnd = mulberry(seed || 777);
     var img = x.createImageData(s, s), d = img.data;
     for (var i = 0; i < d.length; i += 4) {
       var v = rnd();
       d[i] = d[i + 1] = d[i + 2] = 0;
-      d[i + 3] = v > .52 ? Math.round((v - .52) / .48 * 238 * level) : 0;
+      var th = Math.max(.18, .58 - (density || 0) * .62);
+      d[i + 3] = v > th ? Math.round((v - th) / (1 - th) * 238 * level) : 0;
     }
     x.putImageData(img, 0, 0);
     var b = nc(128, 128), bx = b.getContext('2d');
@@ -579,10 +582,10 @@
     bx.drawImage(c, 0, 0, 128, 128);
     return b;
   }
-  function applyGrain(ctx, level, px, seed) {
-    var mask = grainMask(level, seed);
+  function applyGrain(ctx, level, px, density, seed) {
+    var mask = grainMask(level, density, seed);
     var pat = ctx.createPattern(mask, 'repeat');
-    var k = Math.max(.85, Math.min(2.2, (px || 6) / 8));
+    var k = Math.max(.62, Math.min(1.15, (px || 6) / 7));
     try {
       var m = new DOMMatrix();
       m.translateSelf(Math.random() * 128, Math.random() * 128);
@@ -607,21 +610,25 @@
     txCtx.clearRect(0, 0, W, H);
     txCtx.globalCompositeOperation = 'source-over'; txCtx.globalAlpha = 1;
     txCtx.drawImage(liveC, 0, 0);
-    // 飞白拉满时颗粒成倍加强，出明显的干笔飞白
-    var gLv = fK <= 1 ? fK : Math.min(4, 1 + (fK - 1) * 2.2);
-    if (b.body > 0 && gLv > 0.02) applyGrain(txCtx, Math.min(1.3, b.body * gLv), avgW * (b.gsz || .8) * (0.85 + Math.min(3, gLv) * .28), Math.floor(Math.random() * 1e6));
+    // 飞白：只加密度不加颗粒尺寸，颗粒恒定细，越重越密
+    var gLv = fK <= 1 ? fK : Math.min(6, 1 + (fK - 1) * 1.6);
+    var gpx = Math.max(4.2, Math.min(7.5, avgW * .34));
+    var gDens = Math.min(.58, .14 + .105 * Math.min(4.2, fK));
+    if (b.body > 0 && gLv > 0.02) applyGrain(txCtx, Math.min(1.02, b.body * gLv + .02), gpx, gDens, Math.floor(Math.random() * 1e6));
 
     hcCtx.clearRect(0, 0, W, H);
     hcCtx.globalCompositeOperation = 'source-over'; hcCtx.globalAlpha = 1;
     hcCtx.save();
-    try { hcCtx.filter = 'blur(' + Math.max(2, avgW * .72 * (.55 + .9 * bK)) + 'px)'; } catch (e) { }
+    var eblur = edgeMode === 1 ? 2.6 : edgeMode === 3 ? 2.3 : edgeMode === 2 ? 1.1 : 1;
+    try { hcCtx.filter = 'blur(' + Math.max(2, avgW * .72 * (.55 + .9 * bK) * eblur) + 'px)'; } catch (e) { }
     hcCtx.drawImage(liveC, 0, 0);
     hcCtx.filter = 'none'; hcCtx.restore();
 
     frCtx.clearRect(0, 0, W, H);
     frCtx.globalCompositeOperation = 'source-over'; frCtx.globalAlpha = 1;
     frCtx.save();
-    try { frCtx.filter = 'blur(' + Math.max(1.8, avgW * .26) + 'px)'; } catch (e) { }
+    var frR = avgW * .26 * (edgeMode === 3 ? 3.2 : edgeMode === 1 ? 1.7 : edgeMode === 2 ? 1.15 : 1);
+    try { frCtx.filter = 'blur(' + Math.max(1.8, frR) + 'px)'; } catch (e) { }
     frCtx.drawImage(liveC, 0, 0);
     frCtx.filter = 'none'; frCtx.restore();
     frCtx.globalCompositeOperation = 'destination-out';
@@ -633,7 +640,7 @@
     n = Math.max(120, Math.min(2600, n));
     for (var i = 0; i < n; i++) {
       spCtx.globalAlpha = .3 + Math.random() * .7;
-      var rr = (.95 + Math.min(2.2, fK) * .55) * (.35 + Math.random() * 1.15);
+      var rr = .75 + Math.random() * 1.05;
       spCtx.beginPath();
       spCtx.arc(bb.x + Math.random() * bb.w, bb.y + Math.random() * bb.h, rr, 0, Math.PI * 2);
       spCtx.fillStyle = color; spCtx.fill();
@@ -646,15 +653,49 @@
     var c = layer.ctx;
     c.save(); c.globalCompositeOperation = 'multiply';
     if (b.fringe > 0) {
-      c.globalAlpha = Math.min(.55, b.fringe * .3 * (.6 + bK * .9)); c.drawImage(hcC, 0, 0);
-      c.globalAlpha = Math.min(.95, b.fringe * 1.5 * Math.min(1, fK * 1.15)); c.drawImage(spC, 0, 0);
+      var ehalo = edgeMode === 1 ? 1.85 : edgeMode === 3 ? 1.7 : edgeMode === 2 ? 1.25 : 1;
+      var esp = edgeMode === 2 ? 2.3 : 1;
+      c.globalAlpha = Math.min(.62, b.fringe * .3 * (.6 + bK * .9) * ehalo); c.drawImage(hcC, 0, 0);
+      if (edgeMode === 2) {
+        // 毛边：同一笔错位重描，边线毛糙
+        c.globalAlpha = Math.min(.3, b.fringe * .22);
+        c.drawImage(hcC, 1.6, -1.4); c.drawImage(hcC, -1.2, 1.8);
+      }
+      if (edgeMode === 3) {
+        // 水渍：一圈明显的水线
+        c.globalAlpha = Math.min(.5, .2 + b.fringe * .16); c.drawImage(frC, 0, 0);
+        try { c.filter = 'blur(' + Math.max(1, avgW * .5) + 'px)'; } catch (e) { }
+        c.globalAlpha = Math.min(.42, .16 + b.fringe * .1); c.drawImage(txC, 0, 0); c.filter = 'none';
+      }
+      c.globalAlpha = Math.min(.95, b.fringe * 1.5 * esp * Math.min(1, fK * 1.15)); c.drawImage(spC, 0, 0);
     }
     if (b.bleed > 0) {
       c.globalAlpha = Math.min(.6, b.bleed * .8 * Math.min(1.4, bK));
       try { c.filter = 'blur(' + Math.max(1, avgW * .34 * (.55 + .9 * bK)) + 'px)'; } catch (e) { }
       c.drawImage(txC, 0, 0); c.filter = 'none';
     }
-    c.globalAlpha = b.alpha; c.drawImage(txC, 0, 0);
+    // 边缘扩散滤镜：直接作用在笔身轮廓上，四种效果肉眼可辨
+    if (edgeMode === 1) {
+      // 柔化：轮廓整体化开，边界不再锐利
+      c.globalAlpha = .2;
+      try { c.filter = 'blur(' + (2 + avgW * .55) + 'px)'; } catch (e) { }
+      c.drawImage(txC, 0, 0); c.filter = 'none';
+    } else if (edgeMode === 2) {
+      // 毛边：轮廓错位重描，边缘毛糙有碎墨
+      c.globalAlpha = .22;
+      c.drawImage(txC, avgW * .16, -avgW * .12);
+      c.drawImage(txC, -avgW * .14, avgW * .15);
+      try { c.filter = 'blur(' + (1.4 + avgW * .1) + 'px)'; } catch (e) { }
+      c.globalAlpha = .24; c.drawImage(txC, 0, 0); c.filter = 'none';
+    } else if (edgeMode === 3) {
+      // 水渍：轮廓化开 + 一圈深色水线
+      c.globalAlpha = .38;
+      try { c.filter = 'blur(' + (3 + avgW * .7) + 'px)'; } catch (e) { }
+      c.drawImage(txC, 0, 0); c.filter = 'none';
+      c.globalAlpha = .42; c.drawImage(frC, 0, 0);
+    }
+    var bodyA = b.alpha * (edgeMode === 3 ? .92 : 1);
+    c.globalAlpha = bodyA; c.drawImage(txC, 0, 0);
     c.restore();
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   }
@@ -1606,15 +1647,19 @@
     '<code class="np-num" id="npSizeNum">4</code>' +
     '<label class="np-toggle"><input type="checkbox" id="npPressure" checked>压感</label></div>' +
     '<div class="np-row"><span class="np-lbl">晕染</span>' +
-    '<input type="range" class="np-range" id="npBleed" min="0" max="100" step="1" value="50">' +
+    '<input type="range" class="np-range" id="npBleed" min="0" max="200" step="1" value="50">' +
     '<code class="np-num" id="npBleedNum">50</code></div>' +
     '<div class="np-row"><span class="np-lbl">飞白</span>' +
-    '<input type="range" class="np-range" id="npFringe" min="0" max="100" step="1" value="50">' +
+    '<input type="range" class="np-range" id="npFringe" min="0" max="200" step="1" value="50">' +
     '<code class="np-num" id="npFringeNum">50</code></div>' +
     '<div class="np-row"><span class="np-lbl">笔触</span><div class="np-row" id="npFeel">' +
-    '<button class="np-mini" data-v="15">轻</button>' +
+    '<button class="np-mini" data-v="25">轻</button>' +
     '<button class="np-mini on" data-v="50">标准</button>' +
-    '<button class="np-mini" data-v="100">重</button></div></div>' +
+    '<button class="np-mini" data-v="200">重</button></div></div>' +
+    '<div class="np-row"><span class="np-lbl">边缘</span>' +
+    '<select class="np-select" id="npEdge">' +
+    '<option value="0">无扩散</option><option value="1">柔化</option>' +
+    '<option value="2">毛边</option><option value="3">水渍</option></select></div>' +
     '<div class="np-row"><span class="np-lbl">色</span><div class="np-row" id="npSwatches"></div>' +
     '<button class="np-pick" title="RGB 自选"><input type="color" id="npColor" value="#241C12"></button>' +
     '<code class="np-num" id="npHex" style="font-size:10.5px;color:#8A93A3;min-width:auto">#241C12</code></div>' +
@@ -1755,6 +1800,8 @@
       root.querySelector('#npBleedNum').textContent = bleedLv;
       syncFeel();
     };
+    var edgeSel = root.querySelector('#npEdge');
+    if (edgeSel) edgeSel.onchange = function (e) { edgeMode = +e.target.value; };
     function setFeel(v) {
       bleedLv = v; fringeLv = v;
       root.querySelector('#npBleed').value = v; root.querySelector('#npBleedNum').textContent = v;
