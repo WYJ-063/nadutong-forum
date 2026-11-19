@@ -4520,7 +4520,6 @@ viewService = function(){ return viewShipForm(); };
   window.__NDT_PAD108 = true;
 
   var STORE_KEY = 'ndt-wanted-art-v1';
-  var PAD_SRC = './assets/pad.html';
   var metaById = {};
   var mask = null, frame = null, pending = null, curCard = null;
 
@@ -4649,67 +4648,43 @@ viewService = function(){ return viewShipForm(); };
     return meta;
   }
 
-  /* ---------- 画板开关 ---------- */
+  /* ---------- 画板开关（v112：站内内置模块，无 iframe） ---------- */
+  var padLoading = false;
+  function ensurePad(cb) {
+    if (window.NDTPad) { cb(); return; }
+    if (padLoading) { setTimeout(function () { ensurePad(cb); }, 150); return; }
+    padLoading = true;
+    var sc = document.createElement('script');
+    sc.src = './assets/js/pad.js?v=112';
+    sc.onload = function () { padLoading = false; cb(); };
+    sc.onerror = function () { padLoading = false; toast('画板加载失败，检查网络后重试'); };
+    document.head.appendChild(sc);
+  }
+
   function openPad(card) {
     addStyle();
     var id = card.getAttribute('data-ndt-id');
-    pending = { id: id, meta: readMeta(card) };
-    curCard = card;
-
-    if (mask) {
-      if (frame && frame.contentWindow) {
-        frame.contentWindow.postMessage({ type: 'ndt-pad-meta', id: pending.id, meta: pending.meta }, '*');
-      }
-      return;
-    }
-
-    mask = document.createElement('div');
-    mask.className = 'ndt-pad-mask';
-    frame = document.createElement('iframe');
-    frame.className = 'ndt-pad-frame';
-    frame.setAttribute('title', '通缉画像工作台');
-    frame.setAttribute('allow', 'clipboard-write; web-share');
-    frame.src = PAD_SRC;
-    mask.appendChild(frame);
-    document.body.appendChild(mask);
-    document.documentElement.classList.add('ndt-pad-lock');
-    document.body.classList.add('ndt-pad-lock');
+    var meta = readMeta(card);
+    ensurePad(function () {
+      document.documentElement.classList.add('ndt-pad-lock');
+      document.body.classList.add('ndt-pad-lock');
+      NDTPad.open({
+        id: id,
+        meta: meta,
+        onStick: function (wid, data) { setArt(wid, data); paintCard(wid); },
+        onClose: function () {
+          document.documentElement.classList.remove('ndt-pad-lock');
+          document.body.classList.remove('ndt-pad-lock');
+        }
+      });
+    });
   }
 
   function closePad() {
-    if (!mask) return;
-    try { frame.src = 'about:blank'; } catch (e) {}
-    if (mask.parentNode) mask.parentNode.removeChild(mask);
-    mask = null; frame = null; pending = null; curCard = null;
+    if (window.NDTPad && NDTPad.isOpen()) NDTPad.close();
     document.documentElement.classList.remove('ndt-pad-lock');
     document.body.classList.remove('ndt-pad-lock');
   }
-
-  /* ---------- 消息：与画板页通信 ---------- */
-  window.addEventListener('message', function (e) {
-    var d = e.data || {};
-    if (!d || typeof d !== 'object' || !d.type) return;
-    if (d.type === 'ndt-pad-ready') {
-      if (!frame || !frame.contentWindow) return;
-      if (pending) frame.contentWindow.postMessage({ type: 'ndt-pad-meta', id: pending.id, meta: pending.meta }, '*');
-      return;
-    }
-    if (d.type === 'ndt-pad-close') { closePad(); return; }
-    if (d.type === 'ndt-pad-stick') {
-      if (!d.id || !d.data) return;
-      setArt(d.id, d.data);
-      paintCard(d.id);
-      toast('画像已贴到这张通缉令（只保存在本机）');
-      return;
-    }
-    if (d.type === 'ndt-pad-saved') {
-      toast(d.kind === 'poster' ? '通缉令已保存，可长按图片分享' : '通缉照已保存');
-    }
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && mask) closePad();
-  }, true);
 
   /* ---------- 点相纸看大图 ---------- */
   function openViewer(src, code) {
